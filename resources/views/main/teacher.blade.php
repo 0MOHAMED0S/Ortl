@@ -218,7 +218,7 @@
     <nav class="navbar fixed-top">
         <div class="container">
             <a  href="#"><img  width="50px" height="50px" src="{{ asset('images/wrtlv3.png') }}" alt="ورتل"></a>
-            <a href="index.html" class="back-link">
+            <a href="{{ route('welcome') }}" class="back-link">
                 العودة للرئيسية <i class="fa-solid fa-arrow-left"></i>
             </a>
         </div>

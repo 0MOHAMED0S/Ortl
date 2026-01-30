@@ -324,7 +324,7 @@
                     <li class="nav-item"><a class="nav-link" href="#packages">الأسعار</a></li>
                 </ul>
                 <div class="d-flex flex-column flex-lg-row align-items-center">
-                    <a href="#" class="nav-link-teacher"><i class="fa-solid fa-chalkboard-user ms-1"></i> انضم كمعلم</a>
+                    <a href="{{ route('teacher.index') }}" class="nav-link-teacher"><i class="fa-solid fa-chalkboard-user ms-1"></i> انضم كمعلم</a>
                     <button class="btn-nav-cta">حمل التطبيق <i class="fa-solid fa-arrow-down-long ms-2"></i></button>
                 </div>
             </div>
@@ -348,10 +348,10 @@
                         <a href="#" class="store-btn store-btn-dark" style="background: var(--primary-dark); border: 1px solid transparent;"><i class="fab fa-apple store-btn-icon"></i><div class="store-btn-text"><span class="store-btn-small">تطبيق المعلم</span><span class="store-btn-big">App Store</span></div></a>
                         <a href="#" class="store-btn store-btn-light" style="border-color: var(--primary-dark); color: var(--primary-dark);"><i class="fab fa-google-play store-btn-icon"></i><div class="store-btn-text"><span class="store-btn-small">تطبيق المعلم</span><span class="store-btn-big">Google Play</span></div></a>
                     </div>
-                    <div class="mt-4" data-aos="fade-in" data-aos-delay="1000"><a href="#" class="text-decoration-none fw-bold small text-muted">هل ترغب في الانضمام لفريقنا؟ <span style="color: var(--gold-main); text-decoration: underline;">قدم طلبك الآن <i class="fa-solid fa-arrow-left"></i></span></a></div>
+                    <div class="mt-4" data-aos="fade-in" data-aos-delay="1000"><a href="{{ route('teacher.index') }}" class="text-decoration-none fw-bold small text-muted">هل ترغب في الانضمام لفريقنا؟ <span style="color: var(--gold-main); text-decoration: underline;">قدم طلبك الآن <i class="fa-solid fa-arrow-left"></i></span></a></div>
                 </div>
                 <div class="col-lg-6 text-center" data-aos="zoom-in" data-aos-duration="1200" data-aos-delay="300">
-                    <div class="hero-image-wrapper"><img src="./images/Screenshot_2026-01-29-09-00-49-409_com.tlqyAlQural.jpg.jpeg" alt="App UI" class="hero-phone"></div>
+                    <div class="hero-image-wrapper"><img src="{{ asset('images/Screenshot_2026-01-29-09-00-49-409_com.tlqyAlQural.jpg.jpeg') }}" alt="App UI" class="hero-phone"></div>
                 </div>
             </div>
         </div>
