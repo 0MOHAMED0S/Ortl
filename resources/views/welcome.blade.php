@@ -351,7 +351,7 @@
                     <div class="mt-4" data-aos="fade-in" data-aos-delay="1000"><a href="{{ route('teacher.index') }}" class="text-decoration-none fw-bold small text-muted">هل ترغب في الانضمام لفريقنا؟ <span style="color: var(--gold-main); text-decoration: underline;">قدم طلبك الآن <i class="fa-solid fa-arrow-left"></i></span></a></div>
                 </div>
                 <div class="col-lg-6 text-center" data-aos="zoom-in" data-aos-duration="1200" data-aos-delay="300">
-                    <div class="hero-image-wrapper"><img src="{{ asset('images/Screenshot_2026-01-29-09-00-49-409_com.tlqyAlQural.jpg.jpeg') }}" alt="App UI" class="hero-phone"></div>
+                    <div class="hero-image-wrapper"><img src="{{ asset('images/main.jpeg') }}" alt="App UI" class="hero-phone"></div>
                 </div>
             </div>
         </div>
