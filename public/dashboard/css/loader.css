@@ -1,0 +1,72 @@
+        /* =========================================
+           1. CINEMATIC LOADER
+           ========================================= */
+        #loader-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            z-index: 9999999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.9s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+
+        .loader-brand {
+            font-size: clamp(3rem, 10vw, 5rem);
+            font-weight: 900;
+            line-height: 1;
+            position: relative;
+            color: #f3f3f3;
+            margin: 0;
+            letter-spacing: -2px;
+        }
+
+        .loader-brand::before {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            color: var(--primary-dark);
+            border-right: 4px solid var(--gold-main);
+            overflow: hidden;
+            animation: fillText 2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            white-space: nowrap;
+        }
+
+        .loader-sub {
+            margin-top: 10px;
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
+            color: var(--gold-main);
+            font-weight: 700;
+            opacity: 0;
+            transform: translateY(15px);
+            animation: fadeUp 0.8s ease forwards 1.5s;
+            text-align: center;
+        }
+
+        @keyframes fillText {
+            0% {
+                width: 0;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
+        @keyframes fadeUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-up-exit {
+            transform: translateY(-100%);
+        }
