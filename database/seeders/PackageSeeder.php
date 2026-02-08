@@ -50,7 +50,7 @@ class PackageSeeder extends Seeder
         ];
 
         foreach ($packages as $pkg) {
-            Package::updateOrCreate(['name' => $pkg['name']], $pkg);
+            package::updateOrCreate(['name' => $pkg['name']], $pkg);
         }
     }
 }
