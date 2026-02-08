@@ -21,7 +21,7 @@
             /* --- Brand Colors --- */
     --primary-dark: #2d8a74;      /* الأخضر الأساسي في كلمة ورتل */
             --primary-light: #e8f5e9;
-            --gold-main: #c49a46;
+            --gold-main: #000100;
             --gold-light: #fff8e1;
             --bg-body: #f3f4f6;
             --text-main: #2d3436;
