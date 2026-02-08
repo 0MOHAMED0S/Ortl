@@ -356,7 +356,7 @@
         <div class="login-side">
             <div class="login-box" id="loginBox">
                 <div class="text-center">
-                    <img src="{{ asset('images/wrtlv3.png') }}" alt="Logo" class="brand-logo">
+                    <img src="{{ asset('images/mainlogo.png') }}" alt="Logo" class="brand-logo">
                     <h1 class="welcome-title">مرحباً بعودتك!</h1>
                     <p class="welcome-sub">سجل الدخول للمتابعة إلى لوحة التحكم</p>
                 </div>
