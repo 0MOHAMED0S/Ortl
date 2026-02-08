@@ -3,10 +3,10 @@
 use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\web\Admin\AdsController;
 use App\Http\Controllers\web\Admin\AuthController;
-use App\Http\Controllers\web\admin\PackageController;
-use App\Http\Controllers\web\admin\SettingController;
-use App\Http\Controllers\web\admin\TeacherController;
-use App\Http\Controllers\web\admin\TrackController as AdminTrackController;
+use App\Http\Controllers\web\Admin\PackageController;
+use App\Http\Controllers\web\Admin\SettingController;
+use App\Http\Controllers\web\Admin\TeacherController;
+use App\Http\Controllers\web\Admin\TrackController as AdminTrackController;
 use App\Http\Controllers\web\User\MainController;
 use App\Http\Controllers\web\User\TeacherApplicationController;
 use App\Http\Controllers\web\User\TrackController;
