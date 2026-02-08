@@ -30,6 +30,20 @@
         <i class="fa-solid fa-ad"></i> الإعلانات
     </a>
 </li>
+<li>
+    <a href="{{ route('admin.students') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.students') ? 'active' : '' }}">
+        <i class="fa-solid fa-users"></i> الطلاب
+    </a>
+</li>
+<li>
+    <a href="{{ route('admin.sessions') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.sessions') ? 'active' : '' }}">
+        <i class="fa-solid fa-users"></i> المقرأه
+    </a>
+</li>
+<li>
+    <a href="{{ route('admin.subscriptions') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.subscriptions') ? 'active' : '' }}">
+        <i class="fa-solid fa-file-invoice-dollar"></i> الاشتراكات
+    </a>
   {{--
         <li><a href="students.html" class="sidebar-link"><i class="fa-solid fa-users"></i> الطلاب</a></li>
         <li><a href="packages.html" class="sidebar-link"><i class="fa-solid fa-sack-dollar"></i> الباقات</a>

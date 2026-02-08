@@ -50,6 +50,12 @@ Route::prefix('admin')->group(function () {
         Route::post('/teachers/{id}/reject', [TeacherController::class, 'reject'])->name('teacher.reject');
         Route::resource('packages', PackageController::class);
         Route::resource('ads', AdsController::class)->except(['create', 'show', 'edit']);
+
+
+        Route::get('/students', function () {return view('dashboard.students');})->name('admin.students');
+        Route::get('/sessions', function () {return view('dashboard.sessions');})->name('admin.sessions');
+        Route::get('/Subscriptions', function () {return view('dashboard.subscriptions');})->name('admin.subscriptions');
+
     });
 });
 
