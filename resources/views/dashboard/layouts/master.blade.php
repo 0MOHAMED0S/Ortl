@@ -194,7 +194,7 @@
 
 <body class="loader-locked">
 
-    @include('dashboard.layouts.combonents.loader')
+    {{-- @include('dashboard.layouts.combonents.loader') --}}
 
     <div id="overlay"></div>
 
