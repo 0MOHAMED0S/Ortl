@@ -1,9 +1,9 @@
 @extends('dashboard.layouts.master')
 @section('styles')
 <link rel="stylesheet" href="{{ asset('dashboard/css/index.css') }}">
-<style>
-    
-</style>
+@endsection
+@section('title')
+<h5 class="m-0 fw-bold">لوحة القيادة</h5>
 @endsection
 @section('content')
     <div class="container-fluid p-4">

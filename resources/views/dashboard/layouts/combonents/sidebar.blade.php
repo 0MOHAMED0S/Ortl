@@ -1,15 +1,37 @@
 <nav id="sidebar">
     <div class="sidebar-header">
-        <img src="{{ asset('images/wrtlv3.png') }}" alt="Logo">
+        <img width="50" height="70" src="{{ asset('images/mainlogo.png') }}" alt="Logo">
         <span class="sidebar-brand">ورتل - أدمن</span>
     </div>
 
     <ul class="sidebar-menu">
-        <li><a href="admin.html" class="sidebar-link active"><i class="fa-solid fa-gauge"></i> الرئيسية</a></li>
-        {{-- <li><a href="teachers.html" class="sidebar-link"><i class="fa-solid fa-chalkboard-user"></i> المعلمون</a>
-        </li>
+<li>
+    <a href="{{ route('admin.dashboard') }}" class="sidebar-link {{ Route::currentRouteName() == 'admin.dashboard' ? 'active' : '' }}">
+        <i class="fa-solid fa-gauge"></i> الرئيسية
+    </a>
+</li>
+<li>
+    <a href="{{ route('tracks.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'tracks.') ? 'active' : '' }}">
+        <i class="fa-solid fa-layer-group"></i> المسارات
+    </a>
+</li>
+<li>
+    <a href="{{ route('teachers.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'teachers.') ? 'active' : '' }}">
+        <i class="fa-solid fa-chalkboard-user"></i> المعلمون
+    </a>
+</li>
+<li>
+    <a href="{{ route('packages.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'packages.') ? 'active' : '' }}">
+        <i class="fa-solid fa-sack-dollar"></i> الباقات
+    </a>
+</li>
+<li>
+    <a href="{{ route('ads.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'ads.') ? 'active' : '' }}">
+        <i class="fa-solid fa-ad"></i> الإعلانات
+    </a>
+</li>
+  {{--
         <li><a href="students.html" class="sidebar-link"><i class="fa-solid fa-users"></i> الطلاب</a></li>
-        <li><a href="tracks.html" class="sidebar-link"><i class="fa-solid fa-layer-group"></i> المسارات</a></li>
         <li><a href="packages.html" class="sidebar-link"><i class="fa-solid fa-sack-dollar"></i> الباقات</a>
         </li>
         <li><a href="subscriptions.html" class="sidebar-link"><i class="fa-solid fa-file-invoice-dollar"></i>

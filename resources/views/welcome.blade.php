@@ -13,23 +13,25 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.theme.default.min.css">
 
     <style>
-        :root {
-            /* Brand Identity */
-            --primary-dark: #1a4d2e;
-            --primary-light: #e8f5e9;
-            --gold-main: #c49a46;
-            --gold-light: #fff8e1;
+:root {
+    /* Brand Identity - مستوحاة مباشرة من الشعار */
+    --primary-dark: #2d8a74;      /* الأخضر الأساسي في كلمة ورتل */
+    --primary-medium: #4fb299;    /* الدرجة المتوسطة في خطوط الهاتف */
+    --primary-light: #f0f9f7;     /* خلفية باهتة مريحة للعين */
 
-            /* UI Colors */
-            --bg-body: #ffffff;
-            --text-main: #2d3436;
-            --text-muted: #636e72;
+    --gold-main: #d4a753;        /* لون صفحات المصحف في الشعار */
+    --gold-light: #fdf5e6;       /* لون كريمي فاتح للخلفيات */
 
-            /* Specific Components */
-            --card-cream: #ffeeda;
-            --btn-orange: #ffab40;
-            --btn-orange-shadow: #e69123;
-        }
+    /* UI Colors */
+    --bg-body: #ffffff;
+    --text-main: #1e4d42;        /* أخضر داكن جدًا للنصوص بدلاً من الأسود */
+    --text-muted: #6a8d85;
+
+    /* Specific Components */
+    --card-cream: #fcf8f0;       /* للبطاقات المميزة */
+    --btn-orange: #d4a753;       /* استخدام الذهبي للأزرار بدلاً من البرتقالي لتوحيد الهوية */
+    --btn-orange-shadow: #b3893f;
+}
 
         /* --- Global Reset & Scroll Locking --- */
         html, body {
@@ -312,7 +314,7 @@
 
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="#"><img width="50px" height="50px" src="{{ asset('images/wrtlv3.png') }}" alt="ورتل"></a>
+            <a class="navbar-brand" href="#"><img width="60px" height="60px" src="{{ asset('images/mainlogo.png') }}" alt="ورتل"></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
                 <i class="fa-solid fa-bars-staggered"></i>
             </button>
@@ -351,7 +353,7 @@
                     <div class="mt-4" data-aos="fade-in" data-aos-delay="1000"><a href="{{ route('teacher.index') }}" class="text-decoration-none fw-bold small text-muted">هل ترغب في الانضمام لفريقنا؟ <span style="color: var(--gold-main); text-decoration: underline;">قدم طلبك الآن <i class="fa-solid fa-arrow-left"></i></span></a></div>
                 </div>
                 <div class="col-lg-6 text-center" data-aos="zoom-in" data-aos-duration="1200" data-aos-delay="300">
-                    <div class="hero-image-wrapper"><img src="{{ asset('images/main.jpeg') }}" alt="App UI" class="hero-phone"></div>
+                    <div class="hero-image-wrapper"><img src="{{ asset('images/msa.jpeg') }}" alt="App UI" class="hero-phone"></div>
                 </div>
             </div>
         </div>
@@ -437,32 +439,121 @@
         </div>
     </section>
 
-    <section id="packages" class="pricing-section">
-        <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <span class="section-tag">الباقات</span>
-                <h2 class="section-title">اختر خطتك التعليمية</h2>
-            </div>
-            <div class="row g-4 justify-content-center align-items-center">
-                <div class="col-lg-4 col-md-6" data-aos="fade-right">
-                    <div class="pkg-card">
-                        <div><h4 class="pkg-name">باقة التلاوة</h4><div class="pkg-gift bg-light"><i class="fa-solid fa-gift text-warning"></i> 100 دقيقة</div><ul class="list-unstyled text-muted text-start mx-auto small" style="max-width: 200px;"><li class="mb-3"><i class="fa-solid fa-check text-success me-2"></i> صلاحية 30 يوم</li><li class="mb-3"><i class="fa-solid fa-check text-success me-2"></i> تصحيح آلي</li></ul></div><button class="btn-3d outline">250 <span class="small ms-1">EGP</span></button>
-                    </div>
-                </div>
-                <div class="col-lg-4 col-md-6" data-aos="zoom-in">
-                    <div class="pkg-card featured">
-                        <div class="badge-popular">الأكثر طلباً</div>
-                        <div><h4 class="pkg-name">باقة البداية</h4><div class="pkg-gift"><i class="fa-solid fa-gift text-danger fa-lg"></i><span class="fs-6 ms-2">150 د + 30 د</span></div><p class="small text-muted mb-4 fw-bold">مثالية للبدء في الحفظ والمراجعة</p></div><button class="btn-3d orange"><span>470.31</span> <small>EGP</small><span class="text-decoration-line-through text-white-50 ms-2 small">940</span><svg class="cursor-icon" viewBox="0 0 24 24" fill="white"><path d="M5.5 2L18.5 13.5L12 14.5L16 22L13 23.5L9 16L3 18V2Z" stroke="black" stroke-width="1.5"/></svg></button>
-                    </div>
-                </div>
-                <div class="col-lg-4 col-md-6" data-aos="fade-left">
-                    <div class="pkg-card">
-                        <div><h4 class="pkg-name text-success">باقة الإتقان VIP</h4><div class="pkg-gift bg-light"><i class="fa-solid fa-crown text-warning"></i> 300 د + 60 د</div><ul class="list-unstyled text-muted text-start mx-auto small" style="max-width: 200px;"><li class="mb-3"><i class="fa-solid fa-check text-success me-2"></i> صلاحية 60 يوم</li><li class="mb-3"><i class="fa-solid fa-check text-success me-2"></i> معلم خاص</li></ul></div><button class="btn-3d green">850 <span class="small ms-1">EGP</span></button>
-                    </div>
-                </div>
-            </div>
+<section id="packages" class="pricing-section">
+    <div class="container">
+        <div class="section-header" data-aos="fade-up">
+            <span class="section-tag">الباقات</span>
+            <h2 class="section-title">اختر خطتك التعليمية</h2>
         </div>
-    </section>
+        <div class="row g-4 justify-content-center align-items-center">
+
+            @foreach($packages as $package)
+                @php
+                    // 1. تحديد نوع التصميم بناءً على البيانات
+                    $hasDiscount = $package->discount > 0;
+                    $isVip = str_contains($package->name, 'VIP');
+
+                    // 2. حساب السعر النهائي
+                    $originalPrice = $package->price;
+                    $finalPrice = $hasDiscount
+                        ? $originalPrice - ($originalPrice * ($package->discount / 100))
+                        : $originalPrice;
+                @endphp
+
+                <div class="col-lg-4 col-md-6" data-aos="{{ $hasDiscount ? 'zoom-in' : 'fade-up' }}">
+
+                    {{-- إضافة كلاس 'featured' إذا كان هناك خصم --}}
+                    <div class="pkg-card {{ $hasDiscount ? 'featured' : '' }}">
+
+                        {{-- شارة "الأكثر طلباً" للباقات المخفضة --}}
+                        @if($hasDiscount)
+                            <div class="badge-popular">الأكثر طلباً</div>
+                        @endif
+
+                        <div>
+                            {{-- عنوان الباقة --}}
+                            <h4 class="pkg-name {{ $isVip ? 'text-success' : '' }}">
+                                {{ $package->name }}
+                            </h4>
+
+                            {{-- عدد الدقائق والهدايا --}}
+                            <div class="pkg-gift {{ $hasDiscount ? '' : 'bg-light' }}">
+                                @if($isVip)
+                                    <i class="fa-solid fa-crown text-warning"></i>
+                                @else
+                                    <i class="fa-solid fa-gift {{ $hasDiscount ? 'text-danger fa-lg' : 'text-warning' }}"></i>
+                                @endif
+
+                                <span class="{{ $hasDiscount ? 'fs-6 ms-2' : '' }}">
+                                    {{ $package->base_minutes }} دقيقة
+                                    @if($package->bonus_minutes > 0)
+                                        + {{ $package->bonus_minutes }} د
+                                    @endif
+                                </span>
+                            </div>
+
+                            {{-- الوصف والمميزات --}}
+                            @if($hasDiscount)
+                                {{-- تصميم الوصف للباقات المميزة --}}
+                                <p class="small text-muted mb-4 fw-bold">
+                                    {{ $package->description ?? 'باقة مثالية للبدء في الحفظ والمراجعة' }}
+                                </p>
+                            @else
+                                {{-- تصميم القائمة للباقات العادية والـ VIP --}}
+                                <ul class="list-unstyled text-muted text-start mx-auto small" style="max-width: 200px;">
+                                    <li class="mb-3">
+                                        <i class="fa-solid fa-check text-success me-2"></i>
+                                        صلاحية {{ $package->validity_days }} يوم
+                                    </li>
+                                    @if($package->description)
+                                    <li class="mb-3">
+                                        <i class="fa-solid fa-check text-success me-2"></i>
+                                        {{ Str::limit($package->description, 25) }}
+                                    </li>
+                                    @endif
+                                    @if($isVip)
+                                    <li class="mb-3">
+                                        <i class="fa-solid fa-check text-success me-2"></i>
+                                        معلم خاص
+                                    </li>
+                                    @endif
+                                </ul>
+                            @endif
+                        </div>
+
+                        {{-- أزرار الشراء حسب النوع --}}
+                        @if($hasDiscount)
+                            {{-- زر برتقالي مع السعر المشطوب (للعروض) --}}
+                            <button class="btn-3d orange">
+                                <span>{{ number_format($finalPrice, 2) }}</span> <small>EGP</small>
+                                <span class="text-decoration-line-through text-white-50 ms-2 small">
+                                    {{ number_format($originalPrice, 0) }}
+                                </span>
+                                <svg class="cursor-icon" viewBox="0 0 24 24" fill="white">
+                                    <path d="M5.5 2L18.5 13.5L12 14.5L16 22L13 23.5L9 16L3 18V2Z" stroke="black" stroke-width="1.5"/>
+                                </svg>
+                            </button>
+
+                        @elseif($isVip)
+                            {{-- زر أخضر (للباقات الـ VIP) --}}
+                            <button class="btn-3d green">
+                                {{ number_format($finalPrice, 0) }} <span class="small ms-1">EGP</span>
+                            </button>
+
+                        @else
+                            {{-- زر عادي (Outline) --}}
+                            <button class="btn-3d outline">
+                                {{ number_format($finalPrice, 0) }} <span class="small ms-1">EGP</span>
+                            </button>
+                        @endif
+
+                    </div>
+                </div>
+            @endforeach
+
+        </div>
+    </div>
+</section>
 
     <section id="teachers" class="py-5">
         <div class="container py-4">
@@ -478,7 +569,7 @@
 
     <footer>
         <div class="container text-center">
-            <img src="image_1.png" alt="Logo" style="height: 60px; filter: brightness(0) invert(1); margin-bottom: 30px;">
+            <img src="{{ asset('images/mainlogo.png') }}" alt="Logo" style="height: 60px; margin-bottom: 30px;">
             <div class="d-flex justify-content-center gap-4 mb-4">
                 <a href="#" class="text-white opacity-75 fs-5"><i class="fa-brands fa-twitter"></i></a>
                 <a href="#" class="text-white opacity-75 fs-5"><i class="fa-brands fa-facebook"></i></a>

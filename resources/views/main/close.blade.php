@@ -253,7 +253,7 @@
 
     <nav class="navbar">
         <div class="container">
-            <a class="navbar-brand" href="#"><img src="{{ asset('images/logo.png') }}" alt="ورتل"></a>
+            <a class="navbar-brand" href="#"><img src="{{ asset('images/wrtlv3.png') }}" alt="ورتل"></a>
             <a href="{{ route('welcome') }}" class="back-link">
                 الرئيسية <i class="fa-solid fa-arrow-left"></i>
             </a>
@@ -272,13 +272,13 @@
             <p class="status-desc">
                 نشكر حماسك للانضمام إلينا.<br>
                 باب التقديم مغلق مؤقتاً لاكتمال العدد المطلوب.<br>
-                <strong>سجل بريدك وسنخبرك فور فتح الباب مجدداً.</strong>
+                {{-- <strong>سجل بريدك وسنخبرك فور فتح الباب مجدداً.</strong> --}}
             </p>
 
-            <form class="notify-form">
+            {{-- <form class="notify-form">
                 <input type="email" class="notify-input" placeholder="اكتب بريدك الإلكتروني..." required>
                 <button type="submit" class="btn-notify">نبهني عند الفتح <i class="fa-solid fa-bell ms-2"></i></button>
-            </form>
+            </form> --}}
 
             <div class="social-links">
                 <a href="#"><i class="fa-brands fa-facebook"></i></a>

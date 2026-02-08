@@ -1,0 +1,52 @@
+
+        /* --- Page Styles --- */
+        .nav-tabs { border-bottom: 2px solid #eee; margin-bottom: 25px; gap: 10px; }
+        .nav-link { border: none; color: var(--text-muted); font-weight: 700; padding: 10px 20px; border-radius: 10px 10px 0 0; transition: 0.3s; }
+        .nav-link:hover { color: var(--primary-dark); background: #f9f9f9; }
+        .nav-link.active { color: var(--primary-dark) !important; background: white !important; border-bottom: 3px solid var(--gold-main); }
+        .tab-count { background: var(--gold-main); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; margin-right: 5px; }
+
+        .card-box { background: white; border-radius: 15px; padding: 0; box-shadow: 0 5px 15px rgba(0,0,0,0.03); overflow: hidden; margin-bottom: 30px; }
+        .custom-table th { background: #f8f9fa; color: var(--primary-dark); font-weight: 700; border: none; padding: 18px 20px; white-space: nowrap; }
+        .custom-table td { vertical-align: middle; padding: 15px 20px; border-bottom: 1px solid #f1f1f1; }
+
+        .teacher-profile { display: flex; align-items: center; gap: 12px; }
+        .teacher-avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #eee; }
+        .teacher-name { font-weight: 700; color: var(--text-main); display: block; }
+        .teacher-sub { font-size: 0.8rem; color: #888; }
+
+        .badge-status { padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .bg-active { background: #f0fdf4; color: #15803d; }
+        .bg-pending { background: #fff7ed; color: #c2410c; }
+
+        .action-btn { width: 34px; height: 34px; border-radius: 8px; border: none; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; margin-left: 5px; transition: 0.2s; cursor: pointer; }
+        .btn-view { background: #eff6ff; color: #2563eb; }
+        .btn-accept { background: #f0fdf4; color: #16a34a; }
+        .btn-reject { background: #fef2f2; color: #dc2626; }
+        .btn-view:hover { background: #2563eb; color: white; }
+        .btn-accept:hover { background: #16a34a; color: white; }
+        .btn-reject:hover { background: #dc2626; color: white; }
+
+        /* --- Modal Styles --- */
+        .modal-content { border-radius: 20px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.1); }
+        .modal-header { background: #fcfcfc; border-bottom: 1px solid #eee; border-radius: 20px 20px 0 0; padding: 20px 25px; }
+
+        .info-section-title { font-size: 0.9rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 15px; border-bottom: 2px solid var(--gold-light); padding-bottom: 8px; display: inline-block; }
+
+        .detail-item { margin-bottom: 12px; }
+        .detail-label { font-size: 0.75rem; color: #999; display: block; margin-bottom: 3px; }
+        .detail-val { font-weight: 600; color: #333; font-size: 0.95rem; }
+
+        .tag-badge { background: #f8f9fa; border: 1px solid #eee; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; color: #555; display: inline-block; margin-left: 5px; margin-bottom: 5px; }
+        .track-badge { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; display: inline-block; margin-left: 5px; }
+
+        /* Admin Controls (Left Side) */
+        .profile-img-container { position: relative; width: 120px; height: 120px; margin: 0 auto 15px; }
+        .profile-img-main { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 3px solid var(--gold-main); padding: 3px; background: white; }
+        .upload-btn-wrapper { position: absolute; bottom: 5px; right: 5px; }
+        .btn-upload-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-dark); color: white; display: flex; align-items: center; justify-content: center; border: 2px solid white; cursor: pointer; transition: 0.3s; }
+        .btn-upload-icon:hover { background: var(--gold-main); transform: scale(1.1); }
+
+        .salary-input-group { background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px solid #eee; margin-bottom: 20px; }
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; display: none; }
+

@@ -1,0 +1,208 @@
+        /* --- Package Cards Styles --- */
+        .pkg-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px 25px;
+            position: relative;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.03);
+            transition: 0.3s;
+            border: 2px solid transparent;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .pkg-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+            border-color: var(--primary-light);
+        }
+
+        /* Ribbon for Discount */
+        .ribbon {
+            position: absolute;
+            top: 20px;
+            left: -35px;
+            transform: rotate(-45deg);
+            background: #dc3545;
+            color: white;
+            padding: 5px 40px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .pkg-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 20px;
+        }
+
+        .pkg-name {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: var(--primary-dark);
+            margin-bottom: 5px;
+        }
+
+        .pkg-price {
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: var(--text-main);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .pkg-currency {
+            font-size: 1rem;
+            margin-top: 10px;
+            color: var(--text-muted);
+        }
+
+        .pkg-duration {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            background: #f8f9fa;
+            padding: 2px 10px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        /* Features List */
+        .pkg-features {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+            flex-grow: 1;
+        }
+
+        .pkg-features li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            color: #555;
+        }
+
+        .pkg-features li i {
+            width: 30px;
+            color: var(--gold-main);
+            font-size: 1.1rem;
+        }
+
+        .feature-value {
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0 4px;
+        }
+
+        .bonus-text {
+            font-size: 0.8rem;
+            color: #15803d;
+            background: #dcfce7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .pkg-desc {
+            font-size: 0.85rem;
+            color: #888;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            min-height: 40px;
+        }
+
+        /* Footer Actions */
+        .pkg-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .action-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777;
+            transition: 0.2s;
+            cursor: pointer;
+            background: #f8f9fa;
+        }
+
+        .action-icon:hover {
+            background: var(--primary-dark);
+            color: white;
+        }
+
+        .action-icon.delete:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        /* Add Card */
+        .add-card {
+            border: 2px dashed #ccc;
+            background: transparent;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            min-height: 400px;
+        }
+
+        .add-card:hover {
+            border-color: var(--primary-dark);
+            background: rgba(26, 77, 46, 0.02);
+        }
+
+        .add-icon {
+            font-size: 3.5rem;
+            color: #ccc;
+            margin-bottom: 20px;
+            transition: 0.3s;
+        }
+
+        .add-card:hover .add-icon {
+            color: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        /* Forms */
+        .form-label {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .input-group-text {
+            background: #f8f9fa;
+            border-color: #eee;
+            color: #888;
+        }
+
+        .form-control {
+            border-color: #eee;
+        }
+
+        .form-control:focus {
+            border-color: var(--gold-main);
+            box-shadow: 0 0 0 3px rgba(196, 154, 70, 0.1);
+        }

@@ -1,36 +1,6 @@
         /* =========================================
-           3. MAIN CONTENT
+        3. MAIN CONTENT
            ========================================= */
-        #content-wrapper {
-            width: 100%;
-            margin-right: var(--sidebar-width);
-            min-height: 100vh;
-            transition: all 0.3s ease-in-out;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Navbar */
-        .top-navbar {
-            background: white;
-            padding: 15px 30px;
-            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.03);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 900;
-        }
-
-        .menu-toggle-btn {
-            background: transparent;
-            border: none;
-            font-size: 1.4rem;
-            color: var(--primary-dark);
-            cursor: pointer;
-            display: none;
-        }
 
         /* Admin Profile Details */
         .admin-details {

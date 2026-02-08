@@ -1,0 +1,559 @@
+@extends('dashboard.layouts.master')
+
+@section('styles')
+    <link rel="stylesheet" href="{{ asset('dashboard/css/teachers.css') }}">
+    <style>
+        /* --- Stats Cards --- */
+        .stat-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); border: 1px solid transparent; transition: 0.3s; display: flex; align-items: center; justify-content: space-between; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0, 0, 0, 0.05); }
+        .stat-icon-box { width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+        .stat-purple { border-left: 4px solid #6f42c1; } .stat-purple .stat-icon-box { background: #f3e8ff; color: #6f42c1; }
+        .stat-orange { border-left: 4px solid #fd7e14; } .stat-orange .stat-icon-box { background: #fff4e6; color: #fd7e14; }
+        .stat-green { border-left: 4px solid #198754; } .stat-green .stat-icon-box { background: #d1e7dd; color: #198754; }
+        .stat-red { border-left: 4px solid #dc3545; } .stat-red .stat-icon-box { background: #f8d7da; color: #dc3545; }
+
+        /* --- Filter Buttons --- */
+        .filter-btn { border: 1px solid #eee; background: white; color: #666; padding: 8px 16px; border-radius: 30px; font-weight: 600; font-size: 0.9rem; transition: 0.2s; margin-left: 5px; }
+        .filter-btn:hover, .filter-btn.active { background: var(--primary-dark); color: white; border-color: var(--primary-dark); }
+
+        /* --- Details & Modal --- */
+        .info-section-title { font-size: 0.9rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 15px; border-bottom: 2px solid var(--gold-light); padding-bottom: 8px; display: inline-block; }
+        .detail-item { margin-bottom: 12px; }
+        .detail-label { font-size: 0.75rem; color: #999; display: block; margin-bottom: 3px; }
+        .detail-val { font-weight: 600; color: #333; font-size: 0.95rem; word-break: break-word; }
+        .tag-badge { background: #f8f9fa; border: 1px solid #eee; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; color: #555; display: inline-block; margin-left: 5px; margin-bottom: 5px; }
+        .track-badge { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; display: inline-block; margin-left: 5px; margin-bottom: 5px; }
+
+        /* Profile Image */
+        .profile-img-container { position: relative; width: 120px; height: 120px; margin: 0 auto 15px; }
+        .profile-img-main { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 3px solid var(--gold-main); padding: 3px; background: white; }
+        .upload-btn-wrapper { position: absolute; bottom: 5px; right: 5px; }
+        .btn-upload-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-dark); color: white; display: flex; align-items: center; justify-content: center; border: 2px solid white; cursor: pointer; transition: 0.3s; }
+        .btn-upload-icon:hover { background: var(--gold-main); transform: scale(1.1); }
+
+        /* Inputs & Read Only Boxes */
+        .admin-input-box { background: #f8f9fa; padding: 15px; border-radius: 12px; border: 1px solid #eee; margin-bottom: 15px; }
+        .admin-info-box { background: #f0fdf4; padding: 15px; border-radius: 12px; border: 1px solid #bbf7d0; margin-bottom: 15px; text-align: center; }
+        .form-label { font-size: 0.8rem; font-weight: 700; color: #666; margin-bottom: 5px; }
+
+        /* Responsive Modal Sidebar */
+        .modal-sidebar-col { border-bottom: 1px solid #eee; padding-bottom: 1.5rem; margin-bottom: 1.5rem; }
+        @media (min-width: 992px) { .modal-sidebar-col { border-bottom: none; border-left: 1px solid #eee; padding-bottom: 0; margin-bottom: 0; } }
+
+        /* Header Switch */
+        .registration-control { background: #fff; padding: 10px 20px; border-radius: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; border: 1px solid #eee; }
+        .registration-control .form-check-input { width: 2.5em; height: 1.3em; cursor: pointer; margin: 0; }
+        .registration-control .form-check-input:checked { background-color: #198754; border-color: #198754; }
+        .status-text { font-weight: 700; font-size: 0.85rem; transition: 0.3s; }
+        .text-open { color: #198754; } .text-closed { color: #dc3545; }
+    </style>
+@endsection
+@section('title')
+<h5 class="m-0 fw-bold">معلمون التلاوة  </h5>
+@endsection
+@section('content')
+    <div class="container-fluid p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h5 class="fw-bold m-0 text-dark">إدارة طلبات التسجيل</h5>
+                <small class="text-muted">التحكم في حالة تسجيل المعلمين</small>
+            </div>
+
+            <div class="registration-control">
+                <span class="text-muted small fw-bold">حالة التسجيل:</span>
+                <form action="{{ route('settings.toggleRegistration') }}" method="POST" class="m-0 d-flex align-items-center">
+                    @csrf
+                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
+                        @php
+                            $setting = \App\Models\Setting::first();
+                            $isOpen = optional($setting)->teacher_application_status === 'open';
+                        @endphp
+                        <input class="form-check-input" type="checkbox" name="teacher_application_status" id="registrationToggle" onchange="this.form.submit()" {{ $isOpen ? 'checked' : '' }}>
+                        <label class="status-text {{ $isOpen ? 'text-open' : 'text-closed' }}" for="registrationToggle" style="cursor: pointer;">
+                            {{ $isOpen ? 'مفتوح' : 'مغلق' }}
+                        </label>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if ($errors->any())
+            <div class="alert alert-danger alert-dismissible fade show mb-4 shadow-sm" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fa-solid fa-circle-exclamation fs-4 me-2"></i>
+                    <div>
+                        <h6 class="fw-bold mb-1">يوجد أخطاء في البيانات المدخلة:</h6>
+                        <ul class="mb-0 small">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
+        @if (session('success'))
+            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                <i class="fa-solid fa-check-circle me-2"></i> {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-sm-6">
+                <div class="stat-card stat-purple">
+                    <div>
+                        <h6 class="text-muted small fw-bold mb-1">إجمالي الطلبات</h6>
+                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->count() }}</h3>
+                    </div>
+                    <div class="stat-icon-box"><i class="fa-solid fa-folder-open"></i></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+                <div class="stat-card stat-orange">
+                    <div>
+                        <h6 class="text-muted small fw-bold mb-1">قيد المراجعة</h6>
+                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->where('status', 'pending')->count() }}</h3>
+                    </div>
+                    <div class="stat-icon-box"><i class="fa-solid fa-clock"></i></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+                <div class="stat-card stat-green">
+                    <div>
+                        <h6 class="text-muted small fw-bold mb-1">تم القبول</h6>
+                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->where('status', 'approved')->count() }}</h3>
+                    </div>
+                    <div class="stat-icon-box"><i class="fa-solid fa-check-circle"></i></div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+                <div class="stat-card stat-red">
+                    <div>
+                        <h6 class="text-muted small fw-bold mb-1">مرفوض / غير مفعل</h6>
+                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->whereIn('status', ['rejected', 'not_active'])->count() }}</h3>
+                    </div>
+                    <div class="stat-icon-box"><i class="fa-solid fa-ban"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
+            <div class="d-flex" id="filterButtons">
+                <button class="filter-btn active" onclick="filterTable('all', this)">الكل</button>
+                <button class="filter-btn" onclick="filterTable('pending', this)">قيد المراجعة</button>
+                <button class="filter-btn" onclick="filterTable('approved', this)">مقبول</button>
+                <button class="filter-btn" onclick="filterTable('not_active', this)">غير مفعل</button>
+                <button class="filter-btn" onclick="filterTable('rejected', this)">مرفوض</button>
+            </div>
+            <div style="min-width: 250px;">
+                <input type="text" id="searchInput" class="form-control" placeholder="بحث بالاسم أو البريد..." onkeyup="searchTable()">
+            </div>
+        </div>
+
+        <div class="card-box">
+            <div class="table-responsive">
+                <table class="table custom-table mb-0 text-nowrap" id="teachersTable">
+                    <thead>
+                        <tr>
+                            <th>المعلم</th>
+                            <th>الدولة</th>
+                            <th>المؤهل</th>
+                            <th>تاريخ الطلب</th>
+                            <th>الحالة</th>
+                            <th class="text-end">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($teachers as $teacher)
+                            {{-- START ROW: Logic to fetch data from User table if approved/active --}}
+                            @php
+                                $userName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
+                                $userEmail = optional(optional($teacher->profile)->user)->email ?? $teacher->email;
+                            @endphp
+
+                            <tr class="teacher-row" data-status="{{ $teacher->status }}"
+                                data-name="{{ $userName }} {{ $userEmail }}">
+                                <td>
+                                    <div class="teacher-profile">
+                                        <img src="{{ asset('storage/' . ($teacher->profile->profile_photo_path ?? '')) }}"
+                                             onerror="this.src='https://ui-avatars.com/api/?name={{ $userName }}&background=1a4d2e&color=fff&size=64'"
+                                             class="teacher-avatar">
+                                        <div>
+                                            <span class="teacher-name">{{ $userName }}</span>
+                                            <span class="teacher-sub">{{ $userEmail }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ $teacher->origin_country ?? 'غير محدد' }}</td>
+                                <td><span class="badge bg-light text-dark border fw-normal">{{ Str::limit($teacher->qualification, 20) }}</span></td>
+                                <td class="text-muted small">{{ $teacher->created_at->format('Y-m-d') }}</td>
+                                <td>
+                                    @if ($teacher->status == 'pending')
+                                        <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2">قيد المراجعة</span>
+                                    @elseif($teacher->status == 'approved')
+                                        <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">مقبول</span>
+                                    @elseif($teacher->status == 'not_active')
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2">غير مفعل</span>
+                                    @elseif($teacher->status == 'rejected')
+                                        <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2">مرفوض</span>
+                                    @endif
+                                </td>
+                                <td class="text-end">
+                                    <button class="action-btn btn-view" title="مراجعة الطلب" data-bs-toggle="modal" data-bs-target="#detailsModal{{ $teacher->id }}">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-inbox fs-1 mb-3 d-block opacity-25"></i>
+                                    لا يوجد طلبات انضمام حالياً
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @foreach ($teachers as $teacher)
+        <div class="modal fade" id="detailsModal{{ $teacher->id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">
+                            <span class="text-muted fw-light fs-6">طلب رقم #{{ $teacher->id }}</span> | مراجعة بيانات المعلم
+                        </h5>
+                        <button type="button" class="btn-close m-0" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body p-0">
+                        <div class="row g-0 h-100">
+
+                            <div class="col-lg-3 modal-sidebar-col bg-light p-4 d-flex flex-column">
+
+                                <div class="text-center mb-3">
+                                    <div class="profile-img-container">
+                                        @php
+                                            // Get correct Name/Email to display in modal header
+                                            $modalName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
+                                        @endphp
+
+                                        @if (($teacher->status == 'approved' || $teacher->status == 'not_active') && $teacher->profile && $teacher->profile->profile_photo_path)
+                                            <img src="{{ asset('storage/' . $teacher->profile->profile_photo_path) }}" class="profile-img-main preview-img-{{ $teacher->id }}">
+                                        @else
+                                            <img src="https://ui-avatars.com/api/?name={{ $modalName }}&background=1a4d2e&color=fff&size=128" class="profile-img-main preview-img-{{ $teacher->id }}">
+                                        @endif
+
+                                        <div class="upload-btn-wrapper">
+                                            <label for="photoInput{{ $teacher->id }}" class="btn-upload-icon" title="تغيير الصورة">
+                                                <i class="fa-solid fa-camera"></i>
+                                            </label>
+                                            <input
+                                                form="{{ $teacher->status == 'pending' ? 'approveForm'.$teacher->id : 'updateForm'.$teacher->id }}"
+                                                type="file"
+                                                name="profile_photo" id="photoInput{{ $teacher->id }}"
+                                                style="display: none;" accept="image/*"
+                                                {{ $teacher->status == 'pending' ? 'required' : '' }}
+                                                onchange="previewFile(this, 'preview-img-{{ $teacher->id }}')">
+                                        </div>
+                                    </div>
+
+                                    <h5 class="fw-bold mb-1">{{ $modalName }}</h5>
+                                    <span class="badge bg-primary mb-2">{{ $teacher->gender == 'male' ? 'ذكر' : 'أنثى' }}</span>
+
+                                    @if ($teacher->status == 'approved')
+                                        <div class="mt-2"><span class="badge bg-success"><i class="fa-solid fa-check-circle me-1"></i> الحساب نشط</span></div>
+                                    @elseif($teacher->status == 'not_active')
+                                        <div class="mt-2"><span class="badge bg-secondary"><i class="fa-solid fa-pause-circle me-1"></i> الحساب غير مفعل</span></div>
+                                    @elseif($teacher->status == 'rejected')
+                                        <div class="mt-2"><span class="badge bg-danger"><i class="fa-solid fa-times-circle me-1"></i> الطلب مرفوض</span></div>
+                                    @endif
+                                </div>
+
+                                {{-- PENDING STATE --}}
+                                @if ($teacher->status == 'pending')
+                                    <form action="{{ route('teacher.approve', $teacher->id) }}" method="POST"
+                                        enctype="multipart/form-data" id="approveForm{{ $teacher->id }}" class="flex-grow-1">
+                                        @csrf
+                                        <div class="text-center mb-3"><small class="text-danger fw-bold" style="font-size:0.7rem">* الصورة الشخصية مطلوبة للقبول</small></div>
+
+                                        <div class="admin-input-box text-start">
+                                            <label class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-envelope text-muted"></i></span>
+                                                <input type="email" name="email" class="form-control border-start-0" value="{{ $teacher->email }}" required>
+                                            </div>
+                                        </div>
+
+                                        <div class="admin-input-box text-start">
+                                            <label class="form-label">راتب الساعة المتفق عليه <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-dollar-sign text-success"></i></span>
+                                                <input type="number" name="salary" class="form-control border-start-0" placeholder="0.00" required min="1">
+                                            </div>
+                                        </div>
+
+                                        <div class="admin-input-box text-start">
+                                            <label class="form-label">تعيين كلمة المرور <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
+                                                <input type="password" name="password" class="form-control border-start-0" placeholder="********" required minlength="8">
+                                            </div>
+                                        </div>
+                                    </form>
+
+                                {{-- APPROVED / NOT ACTIVE STATE (EDIT MODE) --}}
+                                @elseif($teacher->status == 'approved' || $teacher->status == 'not_active')
+                                    <form action="{{ route('teacher.updateDetails', $teacher->id) }}" method="POST"
+                                          enctype="multipart/form-data" id="updateForm{{ $teacher->id }}" class="flex-grow-1">
+                                        @csrf
+
+                                        {{-- 1. Name Input --}}
+                                        <div class="admin-input-box text-start">
+                                            <label class="form-label">الاسم الكامل</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-user text-muted"></i></span>
+                                                <input type="text" name="name" class="form-control border-start-0"
+                                                       value="{{ optional(optional($teacher->profile)->user)->name ?? $teacher->full_name }}" required>
+                                            </div>
+                                        </div>
+
+                                        {{-- 2. Email Input --}}
+                                        <div class="admin-input-box text-start">
+                                            <label class="form-label">البريد الإلكتروني</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-envelope text-muted"></i></span>
+                                                <input type="email" name="email" class="form-control border-start-0"
+                                                       value="{{ optional(optional($teacher->profile)->user)->email ?? $teacher->email }}" required>
+                                            </div>
+                                        </div>
+
+                                        {{-- 3. Status Select --}}
+                                        <div class="admin-input-box text-start">
+                                            <label class="form-label">حالة الحساب</label>
+                                            <select name="status" class="form-select border-0 bg-transparent ps-0 fw-bold {{ $teacher->status == 'approved' ? 'text-success' : 'text-secondary' }}">
+                                                <option value="approved" {{ $teacher->status == 'approved' ? 'selected' : '' }}>نشط (مقبول)</option>
+                                                <option value="not_active" {{ $teacher->status == 'not_active' ? 'selected' : '' }}>غير مفعل</option>
+                                            </select>
+                                        </div>
+
+                                        {{-- 4. Salary Input --}}
+                                        <div class="admin-input-box text-start">
+                                            <label class="form-label">تعديل الراتب</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-dollar-sign text-success"></i></span>
+                                                <input type="number" name="salary" class="form-control border-start-0"
+                                                       value="{{ $teacher->profile->salary ?? '0.00' }}" min="0" step="0.01">
+                                            </div>
+                                        </div>
+
+                                        {{-- 5. Password Input --}}
+                                        <div class="admin-input-box text-start">
+                                            <label class="form-label">تغيير كلمة المرور</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
+                                                <input type="password" name="password" class="form-control border-start-0"
+                                                       placeholder="اتركه فارغاً للإبقاء عليه" minlength="8">
+                                            </div>
+                                        </div>
+                                    </form>
+                                @endif
+
+                            </div>
+
+                            <div class="col-lg-9 p-4">
+                                <div class="row g-4">
+                                    {{-- Application Details (Read Only) --}}
+                                    <div class="col-md-6">
+                                        <h6 class="info-section-title">البيانات الشخصية</h6>
+                                        <div class="row">
+                                            <div class="col-6 detail-item">
+                                                <span class="detail-label">الاسم (في الطلب)</span>
+                                                <span class="detail-val">{{ $teacher->full_name }}</span>
+                                            </div>
+                                            <div class="col-6 detail-item">
+                                                <span class="detail-label">رقم الهاتف</span>
+                                                <a href="https://wa.me/{{ str_replace(['+', ' '], '', $teacher->phone) }}" target="_blank" class="detail-val text-success text-decoration-none" style="direction: ltr; display:inline-block;">
+                                                    <i class="fa-brands fa-whatsapp me-1"></i> {{ $teacher->phone }}
+                                                </a>
+                                            </div>
+                                                <div class="col-6 detail-item">
+                                                <span class="detail-label"> البريد</span>
+                                                <span class="detail-val">{{ $teacher->email }}</span>
+                                            </div>
+                                            <div class="col-6 detail-item">
+                                                <span class="detail-label">بلد الأصل</span>
+                                                <span class="detail-val">{{ $teacher->origin_country }}</span>
+                                            </div>
+                                            <div class="col-6 detail-item">
+                                                <span class="detail-label">مكان الإقامة</span>
+                                                <span class="detail-val">{{ $teacher->residence_location }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <h6 class="info-section-title">المؤهلات واللغات</h6>
+                                        <div class="detail-item">
+                                            <span class="detail-label">المؤهل العلمي</span>
+                                            <span class="detail-val">{{ $teacher->qualification }}</span>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="detail-label">اللغات</span>
+                                            <div>
+                                                @if (isset($teacher->languages) && (is_array($teacher->languages) || is_object($teacher->languages)))
+                                                    @foreach ($teacher->languages as $lang)
+                                                        <span class="tag-badge">{{ $lang }}</span>
+                                                    @endforeach
+                                                @else
+                                                    <span class="text-muted small">لا يوجد</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <h6 class="info-section-title">المسارات المختارة (التخصص)</h6>
+                                        <div class="mb-3">
+                                            @if (isset($teacher->specialties) && (is_array($teacher->specialties) || is_object($teacher->specialties)))
+                                                @foreach ($teacher->specialties as $specialty)
+                                                    <span class="track-badge">
+                                                        <i class="fa-solid fa-check-circle me-1"></i> {{ $specialty }}
+                                                    </span>
+                                                @endforeach
+                                            @else
+                                                <span class="text-muted">لم يتم اختيار مسارات</span>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <h6 class="info-section-title">الخبرة والقدرات التقنية</h6>
+                                        <div class="row bg-light p-3 rounded-3 mx-0 border">
+                                            <div class="col-6 col-md-3 mb-3 mb-md-0 text-center border-end">
+                                                <span class="detail-label">سنوات الخبرة</span>
+                                                <h5 class="fw-bold text-primary m-0">{{ $teacher->experience_years }} سنوات</h5>
+                                            </div>
+                                            <div class="col-6 col-md-3 mb-3 mb-md-0 text-center border-end-md">
+                                                <span class="detail-label">ساعات العمل</span>
+                                                <h5 class="fw-bold text-success m-0">{{ $teacher->work_hours }} ساعات</h5>
+                                            </div>
+                                            <div class="col-6 col-md-3 text-center border-end">
+                                                <span class="detail-label">خبرة التعليم عن بعد</span>
+                                                <span class="badge bg-white text-dark border mt-1">{{ $teacher->online_experience }}</span>
+                                            </div>
+                                            <div class="col-6 col-md-3 text-center">
+                                                <span class="detail-label">جودة الإنترنت</span>
+                                                <span class="badge bg-success bg-opacity-10 text-success mt-1">{{ $teacher->internet_quality }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 px-2">
+                                            <span class="detail-label d-inline">المهارات التقنية:</span>
+                                            <span class="fw-bold text-dark">{{ $teacher->tech_skills }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <h6 class="info-section-title">المرفقات والإجازات</h6>
+                                        <div class="mb-3">
+                                            <span class="detail-label">نص الإجازات:</span>
+                                            <p class="detail-val bg-white p-3 rounded border text-muted small" style="line-height: 1.6; max-height: 100px; overflow-y: auto;">
+                                                {{ $teacher->ijazas_text ?? 'لا يوجد نص مكتوب' }}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <span class="detail-label">السيرة الذاتية والشهادات:</span>
+                                            @if ($teacher->cv_pdf_path)
+                                                <a href="{{ asset('storage/' . $teacher->cv_pdf_path) }}" target="_blank" class="btn btn-outline-primary btn-sm w-100 text-start">
+                                                    <i class="fa-solid fa-file-pdf me-2"></i> عرض ملف الـ CV والشهادات (PDF)
+                                                </a>
+                                            @else
+                                                <div class="alert alert-warning py-2 small"><i class="fa-solid fa-triangle-exclamation me-1"></i> لا يوجد ملف مرفق</div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer bg-light justify-content-between">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+
+                        @if ($teacher->status == 'pending')
+                            <div class="d-flex gap-2">
+                                <form action="{{ route('teacher.reject', $teacher->id) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-outline-danger fw-bold" onclick="return confirm('هل أنت متأكد من رفض هذا الطلب؟')">
+                                        <i class="fa-solid fa-xmark me-1"></i> رفض
+                                    </button>
+                                </form>
+
+                                <button type="button" onclick="document.getElementById('approveForm{{ $teacher->id }}').submit();" class="btn btn-success fw-bold">
+                                    <i class="fa-solid fa-check me-1"></i> قبول وتفعيل
+                                </button>
+                            </div>
+                        @elseif($teacher->status == 'approved' || $teacher->status == 'not_active')
+                            <button type="button" onclick="document.getElementById('updateForm{{ $teacher->id }}').submit();" class="btn btn-primary fw-bold">
+                                <i class="fa-solid fa-save me-1"></i> حفظ التعديلات
+                            </button>
+                        @endif
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    @endforeach
+
+@endsection
+@section('scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function previewFile(input, imgIdClass) {
+            const modal = input.closest('.modal');
+            const preview = modal.querySelector('.' + imgIdClass);
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.addEventListener("load", function() {
+                preview.src = reader.result;
+            }, false);
+            if (file) {
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function filterTable(status, btn) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const rows = document.querySelectorAll('.teacher-row');
+            rows.forEach(row => {
+                if (status === 'all' || row.dataset.status === status) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function searchTable() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('.teacher-row');
+            const currentFilter = document.querySelector('.filter-btn.active').getAttribute('onclick').match(/'([^']+)'/)[1];
+            rows.forEach(row => {
+                const text = row.dataset.name.toLowerCase();
+                const statusMatch = (currentFilter === 'all' || row.dataset.status === currentFilter);
+                if (text.includes(input) && statusMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    </script>
+@endsection
