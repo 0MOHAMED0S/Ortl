@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\web\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContactSetting;
 use App\Models\package;
 use Illuminate\Http\Request;
 
 class MainController extends Controller
 {
     public function index()
-    {
-        $packages = package::where('status', 'active')->get();
-        return view('welcome', compact('packages'));
-    }
+{
+    $packages = Package::where('status', 'active')->get();
+
+    $contact = ContactSetting::first();
+
+    return view('welcome', compact('packages', 'contact'));
+}
 }

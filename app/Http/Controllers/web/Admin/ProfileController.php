@@ -5,6 +5,7 @@ namespace App\Http\Controllers\web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Profile\UpdatePasswordProfileRequest;
 use App\Http\Requests\Student\UpdateProfileRequest;
+use App\Models\ContactSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -15,7 +16,11 @@ class ProfileController extends Controller
 {
     public function index()
     {
-        return view('dashboard.profile');
+        // 2. Fetch the settings (get the first row)
+        $contact = ContactSetting::first();
+
+        // 3. Pass the variable to the view
+        return view('dashboard.profile', compact('contact'));
     }
 
     public function updateProfile(UpdateProfileRequest $request)

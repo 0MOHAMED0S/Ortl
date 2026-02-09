@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\web\Admin\AdsController;
 use App\Http\Controllers\web\Admin\AuthController;
+use App\Http\Controllers\web\Admin\ContactSettingController;
 use App\Http\Controllers\web\Admin\CouponsController;
 use App\Http\Controllers\web\Admin\PackageController;
 use App\Http\Controllers\web\Admin\ProfileController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\web\User\ContactController;
 use App\Http\Controllers\web\User\MainController;
 use App\Http\Controllers\web\User\TeacherApplicationController;
 use App\Http\Controllers\web\User\TrackController;
+use App\Models\ContactSetting;
 use Illuminate\Support\Facades\Route;
 
 // Route::get('/', function () {
@@ -50,7 +52,8 @@ Route::prefix('admin')->group(function () {
         Route::resource('tracks', AdminTrackController::class);
         Route::resource('teachers', TeacherController::class);
         Route::resource('coupons', CouponsController::class);
-
+        Route::put('/settings/contact', [ContactSettingController::class, 'updateContactSettings'])->name('settings.contact.update');
+        
         Route::post('/teachers/{id}/approve', [TeacherController::class, 'approve'])->name('teacher.approve');
         Route::post('/teachers/{id}/reject', [TeacherController::class, 'reject'])->name('teacher.reject');
         Route::resource('packages', PackageController::class);

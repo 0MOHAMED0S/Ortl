@@ -1212,8 +1212,8 @@
                     <li class="nav-item"><a class="nav-link active" href="#">الرئيسية</a></li>
                     <li class="nav-item"><a class="nav-link" href="#stats">الإحصائيات</a></li>
                     <li class="nav-item"><a class="nav-link" href="#why-us">لماذا ورتل</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#features">المميزات</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#packages">الأسعار</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#packages">الباقات</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#contact">تواصل معنا</a></li>
                 </ul>
                 <div class="d-flex flex-column flex-lg-row align-items-center">
                     <a href="{{ route('teacher.index') }}" class="nav-link-teacher"><i
@@ -1700,61 +1700,83 @@
                         لا تتردد في مراسلتنا.</p>
 
                     <div class="contact-info-box">
-                        <div class="contact-item">
-                            <div class="contact-icon"><i class="fa-solid fa-envelope"></i></div>
-                            <div>
-                                <h6 class="fw-bold mb-1 text-dark">البريد الإلكتروني</h6>
-                                <small class="text-muted">support@wartel.app</small>
-                            </div>
-                        </div>
-                        <div class="contact-item mb-0">
-                            <div class="contact-icon"><i class="fa-solid fa-phone-volume"></i></div>
-                            <div>
-                                <h6 class="fw-bold mb-1 text-dark">خدمة العملاء</h6>
-                                <small class="text-muted">+20 123 456 7890</small>
-                            </div>
-                        </div>
-                    </div>
+<div class="contact-item">
+        <div class="contact-icon">
+            <i class="fa-solid fa-envelope"></i>
+        </div>
+        <div>
+            <h6 class="fw-bold mb-1 text-dark">البريد الإلكتروني</h6>
+            {{-- Dynamic Email Link --}}
+            <a href="mailto:{{ $contact->email ?? 'info@wartel.app' }}" class="text-muted text-decoration-none">
+                {{ $contact->email ?? 'info@wartel.app' }}
+            </a>
+        </div>
+    </div>
+
+    <div class="contact-item mb-0">
+        <div class="contact-icon">
+            <i class="fa-solid fa-phone-volume"></i>
+        </div>
+        <div>
+            <h6 class="fw-bold mb-1 text-dark">خدمة العملاء</h6>
+
+            {{--
+                Dynamic WhatsApp Link
+                We use str_replace to remove '+' or spaces for the URL,
+                but keep the original format for display.
+            --}}
+            @php
+                $phoneDisplay = $contact->phone ?? '+201110562097';
+                // Clean phone for URL (remove non-numeric chars)
+                $phoneUrl = preg_replace('/[^0-9]/', '', $phoneDisplay);
+            @endphp
+
+            <a
+                href="https://wa.me/{{ $phoneUrl }}?text=مرحبًا%20فريق%20ورتل%2C%20لدي%20استفسار%20حول%20التطبيق"
+                target="_blank"
+                class="text-muted text-decoration-none"
+                dir="ltr"
+            >
+                +{{ $phoneDisplay }}
+            </a>
+
+        </div>
+    </div>
+</div>
+
                 </div>
 
                 <div class="col-lg-7" data-aos="fade-right">
                     <div class="contact-form">
                         <h4 class="fw-bold mb-4 text-dark">أرسل لنا رسالة</h4>
-                        <form action="{{ route('contact.send') }}" method="POST">
-                            @csrf {{-- Crucial for security --}}
+<form id="contactForm">
+    @csrf {{-- Still needed for AJAX headers --}}
 
-                            {{-- Success Message Alert --}}
-                            @if (session('success'))
-                                <div class="alert alert-success mb-3">{{ session('success') }}</div>
-                            @endif
+    {{-- Success/Error Message Container --}}
+    <div id="formMessage" class="alert d-none mb-3"></div>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    {{-- Added name="name" --}}
-                                    <input type="text" name="name" class="form-control"
-                                        placeholder="الاسم الكامل" required>
-                                </div>
-                                <div class="col-md-6">
-                                    {{-- Added name="email" --}}
-                                    <input type="email" name="email" class="form-control"
-                                        placeholder="البريد الإلكتروني" required>
-                                </div>
-                                <div class="col-12">
-                                    {{-- Added name="subject" --}}
-                                    <input type="text" name="subject" class="form-control"
-                                        placeholder="موضوع الرسالة" required>
-                                </div>
-                                <div class="col-12">
-                                    {{-- Added name="message" --}}
-                                    <textarea name="message" class="form-control" rows="5" placeholder="اكتب رسالتك هنا..." required></textarea>
-                                </div>
-                                <div class="col-12">
-                                    <button type="submit" class="btn-submit">
-                                        إرسال الرسالة <i class="fa-solid fa-paper-plane ms-2"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
+    <div class="row">
+        <div class="col-md-6">
+            <input type="text" name="name" class="form-control" placeholder="الاسم الكامل" required>
+        </div>
+        <div class="col-md-6">
+            <input type="email" name="email" class="form-control" placeholder="البريد الإلكتروني" required>
+        </div>
+        <div class="col-12">
+            <input type="text" name="subject" class="form-control" placeholder="موضوع الرسالة" required>
+        </div>
+        <div class="col-12">
+            <textarea name="message" class="form-control" rows="5" placeholder="اكتب رسالتك هنا..." required></textarea>
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn-submit" id="submitBtn">
+                <span class="btn-text">إرسال الرسالة</span>
+                <i class="fa-solid fa-paper-plane ms-2"></i>
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+            </button>
+        </div>
+    </div>
+</form>
                     </div>
                 </div>
             </div>
@@ -1787,7 +1809,7 @@
                 </div>
 
                 <div class="col-lg-3 col-md-6">
-                    <h5 class="footer-title">المساعدة</h5>
+                    {{-- <h5 class="footer-title">المساعدة</h5>
                     <ul class="footer-links">
                         <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الأسئلة الشائعة</a>
                         </li>
@@ -1795,7 +1817,7 @@
                         <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الشروط والأحكام</a>
                         </li>
                         <li><a href="#contact"><i class="fa-solid fa-chevron-left text-xs"></i> اتصل بنا</a></li>
-                    </ul>
+                    </ul> --}}
                 </div>
 
                 <div class="col-lg-3 col-md-6">
@@ -1912,6 +1934,63 @@
                 observer.observe(counter);
             });
         });
+    </script>
+    <script>
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const form = this;
+    const btn = document.getElementById('submitBtn');
+    const msgBox = document.getElementById('formMessage');
+    const spinner = btn.querySelector('.spinner-border');
+
+    // UI Loading State
+    btn.disabled = true;
+    if(spinner) spinner.classList.remove('d-none');
+    msgBox.classList.add('d-none');
+
+    const formData = new FormData(form);
+
+    fetch("{{ route('contact.send') }}", {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+            'Accept': 'application/json' // Forces Laravel to return JSON validation errors
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        if(spinner) spinner.classList.add('d-none');
+
+        msgBox.classList.remove('d-none', 'alert-success', 'alert-danger');
+
+        if (data.status === 'success') {
+            // Success Logic
+            msgBox.classList.add('alert-success');
+            msgBox.innerText = data.message;
+            form.reset();
+        } else if (data.errors) {
+            // Validation Error Logic
+            msgBox.classList.add('alert-danger');
+            // Show the first validation error found
+            msgBox.innerText = Object.values(data.errors)[0][0];
+        } else {
+            // General Error Logic
+            msgBox.classList.add('alert-danger');
+            msgBox.innerText = data.message || 'حدث خطأ غير متوقع.';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.disabled = false;
+        if(spinner) spinner.classList.add('d-none');
+        msgBox.classList.remove('d-none', 'alert-success');
+        msgBox.classList.add('alert-danger');
+        msgBox.innerText = 'فشل الاتصال بالخادم.';
+    });
+});
     </script>
 </body>
 

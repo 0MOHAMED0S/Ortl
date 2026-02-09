@@ -52,7 +52,7 @@ class TrackSeeder extends Seeder
         ];
 
         foreach ($tracks as $track) {
-            Track::create($track);
+            Track::updateOrCreate($track);
         }
     }
 }

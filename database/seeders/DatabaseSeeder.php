@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
     $this->call(SettingsTableSeeder::class);
     $this->call(PackageSeeder::class);
     $this->call(TrackSeeder::class);
+    $this->call(ContactSettingSeeder::class);
         // User::factory()->create([
         //     'name' => 'Test User',
         //     'email' => 'test@example.com',

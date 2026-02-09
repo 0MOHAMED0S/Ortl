@@ -11,17 +11,25 @@ use Illuminate\Support\Facades\Mail;
 
 class ContactController extends Controller
 {
-    public function sendEmail(SendContactEmailRequest $request)
+public function sendEmail(SendContactEmailRequest $request)
     {
         try {
+            // Option 1: Get email from Config (As per your code)
             $businessEmail = config('mail.from.address', 'info@wartil.com');
+
+            // Option 2: Get email from Database (Better for dynamic settings)
+            // $businessEmail = ContactSetting::value('email') ?? 'info@wartil.com';
 
             Mail::to($businessEmail)->send(
                 new ContactUsMail($request->validated())
             );
 
-            return redirect()->back()
-                ->with('success', 'تم إرسال رسالتك بنجاح، سنتواصل معك قريباً!');
+            // AJAX RESPONSE: Success
+            return response()->json([
+                'status' => 'success',
+                'message' => 'تم إرسال رسالتك بنجاح، سنتواصل معك قريباً!'
+            ], 200);
+
         } catch (\Throwable $e) {
 
             Log::error('Contact email send error', [
@@ -29,9 +37,11 @@ class ContactController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'حدث خطأ أثناء الإرسال، يرجى المحاولة لاحقاً.');
+            // AJAX RESPONSE: Error
+            return response()->json([
+                'status' => 'error',
+                'message' => 'حدث خطأ أثناء الإرسال، يرجى المحاولة لاحقاً.'
+            ], 500);
         }
     }
 }
