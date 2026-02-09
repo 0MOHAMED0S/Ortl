@@ -26,6 +26,11 @@
     </a>
 </li>
 <li>
+    <a href="{{ route('coupons.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'coupons.') ? 'active' : '' }}">
+        <i class="fa-solid fa-tags"></i> الكوبونات
+    </a>
+</li>
+<li>
     <a href="{{ route('ads.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'ads.') ? 'active' : '' }}">
         <i class="fa-solid fa-ad"></i> الإعلانات
     </a>
@@ -44,12 +49,12 @@
     <a href="{{ route('admin.subscriptions') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.subscriptions') ? 'active' : '' }}">
         <i class="fa-solid fa-file-invoice-dollar"></i> الاشتراكات
     </a>
-  {{--
-        <li><a href="students.html" class="sidebar-link"><i class="fa-solid fa-users"></i> الطلاب</a></li>
-        <li><a href="packages.html" class="sidebar-link"><i class="fa-solid fa-sack-dollar"></i> الباقات</a>
-        </li>
-        <li><a href="subscriptions.html" class="sidebar-link"><i class="fa-solid fa-file-invoice-dollar"></i>
-                الاشتراكات</a></li> --}}
+</li>
+<li>
+    <a href="{{ route('profiles.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'profiles.') ? 'active' : '' }}">
+        <i class="fa-solid fa-tags"></i> الملف الشخصي
+    </a>
+</li>
         <li style="margin-top: 50px;">
             <a href="#" class="sidebar-link text-danger" data-bs-toggle="modal" data-bs-target="#logoutModal">
                 <i class="fa-solid fa-right-from-bracket"></i> تسجيل خروج

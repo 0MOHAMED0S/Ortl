@@ -19,6 +19,7 @@
             background: #f8f9fa;
             object-fit: cover;
             border: 1px solid #eee;
+            flex-shrink: 0; /* Prevent shrinking on mobile */
         }
 
         /* Subscription Badges */
@@ -28,6 +29,7 @@
             border-radius: 8px;
             font-size: 12px;
             font-weight: 700;
+            white-space: nowrap; /* Prevent text wrapping */
         }
         /* Paid Plans */
         .badge-gold { background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); color: #f59e0b; border: 1px solid #ffe082; }
@@ -65,6 +67,31 @@
             border-color: #3b82f6;
         }
         .waiver-box.active .form-check-label { color: #1e40af; }
+
+        /* --- RESPONSIVE ADJUSTMENTS --- */
+        @media (max-width: 768px) {
+            /* Stats Bar: 2 items per row on mobile */
+            .col-md-3 {
+                flex: 0 0 50%;
+                max-width: 50%;
+                margin-bottom: 15px;
+            }
+            /* Table Scrolling */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .table th, .table td {
+                white-space: nowrap; /* Keep table rows readable */
+            }
+        }
+        @media (max-width: 576px) {
+            /* Stats Bar: 1 item per row on very small screens */
+            .col-md-3 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
     </style>
 @endsection
 
@@ -74,9 +101,6 @@
         <h5 class="m-0 fw-bold">الطلاب والاشتراكات</h5>
         <small class="text-muted">إدارة بيانات الطلاب وباقاتهم (المدفوعة والمجانية)</small>
     </div>
-    <button class="btn btn-primary fw-bold px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addStudentModal">
-        <i class="fa-solid fa-user-plus me-2"></i> تسجيل طالب جديد
-    </button>
 </div>
 @endsection
 
@@ -127,38 +151,43 @@
     ];
 @endphp
 
-<div class="container-fluid p-4">
+<div class="container-fluid p-3 p-md-4">
+    <div class="text-center mb-4">
+        <button class="btn btn-primary fw-bold px-4 shadow-sm w-100 w-md-auto" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+            <i class="fa-solid fa-user-plus me-2"></i> تسجيل طالب جديد
+        </button>
+    </div>
 
     {{-- Stats Bar --}}
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-3">
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="bg-primary bg-opacity-10 text-primary rounded p-3"><i class="fa-solid fa-users fs-4"></i></div>
+                    <div class="bg-primary bg-opacity-10 text-primary rounded p-3 flex-shrink-0"><i class="fa-solid fa-users fs-4"></i></div>
                     <div><h5 class="fw-bold m-0">1,250</h5><small class="text-muted">إجمالي الطلاب</small></div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-3">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="bg-warning bg-opacity-10 text-warning rounded p-3"><i class="fa-solid fa-crown fs-4"></i></div>
+                    <div class="bg-warning bg-opacity-10 text-warning rounded p-3 flex-shrink-0"><i class="fa-solid fa-crown fs-4"></i></div>
                     <div><h5 class="fw-bold m-0">850</h5><small class="text-muted">اشتراك مدفوع</small></div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-3">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="bg-indigo bg-opacity-10 text-indigo rounded p-3" style="color: #4338ca; background: #e0e7ff;"><i class="fa-solid fa-gift fs-4"></i></div>
+                    <div class="bg-indigo bg-opacity-10 text-indigo rounded p-3 flex-shrink-0" style="color: #4338ca; background: #e0e7ff;"><i class="fa-solid fa-gift fs-4"></i></div>
                     <div><h5 class="fw-bold m-0">45</h5><small class="text-muted">منحة مجانية</small></div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-3">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="bg-secondary bg-opacity-10 text-secondary rounded p-3"><i class="fa-solid fa-user-slash fs-4"></i></div>
+                    <div class="bg-secondary bg-opacity-10 text-secondary rounded p-3 flex-shrink-0"><i class="fa-solid fa-user-slash fs-4"></i></div>
                     <div><h5 class="fw-bold m-0">355</h5><small class="text-muted">بدون اشتراك</small></div>
                 </div>
             </div>
@@ -297,7 +326,7 @@
                                                     </div>
                                                     <input class="form-check-input ms-0 toggle-free" type="checkbox" id="freeToggle{{ $student->id }}"
                                                            data-target="{{ $student->id }}"
-                                                           {{ $student->is_free ? 'checked' : '' }}>
+                                                           {{ $student->is_free ? 'checked' : '' }} style="cursor: pointer;">
                                                 </div>
                                             </div>
 
@@ -337,7 +366,7 @@
 
                                             {{-- Dynamic Submit Button --}}
                                             <button type="submit" class="btn {{ $student->is_free ? 'btn-indigo text-white' : 'btn-primary' }} fw-bold px-4" id="submitBtn{{ $student->id }}"
-                                                style="{{ $student->is_free ? 'background-color: #4338ca;' : '' }}">
+                                                    style="{{ $student->is_free ? 'background-color: #4338ca;' : '' }}">
                                                 @if($student->is_free)
                                                     <i class="fa-solid fa-gift me-2"></i>تأكيد المنحة
                                                 @else

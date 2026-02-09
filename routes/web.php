@@ -3,10 +3,13 @@
 use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\web\Admin\AdsController;
 use App\Http\Controllers\web\Admin\AuthController;
+use App\Http\Controllers\web\Admin\CouponsController;
 use App\Http\Controllers\web\Admin\PackageController;
+use App\Http\Controllers\web\Admin\ProfileController;
 use App\Http\Controllers\web\Admin\SettingController;
 use App\Http\Controllers\web\Admin\TeacherController;
 use App\Http\Controllers\web\Admin\TrackController as AdminTrackController;
+use App\Http\Controllers\web\User\ContactController;
 use App\Http\Controllers\web\User\MainController;
 use App\Http\Controllers\web\User\TeacherApplicationController;
 use App\Http\Controllers\web\User\TrackController;
@@ -46,21 +49,28 @@ Route::prefix('admin')->group(function () {
 
         Route::resource('tracks', AdminTrackController::class);
         Route::resource('teachers', TeacherController::class);
+        Route::resource('coupons', CouponsController::class);
+
         Route::post('/teachers/{id}/approve', [TeacherController::class, 'approve'])->name('teacher.approve');
         Route::post('/teachers/{id}/reject', [TeacherController::class, 'reject'])->name('teacher.reject');
         Route::resource('packages', PackageController::class);
         Route::resource('ads', AdsController::class)->except(['create', 'show', 'edit']);
+        Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+        Route::put('/profile/update', [ProfileController::class, 'updateProfile'])->name('profile.update');
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('password.update');
 
-
-        Route::get('/students', function () {return view('dashboard.students');})->name('admin.students');
-        Route::get('/sessions', function () {return view('dashboard.sessions');})->name('admin.sessions');
-        Route::get('/Subscriptions', function () {return view('dashboard.Subscriptions');})->name('admin.subscriptions');
-
+        Route::get('/students', function () {
+            return view('dashboard.students');
+        })->name('admin.students');
+        Route::get('/sessions', function () {
+            return view('dashboard.sessions');
+        })->name('admin.sessions');
+        Route::get('/Subscriptions', function () {
+            return view('dashboard.Subscriptions');
+        })->name('admin.subscriptions');
     });
 });
 
 Route::post('/teacher-apply', [TeacherApplicationController::class, 'store'])
     ->name('teacher.apply');
-
-
-
+Route::post('/contact-us', [ContactController::class, 'sendEmail'])->name('contact.send');

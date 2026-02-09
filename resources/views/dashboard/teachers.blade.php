@@ -13,11 +13,20 @@
         .stat-red { border-left: 4px solid #dc3545; } .stat-red .stat-icon-box { background: #f8d7da; color: #dc3545; }
 
         /* --- Filter Buttons --- */
-        .filter-btn { border: 1px solid #eee; background: white; color: #666; padding: 8px 16px; border-radius: 30px; font-weight: 600; font-size: 0.9rem; transition: 0.2s; margin-left: 5px; }
+        .filter-btn { border: 1px solid #eee; background: white; color: #666; padding: 8px 16px; border-radius: 30px; font-weight: 600; font-size: 0.9rem; transition: 0.2s; margin-left: 5px; white-space: nowrap; }
         .filter-btn:hover, .filter-btn.active { background: var(--primary-dark); color: white; border-color: var(--primary-dark); }
 
+        /* Mobile Scrollable Filters */
+        #filterButtons {
+            overflow-x: auto;
+            padding-bottom: 5px;
+            -webkit-overflow-scrolling: touch;
+        }
+        #filterButtons::-webkit-scrollbar { height: 4px; }
+        #filterButtons::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
         /* --- Details & Modal --- */
-        .info-section-title { font-size: 0.9rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 15px; border-bottom: 2px solid var(--gold-light); padding-bottom: 8px; display: inline-block; }
+        .info-section-title { font-size: 0.9rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 15px; border-bottom: 2px solid var(--gold-main); padding-bottom: 8px; display: inline-block; }
         .detail-item { margin-bottom: 12px; }
         .detail-label { font-size: 0.75rem; color: #999; display: block; margin-bottom: 3px; }
         .detail-val { font-weight: 600; color: #333; font-size: 0.95rem; word-break: break-word; }
@@ -38,7 +47,9 @@
 
         /* Responsive Modal Sidebar */
         .modal-sidebar-col { border-bottom: 1px solid #eee; padding-bottom: 1.5rem; margin-bottom: 1.5rem; }
-        @media (min-width: 992px) { .modal-sidebar-col { border-bottom: none; border-left: 1px solid #eee; padding-bottom: 0; margin-bottom: 0; } }
+        @media (min-width: 992px) {
+            .modal-sidebar-col { border-bottom: none; border-left: 1px solid #eee; padding-bottom: 0; margin-bottom: 0; height: 100%; overflow-y: auto; }
+        }
 
         /* Header Switch */
         .registration-control { background: #fff; padding: 10px 20px; border-radius: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; border: 1px solid #eee; }
@@ -46,20 +57,42 @@
         .registration-control .form-check-input:checked { background-color: #198754; border-color: #198754; }
         .status-text { font-weight: 700; font-size: 0.85rem; transition: 0.3s; }
         .text-open { color: #198754; } .text-closed { color: #dc3545; }
+
+        /* Table Responsive Fixes */
+        .card-box {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            border: 1px solid #eee;
+            overflow: hidden;
+        }
+        .teacher-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .teacher-profile { display: flex; align-items: center; gap: 10px; }
+        .teacher-name { font-weight: 700; display: block; font-size: 0.9rem; }
+        .teacher-sub { font-size: 0.75rem; color: #888; }
+
+        @media (max-width: 768px) {
+            .registration-control { margin-top: 15px; width: 100%; justify-content: space-between; }
+            #searchInput { width: 100%; margin-top: 10px; }
+        }
     </style>
 @endsection
+
 @section('title')
-<h5 class="m-0 fw-bold">معلمون التلاوة  </h5>
+<h5 class="m-0 fw-bold">معلمون التلاوة</h5>
 @endsection
+
 @section('content')
-    <div class="container-fluid p-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="container-fluid p-3 p-md-4">
+
+        {{-- Header Section --}}
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
             <div>
                 <h5 class="fw-bold m-0 text-dark">إدارة طلبات التسجيل</h5>
                 <small class="text-muted">التحكم في حالة تسجيل المعلمين</small>
             </div>
 
-            <div class="registration-control">
+            <div class="registration-control mt-3 mt-md-0">
                 <span class="text-muted small fw-bold">حالة التسجيل:</span>
                 <form action="{{ route('settings.toggleRegistration') }}" method="POST" class="m-0 d-flex align-items-center">
                     @csrf
@@ -101,8 +134,9 @@
             </div>
         @endif
 
+        {{-- Stats Grid --}}
         <div class="row g-3 mb-4">
-            <div class="col-xl-3 col-sm-6">
+            <div class="col-6 col-xl-3">
                 <div class="stat-card stat-purple">
                     <div>
                         <h6 class="text-muted small fw-bold mb-1">إجمالي الطلبات</h6>
@@ -111,7 +145,7 @@
                     <div class="stat-icon-box"><i class="fa-solid fa-folder-open"></i></div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6">
+            <div class="col-6 col-xl-3">
                 <div class="stat-card stat-orange">
                     <div>
                         <h6 class="text-muted small fw-bold mb-1">قيد المراجعة</h6>
@@ -120,7 +154,7 @@
                     <div class="stat-icon-box"><i class="fa-solid fa-clock"></i></div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6">
+            <div class="col-6 col-xl-3">
                 <div class="stat-card stat-green">
                     <div>
                         <h6 class="text-muted small fw-bold mb-1">تم القبول</h6>
@@ -129,7 +163,7 @@
                     <div class="stat-icon-box"><i class="fa-solid fa-check-circle"></i></div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6">
+            <div class="col-6 col-xl-3">
                 <div class="stat-card stat-red">
                     <div>
                         <h6 class="text-muted small fw-bold mb-1">مرفوض / غير مفعل</h6>
@@ -140,23 +174,25 @@
             </div>
         </div>
 
-        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
-            <div class="d-flex" id="filterButtons">
+        {{-- Filters & Search --}}
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
+            <div class="d-flex w-100 overflow-auto pb-2 pb-md-0" id="filterButtons">
                 <button class="filter-btn active" onclick="filterTable('all', this)">الكل</button>
                 <button class="filter-btn" onclick="filterTable('pending', this)">قيد المراجعة</button>
                 <button class="filter-btn" onclick="filterTable('approved', this)">مقبول</button>
                 <button class="filter-btn" onclick="filterTable('not_active', this)">غير مفعل</button>
                 <button class="filter-btn" onclick="filterTable('rejected', this)">مرفوض</button>
             </div>
-            <div style="min-width: 250px;">
+            <div class="w-100 w-md-auto" style="min-width: 250px;">
                 <input type="text" id="searchInput" class="form-control" placeholder="بحث بالاسم أو البريد..." onkeyup="searchTable()">
             </div>
         </div>
 
+        {{-- Table --}}
         <div class="card-box">
             <div class="table-responsive">
-                <table class="table custom-table mb-0 text-nowrap" id="teachersTable">
-                    <thead>
+                <table class="table custom-table mb-0 text-nowrap align-middle" id="teachersTable">
+                    <thead class="table-light">
                         <tr>
                             <th>المعلم</th>
                             <th>الدولة</th>
@@ -168,14 +204,12 @@
                     </thead>
                     <tbody>
                         @forelse($teachers as $teacher)
-                            {{-- START ROW: Logic to fetch data from User table if approved/active --}}
                             @php
                                 $userName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
                                 $userEmail = optional(optional($teacher->profile)->user)->email ?? $teacher->email;
                             @endphp
 
-                            <tr class="teacher-row" data-status="{{ $teacher->status }}"
-                                data-name="{{ $userName }} {{ $userEmail }}">
+                            <tr class="teacher-row" data-status="{{ $teacher->status }}" data-name="{{ $userName }} {{ $userEmail }}">
                                 <td>
                                     <div class="teacher-profile">
                                         <img src="{{ asset('storage/' . ($teacher->profile->profile_photo_path ?? '')) }}"
@@ -202,8 +236,8 @@
                                     @endif
                                 </td>
                                 <td class="text-end">
-                                    <button class="action-btn btn-view" title="مراجعة الطلب" data-bs-toggle="modal" data-bs-target="#detailsModal{{ $teacher->id }}">
-                                        <i class="fa-solid fa-eye"></i>
+                                    <button class="btn btn-sm btn-light border" title="مراجعة الطلب" data-bs-toggle="modal" data-bs-target="#detailsModal{{ $teacher->id }}">
+                                        <i class="fa-solid fa-eye text-primary"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -221,9 +255,13 @@
         </div>
     </div>
 
+    {{-- MODALS --}}
     @foreach ($teachers as $teacher)
+        @php
+            $modalName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
+        @endphp
         <div class="modal fade" id="detailsModal{{ $teacher->id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-lg-down">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title fw-bold">
@@ -235,15 +273,11 @@
                     <div class="modal-body p-0">
                         <div class="row g-0 h-100">
 
-                            <div class="col-lg-3 modal-sidebar-col bg-light p-4 d-flex flex-column">
+                            {{-- Sidebar (Image & Edit Forms) --}}
+                            <div class="col-lg-3 modal-sidebar-col bg-light p-4 d-flex flex-column border-end">
 
                                 <div class="text-center mb-3">
                                     <div class="profile-img-container">
-                                        @php
-                                            // Get correct Name/Email to display in modal header
-                                            $modalName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
-                                        @endphp
-
                                         @if (($teacher->status == 'approved' || $teacher->status == 'not_active') && $teacher->profile && $teacher->profile->profile_photo_path)
                                             <img src="{{ asset('storage/' . $teacher->profile->profile_photo_path) }}" class="profile-img-main preview-img-{{ $teacher->id }}">
                                         @else
@@ -276,7 +310,7 @@
                                     @endif
                                 </div>
 
-                                {{-- PENDING STATE --}}
+                                {{-- PENDING STATE FORM --}}
                                 @if ($teacher->status == 'pending')
                                     <form action="{{ route('teacher.approve', $teacher->id) }}" method="POST"
                                         enctype="multipart/form-data" id="approveForm{{ $teacher->id }}" class="flex-grow-1">
@@ -308,13 +342,12 @@
                                         </div>
                                     </form>
 
-                                {{-- APPROVED / NOT ACTIVE STATE (EDIT MODE) --}}
+                                {{-- EDIT STATE FORM --}}
                                 @elseif($teacher->status == 'approved' || $teacher->status == 'not_active')
                                     <form action="{{ route('teacher.updateDetails', $teacher->id) }}" method="POST"
                                           enctype="multipart/form-data" id="updateForm{{ $teacher->id }}" class="flex-grow-1">
                                         @csrf
 
-                                        {{-- 1. Name Input --}}
                                         <div class="admin-input-box text-start">
                                             <label class="form-label">الاسم الكامل</label>
                                             <div class="input-group">
@@ -324,7 +357,6 @@
                                             </div>
                                         </div>
 
-                                        {{-- 2. Email Input --}}
                                         <div class="admin-input-box text-start">
                                             <label class="form-label">البريد الإلكتروني</label>
                                             <div class="input-group">
@@ -334,7 +366,6 @@
                                             </div>
                                         </div>
 
-                                        {{-- 3. Status Select --}}
                                         <div class="admin-input-box text-start">
                                             <label class="form-label">حالة الحساب</label>
                                             <select name="status" class="form-select border-0 bg-transparent ps-0 fw-bold {{ $teacher->status == 'approved' ? 'text-success' : 'text-secondary' }}">
@@ -343,7 +374,6 @@
                                             </select>
                                         </div>
 
-                                        {{-- 4. Salary Input --}}
                                         <div class="admin-input-box text-start">
                                             <label class="form-label">تعديل الراتب</label>
                                             <div class="input-group">
@@ -353,7 +383,6 @@
                                             </div>
                                         </div>
 
-                                        {{-- 5. Password Input --}}
                                         <div class="admin-input-box text-start">
                                             <label class="form-label">تغيير كلمة المرور</label>
                                             <div class="input-group">
@@ -367,9 +396,9 @@
 
                             </div>
 
+                            {{-- Details Content --}}
                             <div class="col-lg-9 p-4">
                                 <div class="row g-4">
-                                    {{-- Application Details (Read Only) --}}
                                     <div class="col-md-6">
                                         <h6 class="info-section-title">البيانات الشخصية</h6>
                                         <div class="row">
@@ -383,7 +412,7 @@
                                                     <i class="fa-brands fa-whatsapp me-1"></i> {{ $teacher->phone }}
                                                 </a>
                                             </div>
-                                                <div class="col-6 detail-item">
+                                            <div class="col-6 detail-item">
                                                 <span class="detail-label"> البريد</span>
                                                 <span class="detail-val">{{ $teacher->email }}</span>
                                             </div>
