@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <title>رسالة جديدة</title>
 </head>
+
 <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
     <div style="background-color: #fff; padding: 20px; border-radius: 10px; max-width: 600px; margin: auto;">
         <h2 style="color: #2d8a74;">رسالة تواصل جديدة</h2>
@@ -17,4 +19,5 @@
         </p>
     </div>
 </body>
+
 </html>

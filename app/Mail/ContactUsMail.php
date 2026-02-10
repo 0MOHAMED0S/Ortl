@@ -20,8 +20,12 @@ class ContactUsMail extends Mailable
 
     public function build()
     {
-        return $this->from($this->data['email'], $this->data['name']) // Sender's email
-                    ->subject('رسالة جديدة من الموقع: ' . $this->data['subject']) // Email Subject
-                    ->view('emails.contact_template'); // The view file (next step)
+        return $this->from(config('mail.from.address'), config('mail.from.name'))
+            ->replyTo($this->data['email'], $this->data['name'])
+            ->subject('رسالة جديدة من الموقع: ' . $this->data['subject'])
+            ->view('emails.contact_template')
+            ->with([
+                'data' => $this->data
+            ]);
     }
 }
