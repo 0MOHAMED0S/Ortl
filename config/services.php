@@ -34,5 +34,9 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'paymob' => [
+            'base_url' => env('PAYMOB_BASE_URL', 'https://accept.paymob.com/api'),
+            'api_key'  => env('PAYMOB_API_KEY'),
+        ],
 
 ];

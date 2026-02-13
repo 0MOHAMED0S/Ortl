@@ -15,76 +15,87 @@ use Illuminate\Support\Facades\Log;
 
 class BuyPackageController extends Controller
 {
-    public function buy(package $package, PaymobService $paymob)
+public function buy(Request $request, package $package, PaymobService $paymob)
     {
         try {
             $user = auth()->user();
 
-            // 1. Fetch Country from Profile
-            $country = null;
-            if ($user->isStudent()) {
-                $country = $user->studentProfile->country ?? null;
-            } elseif ($user->isTeacher()) {
-                $country = $user->teacherProfile->country ?? null;
+            // --- الخطوة 0: التحقق من عدم وجود باقة نشطة من نفس النوع ---
+            $hasActive = UserPackage::where('user_id', $user->id)
+                ->where('package_id', $package->id)
+                ->where('status', 'active')
+                ->where('expires_at', '>', now())
+                ->exists();
+
+            if ($hasActive) {
+                return response()->json(['error' => 'لديك باقة نشطة بالفعل، لا يمكنك شراء نفس الباقة مرتين.'], 400);
             }
 
-            // 2. Logic for Integration and Currency
+            // 1. تحديد الدولة والعملة
+            $country = $user->isStudent() ? $user->studentProfile->country : ($user->isTeacher() ? $user->teacherProfile->country : null);
+
             if ($country && !empty($country->paymob_integration_id)) {
                 $integrationId = $country->paymob_integration_id;
                 $currency = $country->currency_code;
-
-                // Calculate local price and force to Integer
-                $price = (int) round($package->price * ($country->rate_to_usd ?: 1));
+                $price = $package->price * ($country->rate_to_usd ?: 1);
             } else {
                 $integrationId = env('PAYMOB_INTEGRATION_ID');
                 $currency = env('PAYMOB_DEFAULT_CURRENCY', 'EGP');
-
-                // Convert to default currency price and force to Integer
-                $price = $country
-                    ? (int) round($package->price * $country->rate_to_usd)
-                    : (int) $package->price;
+                $price = $country ? ($package->price * $country->rate_to_usd) : $package->price;
             }
 
-            // 3. Paymob Authentication
+            // 2. تطبيق الخصم (إذا وُجد كوبون)
+            $couponId = null;
+            if ($request->filled('coupon_code')) {
+                $coupon = Coupon::where('code', $request->coupon_code)
+                    ->where('status', 'active')
+                    ->where('expiry_date', '>=', now()->toDateString())
+                    ->first();
+
+                if ($coupon && ($coupon->limit == 0 || $coupon->used < $coupon->limit)) {
+                    $price -= ($price * $coupon->percent) / 100;
+                    $couponId = $coupon->id;
+                }
+            }
+
+            $finalPrice = (int) round($price);
+
+            // 3. الاتصال بـ Paymob
             $token = $paymob->authenticate();
+            $paymobOrderResponse = $paymob->createOrder($token, $finalPrice, $currency);
 
-            // 4. Create Paymob Order
-            $paymobOrder = $paymob->createOrder($token, $price, $currency);
-
-            if (!isset($paymobOrder['id'])) {
-                throw new \Exception("Paymob Order creation failed.");
+            // تصحيح: التحقق من نجاح الطلب قبل الوصول للـ ID
+            if (!$paymobOrderResponse->successful() || !isset($paymobOrderResponse['id'])) {
+                Log::error('Paymob Order Error', $paymobOrderResponse->json());
+                throw new \Exception("فشل إنشاء الطلب في باي موب: " . ($paymobOrderResponse['message'] ?? 'خطأ غير معروف'));
             }
 
-            // 5. Create Local Order (Price is now a clean integer)
+            $paymobOrderId = $paymobOrderResponse['id'];
+
+            // 4. إنشاء الطلب محلياً
             $order = Order::create([
                 'user_id' => $user->id,
                 'package_id' => $package->id,
+                // 'coupon_id' => Null,
                 'country_id' => $country->id ?? null,
-                'amount' => $price,
+                'amount' => $finalPrice,
                 'currency' => $currency,
-                'paymob_order_id' => $paymobOrder['id'],
+                'paymob_order_id' => $paymobOrderId,
                 'status' => 'pending'
             ]);
 
-            // 6. Generate Payment Key
-            $paymentToken = $paymob->generatePaymentKey(
-                $token,
-                $paymobOrder['id'],
-                $price,
-                $user,
-                $currency,
-                $integrationId
-            );
-
+            // 5. توليد مفتاح الدفع
+            $paymentToken = $paymob->generatePaymentKey($token, $paymobOrderId, $finalPrice, $user, $currency, $integrationId);
             $iframeUrl = $paymob->getIframeUrl(env('PAYMOB_IFRAME_ID'), $paymentToken);
 
             return response()->json([
                 'iframe_url' => $iframeUrl,
                 'order_id' => $order->id
             ]);
+
         } catch (\Throwable $e) {
-            Log::error('Paymob Integer Price Error: ' . $e->getMessage());
-            return response()->json(['error' => 'Payment initialization failed.'], 500);
+            Log::error('Payment Error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
