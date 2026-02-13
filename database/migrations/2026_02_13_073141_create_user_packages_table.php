@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('otp_codes', function (Blueprint $table) {
+        Schema::create('user_packages', function (Blueprint $table) {
             $table->id();
-            $table->string('email')->index();
-            $table->string('otp')->nullable();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('package_id')->constrained();
+            $table->integer('remaining_minutes');
             $table->timestamp('expires_at');
-            $table->boolean('is_verified')->default(false);
+            $table->enum('status', ['active', 'expired', 'exhausted'])->default('active');
             $table->timestamps();
         });
     }
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('otp_codes');
+        Schema::dropIfExists('user_packages');
     }
 };

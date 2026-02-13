@@ -16,4 +16,8 @@ class package extends Model
         'description',
         'status',
     ];
+    public function userPackages()
+    {
+        return $this->hasMany(UserPackage::class);
+    }
 }

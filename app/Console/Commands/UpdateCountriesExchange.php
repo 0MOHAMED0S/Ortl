@@ -61,3 +61,4 @@ class UpdateCountriesExchange extends Command
         $this->info('All countries updated successfully!');
     }
 }
+//php artisan countries:update-exchange

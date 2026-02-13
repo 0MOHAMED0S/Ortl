@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('students', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Link to User
-            $table->foreignId('country_id')->constrained()->onDelete('cascade'); // Link to Country
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('country_id')->constrained()->onDelete('cascade');
             $table->string('phone');
             $table->string('address')->nullable();
             $table->string('qualification')->nullable(); // الشهادة

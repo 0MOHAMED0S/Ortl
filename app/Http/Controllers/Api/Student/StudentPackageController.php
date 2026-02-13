@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\package;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
 
 class StudentPackageController extends Controller
 {
@@ -93,6 +94,89 @@ class StudentPackageController extends Controller
 
             return response()->json([
                 'message' => 'Failed to load packages. Please try again.'
+            ], 500);
+        }
+    }
+
+    public function userPackages(Request $request): JsonResponse
+    {
+        try {
+
+            $user = $request->user();
+            $user->load('country');
+
+            $country = $user->country;
+
+            $userPackages = $user->packages()
+                ->with('package')
+                ->latest()
+                ->get();
+
+            $totalRemainingMinutes = $userPackages->sum('remaining_minutes');
+
+            $totalOriginalMinutes = $userPackages->sum(function ($userPackage) {
+                return $userPackage->package->base_minutes +
+                    $userPackage->package->bonus_minutes;
+            });
+
+            $totalActiveRemainingMinutes = $userPackages
+                ->where('status', 'active')
+                ->sum('remaining_minutes');
+
+            $packages = $userPackages->map(function ($userPackage) use ($country) {
+
+                $package = $userPackage->package;
+
+                $localPrice = $country
+                    ? $package->price * $country->rate_to_usd
+                    : $package->price;
+
+                return [
+                    'id' => $userPackage->id,
+                    'remaining_minutes' => $userPackage->remaining_minutes,
+                    'expires_at' => $userPackage->expires_at,
+                    'status' => $userPackage->status,
+
+                    'package' => [
+                        'id' => $package->id,
+                        'name' => $package->name,
+
+                        'price_usd' => $package->price,
+                        'price_local' => round($localPrice, 2),
+                        'currency' => $country?->currency_code ?? 'USD',
+                        'currency_symbol' => $country?->currency_symbol ?? '$',
+
+                        'base_minutes' => $package->base_minutes,
+                        'bonus_minutes' => $package->bonus_minutes,
+                        'validity_days' => $package->validity_days,
+                        'description' => $package->description,
+                    ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'country' => $country?->name ?? 'Default (USD)',
+                'summary' => [
+                    'total_original_minutes' => $totalOriginalMinutes,
+                    'total_remaining_minutes' => $totalRemainingMinutes,
+                    'total_active_remaining_minutes' => $totalActiveRemainingMinutes,
+                ],
+                'data' => $packages
+            ]);
+        } catch (\Throwable $e) {
+
+            // Log full error for debugging
+            Log::error('User Packages Error', [
+                'user_id' => auth()->id(),
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while fetching packages.'
             ], 500);
         }
     }

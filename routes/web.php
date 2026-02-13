@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\Route;
 // Route::get('/teacher', function () {
 //     return view('main.teacher');
 // })->name('teacher.index');
+Route::get('/payment/success', function () {
+    return view('payments.success');
+})->name('payment.success');
 
 Route::get('/close', function () {
     return view('main.close');
@@ -53,7 +56,7 @@ Route::prefix('admin')->group(function () {
         Route::resource('teachers', TeacherController::class);
         Route::resource('coupons', CouponsController::class);
         Route::put('/settings/contact', [ContactSettingController::class, 'updateContactSettings'])->name('settings.contact.update');
-        
+
         Route::post('/teachers/{id}/approve', [TeacherController::class, 'approve'])->name('teacher.approve');
         Route::post('/teachers/{id}/reject', [TeacherController::class, 'reject'])->name('teacher.reject');
         Route::resource('packages', PackageController::class);
@@ -77,3 +80,4 @@ Route::prefix('admin')->group(function () {
 Route::post('/teacher-apply', [TeacherApplicationController::class, 'store'])
     ->name('teacher.apply');
 Route::post('/contact-us', [ContactController::class, 'sendEmail'])->name('contact.send');
+

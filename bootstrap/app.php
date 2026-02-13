@@ -17,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
 
         ]);
+        $middleware->validateCsrfTokens(except: [
+        'payments/callback', // تأكد أن المسار هنا يطابق المسار في ملف الـ Routes
+        'api/payments/callback'
+    ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

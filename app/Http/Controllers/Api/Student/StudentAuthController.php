@@ -18,7 +18,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class StudentAuthController extends Controller
 {
@@ -84,7 +86,7 @@ class StudentAuthController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Something went wrong. Please try again.'
+                'message' => $e->getMessage()
             ], 500);
         }
     }
@@ -289,5 +291,41 @@ class StudentAuthController extends Controller
                 'message' => 'حدث خطأ أثناء تسجيل الخروج'
             ], 500);
         }
+    }
+
+    public function ChangePassword(Request $request)
+    {
+        // 1. التحقق من البيانات المرسلة
+        $validator = Validator::make($request->all(), [
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'confirmed', Password::min(8)],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = auth()->user();
+
+        // 2. التأكد من صحة كلمة المرور الحالية
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'كلمة المرور الحالية غير صحيحة.'
+            ], 401);
+        }
+
+        // 3. تحديث كلمة المرور الجديدة
+        $user->update([
+            'password' => Hash::make($request->new_password)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تغيير كلمة المرور بنجاح.'
+        ]);
     }
 }

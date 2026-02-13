@@ -13,13 +13,14 @@ return new class extends Migration
     {
         Schema::create('countries', function (Blueprint $table) {
             $table->id();
-            $table->string('name');                  // Country name
-            $table->string('code', 2);              // ISO code, e.g., "US"
-            $table->string('currency_code');        // e.g., "USD"
-            $table->string('currency_name');        // e.g., "US Dollar"
-            $table->string('currency_symbol')->nullable(); // e.g., "$"
-            $table->decimal('rate_to_usd', 15, 6)->nullable(); // 1 USD = X local
-            $table->string('phone_code')->nullable(); // e.g., +20
+            $table->string('name');
+            $table->string('code', 2);
+            $table->string('currency_code');
+            $table->string('currency_name');
+            $table->string('currency_symbol')->nullable();
+            $table->string('paymob_integration_id')->nullable();
+            $table->decimal('rate_to_usd', 15, 6)->nullable();
+            $table->string('phone_code')->nullable();
             $table->timestamps();
         });
     }
