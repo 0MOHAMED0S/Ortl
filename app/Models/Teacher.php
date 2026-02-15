@@ -12,7 +12,12 @@ public function user()
 {
     return $this->belongsTo(User::class, 'user_id');
 }
+// app/Models/Teacher.php
 
+public function tracks()
+{
+    return $this->belongsToMany(Track::class, 'teacher_track', 'teacher_id', 'track_id');
+}
 
     // Belongs to an Application (Form info)
     public function application()

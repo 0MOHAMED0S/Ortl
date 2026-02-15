@@ -9,8 +9,11 @@ use App\Models\Teacher;
 use App\Models\Teacher_application;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class TeacherController extends Controller
 {
@@ -20,45 +23,72 @@ class TeacherController extends Controller
         return view('dashboard.teachers', compact('teachers'));
     }
 
-public function approve(ApproveTeacherRequest $request, $id)
+    public function approve(ApproveTeacherRequest $request, $id)
     {
         $application = Teacher_application::findOrFail($id);
 
-        $photoPath = $request->file('profile_photo')
-            ->store('teachers/photos', 'public');
-
-        // إنشاء المستخدم
-        $user = User::create([
-            'name'     => $application->full_name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password), // كلمة المرور المشفرة للداتابيز
-            'role'     => 'teacher',
-        ]);
-
-        // إنشاء بروفايل المعلم
-        Teacher::create([
-            'user_id'                => $user->id,
-            'teacher_application_id' => $application->id,
-            'salary'                 => $request->salary,
-            'profile_photo_path'     => $photoPath,
-        ]);
-
-        // تحديث حالة الطلب
-        $application->update([
-            'status' => 'approved'
-        ]);
-
-        // --- إرسال الإيميل ---
-        try {
-            // نمرر كلمة المرور "غير المشفرة" للإيميل ليراها المستخدم
-            Mail::to($user->email)->send(new TeacherApprovedMail($user, $request->password, $request->salary));
-        } catch (\Exception $e) {
-            // في حال فشل الإيميل، نكمل العملية ولكن نعطي تنبيه (اختياري)
-            // return back()->with('warning', 'تم القبول ولكن فشل إرسال الإيميل');
+        // التحقق من أن الطلب لم يتم قبوله مسبقاً لتجنب تكرار إنشاء الحسابات
+        if ($application->status === 'approved') {
+            return back()->with('error', 'هذا الطلب تم قبوله مسبقاً.');
         }
-        // ---------------------
 
-        return back()->with('success', 'تم قبول المعلم بنجاح، إنشاء الحساب، وإرسال تفاصيل الدخول للبريد الإلكتروني');
+        DB::beginTransaction(); // استخدام الترانزاكشن لضمان سلامة البيانات
+
+        try {
+            // 1. معالجة الصورة الشخصية (التحقق من وجودها)
+            $photoPath = null;
+            if ($request->hasFile('profile_photo')) {
+                $photoPath = $request->file('profile_photo')
+                    ->store('teachers/photos', 'public');
+            } else {
+                // خيار احتياطي: استخدام صورة الطلب الأصلية إذا لم يرفع الأدمن صورة جديدة
+                $photoPath = $application->profile_photo_path;
+            }
+
+            // 2. إنشاء المستخدم
+            $user = User::create([
+                'name'     => $application->full_name,
+                'email'    => $request->email,
+                'password' => Hash::make($request->password),
+                'role'     => 'teacher',
+            ]);
+
+            // 3. إنشاء بروفايل المعلم
+            Teacher::create([
+                'user_id'                => $user->id,
+                'teacher_application_id' => $application->id,
+                'salary'                 => $request->salary,
+                'profile_photo_path'     => $photoPath,
+                'minutes'                => 0, // تعيين القيمة الافتراضية للدقائق
+            ]);
+
+            // 4. تحديث حالة الطلب
+            $application->update([
+                'status' => 'approved'
+            ]);
+
+            DB::commit(); // اعتماد التغييرات في قاعدة البيانات
+
+            // 5. إرسال الإيميل (خارج الترانزاكشن لتجنب تأخير الاستجابة في حال بطء السيرفر)
+            try {
+                Mail::to($user->email)->send(new TeacherApprovedMail($user, $request->password, $request->salary));
+            } catch (\Exception $e) {
+                Log::error('فشل إرسال إيميل قبول المعلم: ' . $e->getMessage());
+                // لا نوقف العملية هنا لأن الحساب تم إنشاؤه بالفعل
+            }
+
+            return back()->with('success', 'تم قبول المعلم بنجاح، إنشاء الحساب، وإرسال تفاصيل الدخول للبريد الإلكتروني');
+        } catch (\Throwable $e) {
+            DB::rollBack(); // تراجع عن كل العمليات في حال حدوث أي خطأ
+
+            // حذف الصورة المرفوعة إذا فشلت العملية
+            if ($photoPath && Storage::disk('public')->exists($photoPath)) {
+                Storage::disk('public')->delete($photoPath);
+            }
+
+            Log::error('خطأ في اعتماد المعلم: ' . $e->getMessage());
+            return back()->with('error', 'حدث خطأ تقني: ' . $e->getMessage());
+        }
     }
 
     public function reject($id)

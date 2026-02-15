@@ -188,7 +188,7 @@
             </div>
         </div>
 
-        {{-- Table --}}
+{{-- Table --}}
         <div class="card-box">
             <div class="table-responsive">
                 <table class="table custom-table mb-0 text-nowrap align-middle" id="teachersTable">
@@ -197,6 +197,8 @@
                             <th>المعلم</th>
                             <th>الدولة</th>
                             <th>المؤهل</th>
+                            {{-- العمود الجديد --}}
+                            <th>رصيد الدقائق</th>
                             <th>تاريخ الطلب</th>
                             <th>الحالة</th>
                             <th class="text-end">إجراءات</th>
@@ -207,13 +209,17 @@
                             @php
                                 $userName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
                                 $userEmail = optional(optional($teacher->profile)->user)->email ?? $teacher->email;
+                                // تحديد مسار الصورة بناءً على حالة الحساب (من جدول التطبيق أو من بروفايل المعلم)
+                                $imagePath = $teacher->status == 'pending' ? $teacher->profile_photo_path : (optional($teacher->profile)->profile_photo_path ?? $teacher->profile_photo_path);
+                                // جلب رصيد الدقائق من البروفايل
+                                $minutes = optional($teacher->profile)->minutes ?? 0;
                             @endphp
 
                             <tr class="teacher-row" data-status="{{ $teacher->status }}" data-name="{{ $userName }} {{ $userEmail }}">
                                 <td>
                                     <div class="teacher-profile">
-                                        <img src="{{ asset('storage/' . ($teacher->profile->profile_photo_path ?? '')) }}"
-                                             onerror="this.src='https://ui-avatars.com/api/?name={{ $userName }}&background=1a4d2e&color=fff&size=64'"
+                                        <img src="{{ $imagePath ? asset('storage/' . $imagePath) : 'https://ui-avatars.com/api/?name=' . urlencode($userName) . '&background=1a4d2e&color=fff' }}"
+                                             onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($userName) }}&background=1a4d2e&color=fff&size=64'"
                                              class="teacher-avatar">
                                         <div>
                                             <span class="teacher-name">{{ $userName }}</span>
@@ -223,6 +229,16 @@
                                 </td>
                                 <td>{{ $teacher->origin_country ?? 'غير محدد' }}</td>
                                 <td><span class="badge bg-light text-dark border fw-normal">{{ Str::limit($teacher->qualification, 20) }}</span></td>
+
+                                {{-- عرض رصيد الدقائق --}}
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fa-regular fa-clock text-primary"></i>
+                                        <span class="fw-bold">{{ number_format($minutes) }}</span>
+                                        <small class="text-muted">دقيقة</small>
+                                    </div>
+                                </td>
+
                                 <td class="text-muted small">{{ $teacher->created_at->format('Y-m-d') }}</td>
                                 <td>
                                     @if ($teacher->status == 'pending')
@@ -243,7 +259,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fa-solid fa-inbox fs-1 mb-3 d-block opacity-25"></i>
                                     لا يوجد طلبات انضمام حالياً
                                 </td>
@@ -259,6 +275,7 @@
     @foreach ($teachers as $teacher)
         @php
             $modalName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
+            $modalImg = $teacher->status == 'pending' ? $teacher->profile_photo_path : (optional($teacher->profile)->profile_photo_path ?? $teacher->profile_photo_path);
         @endphp
         <div class="modal fade" id="detailsModal{{ $teacher->id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-lg-down">
@@ -278,11 +295,8 @@
 
                                 <div class="text-center mb-3">
                                     <div class="profile-img-container">
-                                        @if (($teacher->status == 'approved' || $teacher->status == 'not_active') && $teacher->profile && $teacher->profile->profile_photo_path)
-                                            <img src="{{ asset('storage/' . $teacher->profile->profile_photo_path) }}" class="profile-img-main preview-img-{{ $teacher->id }}">
-                                        @else
-                                            <img src="https://ui-avatars.com/api/?name={{ $modalName }}&background=1a4d2e&color=fff&size=128" class="profile-img-main preview-img-{{ $teacher->id }}">
-                                        @endif
+                                        <img src="{{ $modalImg ? asset('storage/' . $modalImg) : 'https://ui-avatars.com/api/?name=' . urlencode($modalName) . '&background=1a4d2e&color=fff&size=128' }}"
+                                             class="profile-img-main preview-img-{{ $teacher->id }}">
 
                                         <div class="upload-btn-wrapper">
                                             <label for="photoInput{{ $teacher->id }}" class="btn-upload-icon" title="تغيير الصورة">
@@ -450,15 +464,11 @@
                                     <div class="col-12">
                                         <h6 class="info-section-title">المسارات المختارة (التخصص)</h6>
                                         <div class="mb-3">
-                                            @if (isset($teacher->specialties) && (is_array($teacher->specialties) || is_object($teacher->specialties)))
-                                                @foreach ($teacher->specialties as $specialty)
-                                                    <span class="track-badge">
-                                                        <i class="fa-solid fa-check-circle me-1"></i> {{ $specialty }}
-                                                    </span>
-                                                @endforeach
-                                            @else
-                                                <span class="text-muted">لم يتم اختيار مسارات</span>
-                                            @endif
+                                            @foreach ($teacher->tracks as $track)
+                                                <span class="track-badge">
+                                                    <i class="fa-solid fa-check-circle me-1"></i> {{ $track->name }}
+                                                </span>
+                                            @endforeach
                                         </div>
                                     </div>
 
@@ -474,8 +484,8 @@
                                                 <h5 class="fw-bold text-success m-0">{{ $teacher->work_hours }} ساعات</h5>
                                             </div>
                                             <div class="col-6 col-md-3 text-center border-end">
-                                                <span class="detail-label">خبرة التعليم عن بعد</span>
-                                                <span class="badge bg-white text-dark border mt-1">{{ $teacher->online_experience }}</span>
+                                                <span class="detail-label">رصيد الدقائق</span>
+                                                <h5 class="fw-bold text-warning m-0">{{ optional($teacher->profile)->minutes ?? 0 }} دقيقة</h5>
                                             </div>
                                             <div class="col-6 col-md-3 text-center">
                                                 <span class="detail-label">جودة الإنترنت</span>
@@ -513,7 +523,7 @@
                     </div>
 
                     <div class="modal-footer bg-light justify-content-between">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
 
                         @if ($teacher->status == 'pending')
                             <div class="d-flex gap-2">
@@ -541,6 +551,7 @@
     @endforeach
 
 @endsection
+
 @section('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -573,7 +584,9 @@
         function searchTable() {
             const input = document.getElementById('searchInput').value.toLowerCase();
             const rows = document.querySelectorAll('.teacher-row');
-            const currentFilter = document.querySelector('.filter-btn.active').getAttribute('onclick').match(/'([^']+)'/)[1];
+            const activeBtn = document.querySelector('.filter-btn.active');
+            const currentFilter = activeBtn.getAttribute('onclick').match(/'([^']+)'/)[1];
+
             rows.forEach(row => {
                 const text = row.dataset.name.toLowerCase();
                 const statusMatch = (currentFilter === 'all' || row.dataset.status === currentFilter);

@@ -60,59 +60,62 @@ class favoriteController extends Controller
         }
     }
 
-    public function index(Request $request)
-    {
-        try {
-            // 1. Get student profile
-            $student = $request->user()->studentProfile;
+public function index(Request $request)
+{
+    try {
+        // 1. Get student profile
+        $student = $request->user()->studentProfile;
 
-            if (!$student) {
-                return response()->json([
-                    'message' => 'ملف الطالب غير موجود'
-                ], 404);
-            }
-
-            // 2. Fetch favorites
-            $favorites = $student->favorites()
-                ->where('status', 'approved')
-                ->with('profile.user')
-                ->get();
-
-            // 3. Format response
-            $formatted = $favorites->map(function ($teacher) {
-
-                $name = optional(optional($teacher->profile)->user)->name
-                    ?? $teacher->full_name;
-
-                $photoPath = $teacher->profile->profile_photo_path ?? null;
-
-                $photoUrl = $photoPath
-                    ? asset('storage/' . $photoPath)
-                    : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
-
-                return [
-                    'id' => $teacher->id,
-                    'name' => $name,
-                    'photo_url' => $photoUrl,
-                    'qualification' => $teacher->qualification,
-                    'country' => $teacher->origin_country,
-                    'experience_years' => $teacher->experience_years,
-                ];
-            });
-
+        if (!$student) {
             return response()->json([
-                'message' => 'تم جلب المفضلة بنجاح',
-                'data' => $formatted
-            ], 200);
-        } catch (\Throwable $e) {
-            Log::error('Get Favorites Error', [
-                'user_id' => optional($request->user())->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => 'فشل في جلب المفضلة'
-            ], 500);
+                'message' => 'ملف الطالب غير موجود'
+            ], 404);
         }
+
+        // 2. Paginate favorites instead of get()
+        $perPage = $request->query('per_page', 10);
+        $favorites = $student->favorites()
+            ->where('status', 'approved')
+            ->with('profile.user')
+            ->paginate($perPage);
+
+        // 3. Transform the items inside the paginator
+        $favorites->getCollection()->transform(function ($teacher) {
+
+            $name = optional(optional($teacher->profile)->user)->name
+                ?? $teacher->full_name;
+
+            $photoPath = $teacher->profile->profile_photo_path ?? null;
+
+            $photoUrl = $photoPath
+                ? asset('storage/' . $photoPath)
+                : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
+
+            return [
+                'id' => $teacher->id,
+                'name' => $name,
+                'photo_url' => $photoUrl,
+                'qualification' => $teacher->qualification,
+                'country' => $teacher->origin_country,
+                'experience_years' => $teacher->experience_years,
+            ];
+        });
+
+        // 4. Return the paginated response
+        return response()->json([
+            'message' => 'تم جلب المفضلة بنجاح',
+            'data' => $favorites // This now contains data + pagination meta
+        ], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('Get Favorites Error', [
+            'user_id' => optional($request->user())->id,
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'message' => 'فشل في جلب المفضلة'
+        ], 500);
     }
+}
 }

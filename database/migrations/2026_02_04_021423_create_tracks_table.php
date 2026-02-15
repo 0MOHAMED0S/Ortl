@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('tracks', function (Blueprint $table) {
                 $table->id();
                 $table->string('name')->unique();
+                $table->string('icon')->nullable();
                 $table->string('target_group')->nullable();
                 $table->string('marketing_value')->nullable();
                 $table->text('description');

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ورتل - رتل القرآن ترتيلاً</title>
-    <link rel="icon" href="{{ asset('images/mainlogo.png') }}" type="image/png">
+    <link rel="icon" href="{{ asset('images/LOGO-01.svg') }}" type="image/png">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1196,14 +1196,14 @@
     <div id="loader-screen">
         <div class="loader-container">
             <h1 class="loader-brand" data-text="ورتل">ورتل</h1>
-            <div class="loader-sub">رتل القرآن ترتيلاً</div>
+            <div class="loader-sub">ورتل القرآن ترتيلاً</div>
         </div>
     </div>
 
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="#"><img width="60px" height="60px"
-                    src="{{ asset('images/mainlogo.png') }}" alt="ورتل"></a>
+            <a class="navbar-brand" href="#"><img width="70px" height="70px"
+                    src="{{ asset('images/LOGO-01.svg') }}" alt="ورتل"></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
                 <i class="fa-solid fa-bars-staggered"></i>
             </button>

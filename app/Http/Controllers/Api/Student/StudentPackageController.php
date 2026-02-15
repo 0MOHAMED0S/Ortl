@@ -13,42 +13,22 @@ class StudentPackageController extends Controller
     public function index(Request $request)
     {
         try {
-            // 1️⃣ Authenticated user
             $user = $request->user();
-
-            // 2️⃣ Student profile
             $studentProfile = $user->studentProfile;
 
-            if (!$studentProfile) {
+            if (!$studentProfile || !$studentProfile->country) {
                 return response()->json([
-                    'message' => 'Student profile not found.'
+                    'message' => 'Student profile or country data not found.'
                 ], 404);
             }
 
-            // 3️⃣ Country (with exchange data)
             $country = $studentProfile->country;
-
-            if (!$country) {
-                return response()->json([
-                    'message' => 'Country data missing in profile.'
-                ], 404);
-            }
-
-            /**
-             * Assumption:
-             * rate_to_usd = how much 1 USD equals in local currency
-             * Example:
-             * EGP → 30
-             * EUR → 0.92
-             */
             $rate = $country->rate_to_usd ?? 1;
 
-            // 4️⃣ Active packages only
-            $packages = Package::where('status', 'active')->get();
+            $perPage = $request->query('per_page', 10);
+            $packages = package::where('status', 'active')->paginate($perPage);
 
-            // 5️⃣ Transform packages
-            $formattedPackages = $packages->map(function ($package) use ($country, $rate) {
-
+            $packages->getCollection()->transform(function ($package) use ($country, $rate) {
                 $localPrice = $package->price * $rate;
 
                 return [
@@ -58,16 +38,10 @@ class StudentPackageController extends Controller
                     'base_minutes' => $package->base_minutes,
                     'bonus_minutes' => $package->bonus_minutes,
                     'validity_days' => $package->validity_days,
-
-                    // Prices
                     'price_usd' => (int) $package->price,
                     'local_price' => (int) round($localPrice),
-
-                    // Currency info
                     'currency_code' => $country->currency_code,
                     'currency_symbol' => $country->currency_symbol,
-
-                    // UI-ready
                     'display_price' => sprintf(
                         '%s %s',
                         $country->currency_symbol,
@@ -83,17 +57,16 @@ class StudentPackageController extends Controller
                     'currency' => $country->currency_code,
                     'rate_to_usd' => $rate,
                 ],
-                'data' => $formattedPackages
+                'packages' => $packages
             ], 200);
         } catch (\Throwable $e) {
-
-            Log::error('Get Packages Error', [
+            Log::error('Get Packages Pagination Error', [
                 'user_id' => optional($request->user())->id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
-                'message' => 'Failed to load packages. Please try again.'
+                'message' => 'Failed to load packages.'
             ], 500);
         }
     }
@@ -101,32 +74,33 @@ class StudentPackageController extends Controller
     public function userPackages(Request $request): JsonResponse
     {
         try {
-
             $user = $request->user();
             $user->load('country');
-
             $country = $user->country;
 
-            $userPackages = $user->packages()
+            // 1️⃣ Get the base query
+            $query = $user->packages()
                 ->with('package')
-                ->latest()
-                ->get();
+                ->latest();
 
-            $totalRemainingMinutes = $userPackages->sum('remaining_minutes');
+            // 2️⃣ Calculate Summary Totals (on ALL packages before pagination)
+            $allUserPackages = $query->get(); // Fetch full list for totals
 
-            $totalOriginalMinutes = $userPackages->sum(function ($userPackage) {
-                return $userPackage->package->base_minutes +
-                    $userPackage->package->bonus_minutes;
+            $totalRemainingMinutes = $allUserPackages->sum('remaining_minutes');
+            $totalOriginalMinutes = $allUserPackages->sum(function ($up) {
+                return $up->package->base_minutes + $up->package->bonus_minutes;
             });
-
-            $totalActiveRemainingMinutes = $userPackages
+            $totalActiveRemainingMinutes = $allUserPackages
                 ->where('status', 'active')
                 ->sum('remaining_minutes');
 
-            $packages = $userPackages->map(function ($userPackage) use ($country) {
+            // 3️⃣ Paginate the results
+            $perPage = $request->query('per_page', 10);
+            $paginatedPackages = $query->paginate($perPage);
 
+            // 4️⃣ Transform only the items on the current page
+            $paginatedPackages->getCollection()->transform(function ($userPackage) use ($country) {
                 $package = $userPackage->package;
-
                 $localPrice = $country
                     ? $package->price * $country->rate_to_usd
                     : $package->price;
@@ -136,16 +110,13 @@ class StudentPackageController extends Controller
                     'remaining_minutes' => $userPackage->remaining_minutes,
                     'expires_at' => $userPackage->expires_at,
                     'status' => $userPackage->status,
-
                     'package' => [
                         'id' => $package->id,
                         'name' => $package->name,
-
                         'price_usd' => $package->price,
                         'price_local' => round($localPrice, 2),
                         'currency' => $country?->currency_code ?? 'USD',
                         'currency_symbol' => $country?->currency_symbol ?? '$',
-
                         'base_minutes' => $package->base_minutes,
                         'bonus_minutes' => $package->bonus_minutes,
                         'validity_days' => $package->validity_days,
@@ -162,16 +133,12 @@ class StudentPackageController extends Controller
                     'total_remaining_minutes' => $totalRemainingMinutes,
                     'total_active_remaining_minutes' => $totalActiveRemainingMinutes,
                 ],
-                'data' => $packages
+                'packages' => $paginatedPackages // Includes data + meta
             ]);
         } catch (\Throwable $e) {
-
-            // Log full error for debugging
-            Log::error('User Packages Error', [
+            Log::error('User Packages Pagination Error', [
                 'user_id' => auth()->id(),
                 'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
             ]);
 
             return response()->json([

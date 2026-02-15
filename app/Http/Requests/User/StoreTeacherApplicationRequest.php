@@ -15,6 +15,8 @@ class StoreTeacherApplicationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            /* ================== الصورة الشخصية ================== */
+            'profile_photo' => ['required', 'image', 'mimes:jpeg,png,jpg', 'max:2048'], // بحد أقصى 2 ميجا
 
             /* ================== البيانات الشخصية ================== */
             'full_name' => ['required', 'string', 'min:5', 'max:255'],
@@ -60,77 +62,41 @@ class StoreTeacherApplicationRequest extends FormRequest
     public function messages(): array
     {
         return [
+            /* الصورة الشخصية */
+            'profile_photo.required' => 'الصورة الشخصية مطلوبة',
+            'profile_photo.image' => 'يجب أن يكون الملف المرفوع صورة',
+            'profile_photo.mimes' => 'يجب أن تكون الصورة بصيغة: jpeg, png, jpg',
+            'profile_photo.max' => 'حجم الصورة لا يجب أن يتجاوز 2 ميجابايت',
 
             /* البيانات الشخصية */
             'full_name.required' => 'الاسم الكامل مطلوب',
-            'full_name.string' => 'يجب أن يكون الاسم نصًا',
             'full_name.min' => 'الاسم يجب ألا يقل عن 5 أحرف',
-            'full_name.max' => 'الاسم لا يجب أن يزيد عن 255 حرف',
-
             'gender.required' => 'يرجى اختيار الجنس',
-            'gender.in' => 'قيمة الجنس غير صحيحة',
-
             'email.required' => 'البريد الإلكتروني مطلوب',
             'email.email' => 'صيغة البريد الإلكتروني غير صحيحة',
-            'email.max' => 'البريد الإلكتروني طويل جدًا',
-
             'phone.required' => 'رقم الهاتف مطلوب',
-            'phone.string' => 'رقم الهاتف يجب أن يكون نصًا',
-            'phone.min' => 'رقم الهاتف قصير جدًا',
-            'phone.max' => 'رقم الهاتف طويل جدًا',
-
             'origin_country.required' => 'يرجى اختيار بلد الأصل',
-            'origin_country.string' => 'اسم البلد يجب أن يكون نصًا',
-            'origin_country.max' => 'اسم البلد طويل جدًا',
-
             'residence_location.required' => 'مكان الإقامة مطلوب',
-            'residence_location.string' => 'مكان الإقامة يجب أن يكون نصًا',
-            'residence_location.max' => 'مكان الإقامة طويل جدًا',
 
             /* الخلفية العلمية */
             'qualification.required' => 'المؤهل العلمي مطلوب',
-            'qualification.string' => 'المؤهل يجب أن يكون نصًا',
-            'qualification.max' => 'المؤهل طويل جدًا',
-
             'tracks.required' => 'يجب اختيار مسار واحد على الأقل',
-            'tracks.array' => 'المسارات يجب أن تكون مصفوفة',
-            'tracks.min' => 'يجب اختيار مسار واحد على الأقل',
             'tracks.*.exists' => 'أحد المسارات المختارة غير موجود',
-
             'languages.required' => 'يجب اختيار لغة واحدة على الأقل',
-            'languages.array' => 'اللغات يجب أن تكون مصفوفة',
-            'languages.min' => 'يجب اختيار لغة واحدة على الأقل',
             'languages.*.in' => 'لغة غير مدعومة',
 
             /* الخبرة */
             'experience_years.required' => 'عدد سنوات الخبرة مطلوب',
-            'experience_years.integer' => 'عدد السنوات يجب أن يكون رقمًا صحيحًا',
-            'experience_years.min' => 'عدد السنوات لا يمكن أن يكون سالبًا',
-            'experience_years.max' => 'عدد السنوات كبير جدًا',
-
             'work_hours.required' => 'عدد ساعات العمل مطلوب',
-            'work_hours.integer' => 'عدد ساعات العمل يجب أن يكون رقمًا صحيحًا',
-            'work_hours.min' => 'عدد ساعات العمل لا يمكن أن يكون أقل من 1',
-            'work_hours.max' => 'عدد ساعات العمل لا يمكن أن يتجاوز 16 ساعة',
-
             'online_experience.required' => 'يرجى تحديد مستوى الخبرة في التعليم عن بعد',
-            'online_experience.in' => 'قيمة الخبرة غير صحيحة',
-
             'internet_quality.required' => 'يرجى تحديد جودة الإنترنت',
-            'internet_quality.in' => 'قيمة جودة الإنترنت غير صحيحة',
-
             'tech_skills.required' => 'يرجى تحديد مستوى المهارات التقنية',
-            'tech_skills.in' => 'قيمة المهارات التقنية غير صحيحة',
 
             /* المرفقات */
             'ijazas_text.required' => 'يرجى كتابة الإجازات الحاصل عليها',
-            'ijazas_text.string' => 'الإجازات يجب أن تكون نصًا',
-            'ijazas_text.max' => 'الإجازات طويلة جدًا',
-
             'cv_pdf.required' => 'يرجى رفع ملف السيرة الذاتية',
-            'cv_pdf.file' => 'الملف غير صالح',
             'cv_pdf.mimes' => 'يجب أن يكون الملف بصيغة PDF فقط',
-            'cv_pdf.max' => 'حجم الملف يجب ألا يتجاوز 10 ميجابايت',
+            'cv_pdf.max' => 'حجم ملف السيرة الذاتية يجب ألا يتجاوز 10 ميجابايت',
         ];
     }
 }

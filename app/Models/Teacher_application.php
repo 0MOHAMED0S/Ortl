@@ -23,6 +23,7 @@ class Teacher_application extends Model
         'ijazas_text',
         'cv_pdf_path',
         'status',
+        'profile_photo_path'
     ];
 
     protected $casts = [

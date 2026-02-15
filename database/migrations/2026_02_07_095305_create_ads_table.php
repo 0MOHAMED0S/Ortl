@@ -14,7 +14,9 @@ return new class extends Migration
         Schema::create('ads', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->string('image'); // Stores the path
+            $table->string('subtitle')->nullable(); // Added for the lower text
+            $table->string('image')->nullable();    // Optional if using background colors
+            $table->string('bg_color')->default('linear-gradient(135deg, #2dd5a7 0%, #069382 100%)');
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
         });

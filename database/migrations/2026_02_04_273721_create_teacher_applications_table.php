@@ -21,9 +21,9 @@ return new class extends Migration
             $table->string('phone');
             $table->string('origin_country')->nullable();
             $table->string('residence_location');
-
+            $table->string('profile_photo_path');
             // Academic
-            $table->string('qualification');
+            $table->string(column: 'qualification');
             $table->json('languages');
 
             // Experience

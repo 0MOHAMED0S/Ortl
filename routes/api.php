@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Student\favoriteController;
 use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\Api\Student\StudentPackageController;
 use App\Http\Controllers\Api\Student\StudentTeacherController;
+use App\Http\Controllers\Api\Student\StudentTracksController;
 use App\Http\Controllers\Api\Teacher\TeacherAuthController;
 use App\Http\Controllers\web\User\BuyPackageController;
 use Illuminate\Http\Request;
@@ -34,6 +35,9 @@ Route::prefix('student')->group(function () {
     Route::post('/register/send-otp', [StudentAuthController::class, 'sendOtp']);
     Route::post('/register/check-otp', [StudentAuthController::class, 'checkOtp']);
     Route::post('/register/complete', [StudentAuthController::class, 'completeRegistration']);
+    Route::post('/forgot-password/send-otp', [StudentAuthController::class, 'forgotPasswordSendOtp']);
+    Route::post('/forgot-password/check-otp', [StudentAuthController::class, 'checkOtp']);
+    Route::post('/forgot-password/reset', [StudentAuthController::class, 'resetPassword']);
 
     // Login
     Route::post('/login', [StudentAuthController::class, 'login']);
@@ -56,6 +60,8 @@ Route::prefix('student')->group(function () {
 
         Route::post('/packages/{package}/buy', [BuyPackageController::class, 'buy'])->name('packages.buy');
         Route::get('/user-packages', [StudentPackageController::class, 'userPackages']);
+        Route::get('/tracks', [StudentTracksController::class, 'index']);
+        Route::get('teachers/{id}', [StudentTeacherController::class, 'show']);
     });
 });
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);

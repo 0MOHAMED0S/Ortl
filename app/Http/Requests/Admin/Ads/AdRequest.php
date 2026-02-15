@@ -16,17 +16,17 @@ class AdRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
-    public function rules()
+    public function rules(): array
     {
         $rules = [
-            'title' => 'required|string|min:3|max:255', // نصي من 3 إلى 255 حرف
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB
+            'title'    => 'required|string|min:3|max:255',
+            'subtitle' => 'nullable|string|max:255',
+            'image'    => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            // التحقق من أن القيمة نصية (سواء كانت كود Hex أو Gradient)
+            'bg_color' => 'nullable|string|max:255',
         ];
 
-        // إضافة validation للـ status فقط عند التحديث
         if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
             $rules['status'] = 'required|in:active,inactive';
         }
@@ -34,23 +34,28 @@ class AdRequest extends FormRequest
         return $rules;
     }
 
-    public function messages()
+    /**
+     * Custom error messages in Arabic.
+     */
+    public function messages(): array
     {
         return [
-            // Title
             'title.required' => 'العنوان مطلوب',
-            'title.string' => 'العنوان يجب أن يكون نصًا',
-            'title.min' => 'العنوان لا يمكن أن يقل عن 3 أحرف',
-            'title.max' => 'العنوان لا يمكن أن يزيد عن 255 حرفًا',
+            'title.string'   => 'العنوان يجب أن يكون نصًا',
+            'title.min'      => 'العنوان لا يمكن أن يقل عن 3 أحرف',
+            'title.max'      => 'العنوان لا يمكن أن يزيد عن 255 حرفًا',
 
-            // Image
+            'subtitle.string' => 'العنوان الفرعي يجب أن يكون نصًا',
+            'subtitle.max'    => 'العنوان الفرعي لا يمكن أن يزيد عن 255 حرفًا',
+
+            'bg_color.string' => 'تنسيق اللون غير صحيح',
+
             'image.image' => 'يجب أن يكون الملف صورة',
             'image.mimes' => 'الصورة يجب أن تكون من نوع jpeg, png, jpg, gif',
-            'image.max' => 'حجم الصورة لا يمكن أن يتجاوز 2MB',
+            'image.max'   => 'حجم الصورة لا يمكن أن يتجاوز 2 ميجابايت',
 
-            // Status (update)
             'status.required' => 'حالة الإعلان مطلوبة',
-            'status.in' => 'الحالة يجب أن تكون إما active أو inactive',
+            'status.in'       => 'الحالة يجب أن تكون إما نشط (active) أو متوقف (inactive)',
         ];
     }
 }

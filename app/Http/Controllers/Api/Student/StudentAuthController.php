@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\Student;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\CheckOtpRequest;
 use App\Http\Requests\Student\CompleteRegistrationRequest;
+use App\Http\Requests\Student\ForgotPasswordSendOtpRequest;
 use App\Http\Requests\Student\LoginRequest;
 use App\Http\Requests\Student\SendOtpRequest;
 use App\Http\Requests\Student\UpdateProfileRequest;
 use App\Mail\OtpMail;
+use App\Mail\ResetOtpMail;
 use App\Models\OtpCode;
 use App\Models\Student;
 use App\Models\User;
@@ -292,7 +294,6 @@ class StudentAuthController extends Controller
             ], 500);
         }
     }
-
     public function ChangePassword(Request $request)
     {
         // 1. التحقق من البيانات المرسلة
@@ -327,5 +328,71 @@ class StudentAuthController extends Controller
             'success' => true,
             'message' => 'تم تغيير كلمة المرور بنجاح.'
         ]);
+    }
+public function forgotPasswordSendOtp(ForgotPasswordSendOtpRequest $request)
+{
+    try {
+        $otp = random_int(1000, 9999);
+
+        OtpCode::updateOrCreate(
+            ['email' => $request->email],
+            [
+                'otp' => $otp,
+                'expires_at' => now()->addMinutes(10),
+                'is_verified' => false,
+            ]
+        );
+
+        // Send the SPECIFIC Reset Mailable
+        Mail::to($request->email)->send(new ResetOtpMail($otp));
+
+        return response()->json([
+            'message' => 'تم إرسال رمز التحقق لإعادة تعيين كلمة المرور.'
+        ], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('Forgot Password OTP Error: ' . $e->getMessage());
+        return response()->json(['message' => 'فشل في إرسال الرمز.'], 500);
+    }
+}
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email', 'exists:users,email'],
+            'password' => ['required', 'string', 'confirmed', Password::min(8)],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            // 🔐 Check if this email has a verified OTP record
+            $otpRecord = OtpCode::where('email', $request->email)
+                ->where('is_verified', true)
+                ->first();
+
+            if (!$otpRecord) {
+                return response()->json([
+                    'message' => 'Email not verified. Please verify OTP first.'
+                ], 403);
+            }
+
+            // Update the User
+            $user = User::where('email', $request->email)->first();
+            $user->update([
+                'password' => Hash::make($request->password)
+            ]);
+
+            // Delete OTP record so it can't be used again
+            $otpRecord->delete();
+
+            return response()->json([
+                'message' => 'Password reset successfully. You can now login.'
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Reset Password Error', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Something went wrong.'], 500);
+        }
     }
 }

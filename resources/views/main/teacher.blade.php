@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>انضم للكادر التعليمي - ورتل</title>
-<link rel="icon" href="{{ asset('images/mainlogo.png') }}" type="image/png">
+    <link rel="icon" href="{{ asset('images/LOGO-01.svg') }}" type="image/svg+xml">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,25 +14,25 @@
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
     <style>
-:root {
-    /* Brand Identity - مستوحاة مباشرة من الشعار */
-    --primary-dark: #2d8a74;      /* الأخضر الأساسي في كلمة ورتل */
-    --primary-medium: #4fb299;    /* الدرجة المتوسطة في خطوط الهاتف */
-    --primary-light: #f0f9f7;     /* خلفية باهتة مريحة للعين */
+        :root {
+            /* Brand Identity - مستوحاة مباشرة من الشعار */
+            --primary-dark: #2d8a74;      /* الأخضر الأساسي في كلمة ورتل */
+            --primary-medium: #4fb299;    /* الدرجة المتوسطة في خطوط الهاتف */
+            --primary-light: #f0f9f7;     /* خلفية باهتة مريحة للعين */
 
-    --gold-main: #d4a753;        /* لون صفحات المصحف في الشعار */
-    --gold-light: #fdf5e6;       /* لون كريمي فاتح للخلفيات */
+            --gold-main: #d4a753;         /* لون صفحات المصحف في الشعار */
+            --gold-light: #fdf5e6;        /* لون كريمي فاتح للخلفيات */
 
-    /* UI Colors */
-    --bg-body: #ffffff;
-    --text-main: #1e4d42;        /* أخضر داكن جدًا للنصوص بدلاً من الأسود */
-    --text-muted: #6a8d85;
+            /* UI Colors */
+            --bg-body: #ffffff;
+            --text-main: #1e4d42;         /* أخضر داكن جدًا للنصوص بدلاً من الأسود */
+            --text-muted: #6a8d85;
 
-    /* Specific Components */
-    --card-cream: #fcf8f0;       /* للبطاقات المميزة */
-    --btn-orange: #d4a753;       /* استخدام الذهبي للأزرار بدلاً من البرتقالي لتوحيد الهوية */
-    --btn-orange-shadow: #b3893f;
-}
+            /* Specific Components */
+            --card-cream: #fcf8f0;        /* للبطاقات المميزة */
+            --btn-orange: #d4a753;        /* استخدام الذهبي للأزرار بدلاً من البرتقالي لتوحيد الهوية */
+            --btn-orange-shadow: #b3893f;
+        }
 
         /* --- Global Reset & Lock --- */
         html,
@@ -402,6 +402,60 @@
             text-align: center;
         }
 
+        /* --- New Photo Upload Styles --- */
+        .profile-photo-wrapper {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            margin: 0 auto 30px;
+        }
+
+        .photo-preview-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid var(--gold-main);
+            background: #f8f8f8;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .photo-preview-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .photo-preview-container i {
+            font-size: 3rem;
+            color: #ddd;
+        }
+
+        .upload-photo-btn {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            background: var(--primary-dark);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border: 2px solid white;
+            transition: 0.2s;
+        }
+
+        .upload-photo-btn:hover {
+            background: var(--gold-main);
+        }
+
         @media (max-width: 992px) {
             .page-header {
                 padding-top: 100px;
@@ -432,7 +486,7 @@
 
     <nav class="navbar fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="#"><img width="60px" height="60px" src="{{ asset('images/mainlogo.png') }}"
+            <a class="navbar-brand" href="#"><img width="70px" height="70px" src="{{ asset('images/LOGO-01.svg') }}"
                     alt="ورتل"></a>
             <a href="{{ route('welcome') }}" class="back-link">
                 العودة للرئيسية <i class="fa-solid fa-arrow-left"></i>
@@ -519,6 +573,18 @@
                     enctype="multipart/form-data" data-aos="fade-up" data-aos-delay="200">
                     @csrf
 
+                    {{-- ================== الصورة الشخصية ================== --}}
+                    <div class="profile-photo-wrapper">
+                        <div class="photo-preview-container" id="photoPreview">
+                            <i class="fa-solid fa-user"></i>
+                            <img src="" alt="Profile Preview" id="profileImage">
+                        </div>
+                        <label for="profile_photo" class="upload-photo-btn">
+                            <i class="fa-solid fa-camera"></i>
+                        </label>
+                        <input type="file" name="profile_photo" id="profile_photo" hidden accept="image/*">
+                    </div>
+
                     {{-- ================== البيانات الشخصية ================== --}}
                     <h4 class="section-label mt-0">البيانات الشخصية</h4>
 
@@ -581,7 +647,6 @@
                                     class="form-select country-api @error('origin_country') is-invalid @enderror"
                                     id="originCountry">
                                     <option disabled selected>اختر الدولة</option>
-                                    {{-- Options will be filled by JS, logic needed to select old value --}}
                                 </select>
                                 <input type="hidden" id="old_origin_country" value="{{ old('origin_country') }}">
                                 <label>بلد الأصل</label>
@@ -805,15 +870,6 @@
                         </p>
                     </div>
                 </form>
-
-                <script>
-                    // ... inside country population loop ...
-                    const oldCountry = document.getElementById('old_origin_country').value;
-                    if (country.code == oldCountry) {
-                        option.selected = true;
-                    }
-                    // ...
-                </script>
             </div>
         </div>
     </div>
@@ -846,117 +902,65 @@
                 duration: 800
             });
 
-            // --- COUNTRY API LOGIC (Origin Only) ---
-            const countryList = [{
-                    "name": "مصر",
-                    "code": "EG"
-                },
-                {
-                    "name": "السعودية",
-                    "code": "SA"
-                },
-                {
-                    "name": "الإمارات",
-                    "code": "AE"
-                },
-                {
-                    "name": "الكويت",
-                    "code": "KW"
-                },
-                {
-                    "name": "قطر",
-                    "code": "QA"
-                },
-                {
-                    "name": "البحرين",
-                    "code": "BH"
-                },
-                {
-                    "name": "عمان",
-                    "code": "OM"
-                },
-                {
-                    "name": "الأردن",
-                    "code": "JO"
-                },
-                {
-                    "name": "المغرب",
-                    "code": "MA"
-                },
-                {
-                    "name": "الجزائر",
-                    "code": "DZ"
-                },
-                {
-                    "name": "تونس",
-                    "code": "TN"
-                },
-                {
-                    "name": "فلسطين",
-                    "code": "PS"
-                },
-                {
-                    "name": "العراق",
-                    "code": "IQ"
-                },
-                {
-                    "name": "لبنان",
-                    "code": "LB"
-                },
-                {
-                    "name": "ليبيا",
-                    "code": "LY"
-                },
-                {
-                    "name": "السودان",
-                    "code": "SD"
-                },
-                {
-                    "name": "اليمن",
-                    "code": "YE"
-                },
-                {
-                    "name": "سوريا",
-                    "code": "SY"
-                },
-                {
-                    "name": "تركيا",
-                    "code": "TR"
-                },
-                {
-                    "name": "ماليزيا",
-                    "code": "MY"
-                },
-                {
-                    "name": "إندونيسيا",
-                    "code": "ID"
-                },
-                {
-                    "name": "الولايات المتحدة",
-                    "code": "US"
-                },
-                {
-                    "name": "المملكة المتحدة",
-                    "code": "GB"
-                },
-                {
-                    "name": "ألمانيا",
-                    "code": "DE"
-                },
-                {
-                    "name": "فرنسا",
-                    "code": "FR"
+            // --- Profile Photo Preview Logic ---
+            const photoInput = document.getElementById('profile_photo');
+            const profileImage = document.getElementById('profileImage');
+            const photoIcon = document.querySelector('#photoPreview i');
+
+            photoInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        profileImage.src = e.target.result;
+                        profileImage.style.display = 'block';
+                        photoIcon.style.display = 'none';
+                    }
+                    reader.readAsDataURL(file);
                 }
+            });
+
+            // --- COUNTRY API LOGIC (Origin Only) ---
+            const countryList = [
+                {"name": "مصر", "code": "EG"},
+                {"name": "السعودية", "code": "SA"},
+                {"name": "الإمارات", "code": "AE"},
+                {"name": "الكويت", "code": "KW"},
+                {"name": "قطر", "code": "QA"},
+                {"name": "البحرين", "code": "BH"},
+                {"name": "عمان", "code": "OM"},
+                {"name": "الأردن", "code": "JO"},
+                {"name": "المغرب", "code": "MA"},
+                {"name": "الجزائر", "code": "DZ"},
+                {"name": "تونس", "code": "TN"},
+                {"name": "فلسطين", "code": "PS"},
+                {"name": "العراق", "code": "IQ"},
+                {"name": "لبنان", "code": "LB"},
+                {"name": "ليبيا", "code": "LY"},
+                {"name": "السودان", "code": "SD"},
+                {"name": "اليمن", "code": "YE"},
+                {"name": "سوريا", "code": "SY"},
+                {"name": "تركيا", "code": "TR"},
+                {"name": "ماليزيا", "code": "MY"},
+                {"name": "إندونيسيا", "code": "ID"},
+                {"name": "الولايات المتحدة", "code": "US"},
+                {"name": "المملكة المتحدة", "code": "GB"},
+                {"name": "ألمانيا", "code": "DE"},
+                {"name": "فرنسا", "code": "FR"}
             ];
 
-            // Populate Origin Country Only
             const originSelect = document.getElementById('originCountry');
+            const oldCountry = document.getElementById('old_origin_country').value;
+
             if (originSelect) {
                 originSelect.innerHTML = '<option selected disabled>اختر بلد الأصل</option>';
                 countryList.forEach(country => {
                     const option = document.createElement('option');
                     option.value = country.code;
                     option.text = `${country.name}`;
+                    if (country.code == oldCountry) {
+                        option.selected = true;
+                    }
                     originSelect.appendChild(option);
                 });
             }

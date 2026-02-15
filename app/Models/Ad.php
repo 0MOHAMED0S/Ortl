@@ -11,7 +11,10 @@ class Ad extends Model
 
     protected $fillable = [
         'title',
-        'image',
+        'subtitle', // Added for the lower text
+        'image',    // Optional if using background colors
+        'bg_color', // Added for background color
         'status',
+
     ];
 }

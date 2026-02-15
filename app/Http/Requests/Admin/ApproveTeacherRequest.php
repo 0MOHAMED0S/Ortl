@@ -36,7 +36,7 @@ class ApproveTeacherRequest extends FormRequest
             ],
 
             'profile_photo' => [
-                'required',
+                
                 'image',
                 'mimes:jpeg,png,jpg,gif',
                 'max:2048',
