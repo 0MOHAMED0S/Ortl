@@ -36,21 +36,11 @@ public function buy(Request $request, Package $package, PaymobService $paymob)
 
         // إذا كانت الدولة مدعومة ولديها Integration ID خاص بها
         if ($country && !empty($country->paymob_integration_id)) {
-    $integrationId = $country->paymob_integration_id;
-    $currency = $country->currency_code;
-    $rate = ($country->rate_to_usd > 0) ? $country->rate_to_usd : 1;
-
-    $basePrice = $package->price;
-    $finalPrice = $basePrice * $rate;
-
-    // Debug everything to see where the 100 is coming from
-    dd([
-        'package_price_in_db' => $basePrice,
-        'rate_from_db' => $rate,
-        'calculated_result' => $finalPrice,
-        'country_name' => $country->name
-    ]);
-}
+            $integrationId = $country->paymob_integration_id;
+            $currency = $country->currency_code;
+            $rate = ($country->rate_to_usd > 0) ? $country->rate_to_usd : 1;
+            $price = $package->price * $rate;
+        }
         // الحالة الافتراضية: استخدام قيم ملف الـ .env
         else {
             $integrationId = env('PAYMOB_INTEGRATION_ID');
