@@ -36,6 +36,7 @@ public function buy(Request $request, Package $package, PaymobService $paymob)
 
         // إذا كانت الدولة مدعومة ولديها Integration ID خاص بها
         if ($country && !empty($country->paymob_integration_id)) {
+            dd($country);
             $integrationId = $country->paymob_integration_id;
             $currency = $country->currency_code;
             $rate = ($country->rate_to_usd > 0) ? $country->rate_to_usd : 1;
