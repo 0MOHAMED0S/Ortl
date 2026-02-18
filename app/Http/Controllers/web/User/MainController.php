@@ -4,7 +4,7 @@ namespace App\Http\Controllers\web\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\ContactSetting;
-use App\Models\package;
+use App\Models\Package;
 use Illuminate\Http\Request;
 
 class MainController extends Controller

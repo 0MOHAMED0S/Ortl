@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Country;
 use App\Models\Coupon;
 use App\Models\Order;
-use App\Models\package;
+use App\Models\Package;
 use App\Models\UserPackage;
 use App\Services\PaymobService;
 use Illuminate\Http\Request;
@@ -31,13 +31,12 @@ class BuyPackageController extends Controller
                 return response()->json(['error' => 'لديك باقة نشطة بالفعل.'], 400);
             }
 
-            // 1. تحديد السعر (تأكد من أن rate_to_usd ليس 0 في قاعدة البيانات)
+            // 1. تحديد السعر الأساسي والعملة
             $country = $user->isStudent() ? $user->studentProfile->country : ($user->isTeacher() ? $user->teacherProfile->country : null);
 
             if ($country && !empty($country->paymob_integration_id)) {
                 $integrationId = $country->paymob_integration_id;
                 $currency = $country->currency_code;
-                // تأكد أن rate_to_usd لا يساوي 0، إذا كان فارغاً نستخدم 1
                 $rate = ($country->rate_to_usd > 0) ? $country->rate_to_usd : 1;
                 $price = $package->price * $rate;
             } else {
@@ -46,12 +45,28 @@ class BuyPackageController extends Controller
                 $price = $package->price;
             }
 
-            $finalPrice = (int) round($price);
+            // --- منطق كود الخصم (Coupon Logic) ---
+            $discountAmount = 0;
+            $couponId = null;
+            $couponCode = $request->input('coupon');
 
-            // --- التعامل مع السعر صفر (باقة مجانية) ---
+            if ($couponCode) {
+                $coupon = Coupon::where('code', $couponCode)->where('status', 'active')->first();
+
+                // التحقق من صحة الكود وصلاحيته
+                if (!$coupon || ($coupon->expiry_date && $coupon->expiry_date->isPast()) || ($coupon->used >= $coupon->limit)) {
+                    return response()->json(['error' => 'كود الخصم غير صحيح أو منتهي الصلاحية.'], 422);
+                }
+
+                $couponId = $coupon->id;
+                $discountAmount = ($price * $coupon->percent) / 100;
+            }
+
+            $finalPrice = (int) round(max($price - $discountAmount, 0));
+
+            // --- التعامل مع السعر صفر (باقة مجانية أو خصم 100%) ---
             if ($finalPrice <= 0) {
-                return DB::transaction(function () use ($user, $package) {
-                    // إنشاء سجل باقة للمستخدم فوراً
+                return DB::transaction(function () use ($user, $package, $couponId) {
                     UserPackage::create([
                         'user_id' => $user->id,
                         'package_id' => $package->id,
@@ -60,29 +75,33 @@ class BuyPackageController extends Controller
                         'status' => 'active'
                     ]);
 
+                    // تحديث عدد مرات استخدام الكود فوراً لأنها عملية ناجحة مجانية
+                    if ($couponId) {
+                        Coupon::where('id', $couponId)->increment('used');
+                    }
+
                     return response()->json([
-                        'message' => 'تم تفعيل الباقة المجانية بنجاح',
+                        'message' => 'تم تفعيل الباقة بنجاح',
                         'redirect_url' => route('payment.success')
                     ]);
                 });
             }
 
-            // 2. إذا كان السعر أكبر من صفر، نذهب لـ Paymob
+            // 2. طلب الدفع من Paymob
             $token = $paymob->authenticate();
             $paymobOrderResponse = $paymob->createOrder($token, $finalPrice, $currency);
 
             if (!$paymobOrderResponse->successful() || !isset($paymobOrderResponse['id'])) {
-                return response()->json([
-                    'error' => 'فشل في إنشاء طلب الدفع',
-                    'details' => $paymobOrderResponse->json()
-                ], 400);
+                return response()->json(['error' => 'فشل في إنشاء طلب الدفع'], 400);
             }
 
             $paymobOrderId = $paymobOrderResponse['id'];
 
+            // حفظ الطلب مع ربط الكود (coupon_id)
             $order = Order::create([
                 'user_id' => $user->id,
                 'package_id' => $package->id,
+                'coupon_id' => $couponId, // مهم جداً للمتابعة في الـ Callback
                 'country_id' => $country->id ?? null,
                 'amount' => $finalPrice,
                 'currency' => $currency,
@@ -107,13 +126,9 @@ class BuyPackageController extends Controller
     {
         $data = $request->all();
 
-        // 1. التحقق من صحة البيانات (HMAC)
-        // if (!$paymob->validateHmac($data)) {
-        //     Log::alert('Security Alert: Invalid Paymob HMAC', ['data' => $data]);
-        //     return abort(403, 'Unauthorized');
-        // }
+        // (اختياري) تفعيل HMAC هنا لزيادة الأمان
 
-        $isSuccess = $data['success'] === "true";
+        $isSuccess = ($data['success'] === "true" || $data['success'] === true);
         $paymobOrderId = $data['order'];
 
         $order = Order::where('paymob_order_id', $paymobOrderId)->first();
@@ -124,22 +139,23 @@ class BuyPackageController extends Controller
 
         if ($isSuccess) {
             DB::transaction(function () use ($order, $data) {
-                // تحديث حالة الطلب
+                // 1. تحديث حالة الطلب
                 $order->update([
                     'status' => 'paid',
                     'transaction_id' => $data['id']
                 ]);
+
+                // 2. زيادة عداد استخدام الكود إذا وُجد
                 if ($order->coupon_id) {
                     Coupon::where('id', $order->coupon_id)->increment('used');
                 }
-                // تفعيل الباقة للمستخدم
-                $package = $order->package;
-                $totalMinutes = $package->base_minutes + ($package->bonus_minutes ?? 0);
 
+                // 3. تفعيل الباقة
+                $package = $order->package;
                 UserPackage::create([
                     'user_id' => $order->user_id,
                     'package_id' => $package->id,
-                    'remaining_minutes' => $totalMinutes,
+                    'remaining_minutes' => $package->base_minutes + ($package->bonus_minutes ?? 0),
                     'expires_at' => now()->addDays($package->validity_days),
                     'status' => 'active'
                 ]);

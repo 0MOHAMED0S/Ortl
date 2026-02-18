@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\package;
+use App\Http\Requests\Student\PackagePriceRequest;
+use App\Models\Coupon;
+use App\Models\Package;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +29,7 @@ class StudentPackageController extends Controller
             $rate = $country->rate_to_usd ?? 1;
 
             $perPage = $request->query('per_page', 10);
-            $packages = package::where('status', 'active')->paginate($perPage);
+            $packages = Package::where('status', 'active')->paginate($perPage);
 
             $packages->getCollection()->transform(function ($package) use ($country, $rate) {
                 $localPrice = $package->price * $rate;
@@ -142,4 +144,93 @@ class StudentPackageController extends Controller
             ], 500);
         }
     }
+
+
+
+public function getPrice(PackagePriceRequest $request, $id): JsonResponse
+{
+    try {
+        $user = $request->user();
+
+        // 1️⃣ التحقق من وجود الباقة
+        $package = Package::find($id);
+        if (!$package) {
+            return response()->json([
+                'status' => false,
+                'message' => 'الباقة غير موجودة.'
+            ], 404);
+        }
+
+        // 2️⃣ تحويل العملة حسب دولة المستخدم
+        $basePrice = $package->price;
+        $rate = $user->country?->rate_to_usd ?? 1;
+        $convertedPrice = $basePrice * $rate;
+
+        $discountAmount = 0;
+        $discountPercentage = 0; // القيمة الافتراضية لنسبة الخصم
+        $couponCode = $request->input('coupon');
+
+        // 3️⃣ منطق كود الخصم
+        if ($couponCode) {
+            $coupon = Coupon::where('code', $couponCode)->first();
+
+            if (!$coupon || $coupon->status !== 'active') {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'كود الخصم غير صحيح أو غير مفعل.'
+                ], 422);
+            }
+
+            if ($coupon->used >= $coupon->limit) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'تم تجاوز الحد الأقصى لاستخدام هذا الكود.'
+                ], 422);
+            }
+
+            if ($coupon->expiry_date && $coupon->expiry_date->isPast()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'كود الخصم منتهي الصلاحية.'
+                ], 422);
+            }
+
+            // جلب نسبة الخصم وحساب القيمة
+            $discountPercentage = $coupon->percent;
+            $discountAmount = ($convertedPrice * $discountPercentage) / 100;
+        }
+
+        $finalPrice = max($convertedPrice - $discountAmount, 0);
+
+        return response()->json([
+            'status'   => true,
+            'message'  => 'تم احتساب السعر بنجاح.',
+            'data'     => [
+                'package_id'       => $package->id,
+                'package_name'     => $package->name,
+                'original_price'   => round($basePrice, 2),
+                'country_currency' => $user->country?->currency_code ?? 'USD',
+                'converted_price'  => round($convertedPrice, 2),
+                'discount_percent' => $discountPercentage, // النسبة المئوية (مثلاً: 20)
+                'discount_amount'  => round($discountAmount, 2),
+                'final_price'      => round($finalPrice, 2),
+                'coupon_used'      => $couponCode,
+            ]
+        ], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('Package Price Error', [
+            'user_id' => optional($request->user())->id,
+            'package_id' => $id,
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'status'  => false,
+            'message' => 'حدث خطأ ما، يرجى المحاولة لاحقاً.',
+            'error'   => config('app.debug') ? $e->getMessage() : null
+        ], 500);
+    }
+}
+
 }

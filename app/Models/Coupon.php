@@ -27,7 +27,7 @@ class Coupon extends Model
     public function isValid()
     {
         return $this->status === 'active' &&
-               $this->used < $this->limit &&
-               $this->expiry_date->isFuture();
+            $this->used < $this->limit &&
+            $this->expiry_date->isFuture();
     }
 }

@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\package;
+use App\Models\Package;
 
 class PackageSeeder extends Seeder
 {
@@ -50,7 +50,7 @@ class PackageSeeder extends Seeder
         ];
 
         foreach ($packages as $pkg) {
-            package::updateOrCreate(['name' => $pkg['name']], $pkg);
+            Package::updateOrCreate(['name' => $pkg['name']], $pkg);
         }
     }
 }

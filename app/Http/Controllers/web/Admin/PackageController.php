@@ -5,7 +5,7 @@ namespace App\Http\Controllers\web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Package\StorePackageRequest;
 use App\Http\Requests\Admin\Package\UpdatePackageRequest;
-use App\Models\package;
+use App\Models\Package;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 

@@ -62,6 +62,8 @@ Route::prefix('student')->group(function () {
         Route::get('/user-packages', [StudentPackageController::class, 'userPackages']);
         Route::get('/tracks', [StudentTracksController::class, 'index']);
         Route::get('teachers/{id}', [StudentTeacherController::class, 'show']);
+        Route::post('/package/{id}/coupon', [StudentPackageController::class, 'getPrice']);
+
     });
 });
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);

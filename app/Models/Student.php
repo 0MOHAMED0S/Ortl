@@ -30,8 +30,8 @@ class Student extends Model
         return $this->belongsTo(Country::class);
     }
     public function favorites()
-{
-    return $this->belongsToMany(Teacher_application::class, 'favorites', 'student_id', 'teacher_id')
-                ->withTimestamps();
-}
+    {
+        return $this->belongsToMany(Teacher_application::class, 'favorites', 'student_id', 'teacher_id')
+            ->withTimestamps();
+    }
 }
