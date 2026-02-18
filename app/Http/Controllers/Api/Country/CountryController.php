@@ -5,38 +5,46 @@ namespace App\Http\Controllers\Api\Country;
 use App\Http\Controllers\Controller;
 use App\Models\Country;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CountryController extends Controller
 {
-public function index(Request $request)
-{
-    try {
-        // 1️⃣ Initialize the query
-        $query = Country::query()->select('id', 'name', 'phone_code', 'code');
+    /**
+     * عرض قائمة الدول مع إمكانية البحث و Pagination
+     */
+    public function index(Request $request)
+    {
+        try {
+            // 1️⃣ تهيئة الاستعلام
+            $query = Country::query()->select('id', 'name', 'phone_code', 'code');
 
-        // 2️⃣ Optional: Add search functionality (good for long lists)
-        if ($request->has('search')) {
-            $searchTerm = $request->search;
-            $query->where('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('code', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('phone_code', 'LIKE', "%{$searchTerm}%");
+            // 2️⃣ البحث في الاسم، الكود، أو كود الهاتف
+            if ($request->has('search')) {
+                $searchTerm = $request->search;
+                $query->where('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('code', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('phone_code', 'LIKE', "%{$searchTerm}%");
+            }
+
+            // 3️⃣ Pagination
+            $perPage = $request->query('per_page', 15);
+            $countries = $query->paginate($perPage);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم جلب قائمة الدول بنجاح.',
+                'data'    => $countries
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Failed to retrieve countries: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'فشل في جلب قائمة الدول. حاول مرة أخرى.',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        // 3️⃣ Paginate
-        $perPage = $request->query('per_page', 15);
-        $countries = $query->paginate($perPage);
-
-        return response()->json([
-            'message' => 'Countries retrieved successfully',
-            // Return the paginated object directly
-            'data' => $countries
-        ], 200);
-
-    } catch (\Throwable $e) {
-        return response()->json([
-            'message' => 'Failed to retrieve countries',
-            'error' => $e->getMessage(),
-        ], 500);
     }
-}
 }

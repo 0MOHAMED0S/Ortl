@@ -3,22 +3,16 @@
 namespace App\Http\Requests\Student;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UpdateProfileRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
@@ -39,17 +33,31 @@ class UpdateProfileRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.min' => 'الاسم يجب ألا يقل عن 3 أحرف',
-            'name.max' => 'الاسم طويل جدًا',
+            'name.min' => 'الاسم يجب ألا يقل عن 3 أحرف.',
+            'name.max' => 'الاسم طويل جدًا.',
 
-            'phone.min' => 'رقم الهاتف قصير جدًا',
-            'phone.max' => 'رقم الهاتف طويل جدًا',
+            'phone.min' => 'رقم الهاتف قصير جدًا.',
+            'phone.max' => 'رقم الهاتف طويل جدًا.',
 
-            'address.min' => 'العنوان قصير جدًا',
+            'address.min' => 'العنوان قصير جدًا.',
 
-            'profile_photo.image' => 'الملف يجب أن يكون صورة',
-            'profile_photo.mimes' => 'الصورة يجب أن تكون بصيغة jpeg أو png أو jpg',
-            'profile_photo.max' => 'حجم الصورة يجب ألا يزيد عن 2 ميجابايت',
+            'profile_photo.image' => 'الملف يجب أن يكون صورة.',
+            'profile_photo.mimes' => 'الصورة يجب أن تكون بصيغة jpeg أو png أو jpg أو gif.',
+            'profile_photo.max' => 'حجم الصورة يجب ألا يزيد عن 2 ميجابايت.',
         ];
+    }
+
+    /**
+     * Override failedValidation to return JSON with status
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        $response = response()->json([
+            'status'  => false,
+            'message' => 'بيانات غير صحيحة.',
+            'errors'  => $validator->errors()
+        ], 422);
+
+        throw new HttpResponseException($response);
     }
 }

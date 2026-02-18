@@ -3,22 +3,16 @@
 namespace App\Http\Requests\Student;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class SendOtpRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
@@ -35,11 +29,25 @@ class SendOtpRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'Email is required.',
-            'email.email' => 'Please enter a valid email address.',
-            'email.min' => 'Email must be at least 5 characters.',
-            'email.max' => 'Email must not exceed 255 characters.',
-            'email.unique' => 'This email is already registered.',
+            'email.required' => 'البريد الإلكتروني مطلوب.',
+            'email.email'    => 'يرجى إدخال بريد إلكتروني صحيح.',
+            'email.min'      => 'يجب ألا يقل البريد الإلكتروني عن 5 أحرف.',
+            'email.max'      => 'يجب ألا يزيد البريد الإلكتروني عن 255 حرفًا.',
+            'email.unique'   => 'هذا البريد الإلكتروني مسجل بالفعل.',
         ];
+    }
+
+    /**
+     * Override failedValidation to return JSON with status
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        $response = response()->json([
+            'status'  => false,
+            'message' => 'بيانات غير صحيحة.',
+            'errors'  => $validator->errors()
+        ], 422);
+
+        throw new HttpResponseException($response);
     }
 }

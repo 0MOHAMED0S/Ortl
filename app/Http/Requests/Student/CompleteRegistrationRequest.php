@@ -3,31 +3,25 @@
 namespace App\Http\Requests\Student;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class CompleteRegistrationRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            // User data
+            // بيانات المستخدم
             'name' => ['required', 'string', 'min:3', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
 
-            // Student profile
+            // بيانات الملف الشخصي للطالب
             'phone' => ['required', 'string', 'min:6', 'max:20'],
             'country_id' => ['required', 'exists:countries,id'],
             'address' => ['required', 'string', 'min:5', 'max:500'],
@@ -40,30 +34,45 @@ class CompleteRegistrationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'Name is required.',
-            'name.min' => 'Name must be at least 3 characters.',
-            'name.max' => 'Name must not exceed 255 characters.',
+            'name.required' => 'الاسم مطلوب.',
+            'name.min' => 'يجب ألا يقل الاسم عن 3 أحرف.',
+            'name.max' => 'يجب ألا يزيد الاسم عن 255 حرفًا.',
 
-            'email.required' => 'Email is required.',
-            'email.email' => 'Please provide a valid email.',
-            'email.unique' => 'This email is already registered.',
+            'email.required' => 'البريد الإلكتروني مطلوب.',
+            'email.email' => 'يرجى إدخال بريد إلكتروني صحيح.',
+            'email.unique' => 'هذا البريد الإلكتروني مسجل بالفعل.',
 
-            'password.required' => 'Password is required.',
-            'password.min' => 'Password must be at least 8 characters.',
-            'password.confirmed' => 'Password confirmation does not match.',
+            'password.required' => 'كلمة المرور مطلوبة.',
+            'password.min' => 'يجب ألا تقل كلمة المرور عن 8 أحرف.',
+            'password.confirmed' => 'تأكيد كلمة المرور غير مطابق.',
 
-            'phone.required' => 'Phone number is required.',
-            'phone.min' => 'Phone number is too short.',
-            'phone.max' => 'Phone number is too long.',
+            'phone.required' => 'رقم الهاتف مطلوب.',
+            'phone.min' => 'رقم الهاتف قصير جدًا.',
+            'phone.max' => 'رقم الهاتف طويل جدًا.',
 
-            'country_id.required' => 'Country is required.',
-            'country_id.exists' => 'Selected country is invalid.',
+            'country_id.required' => 'الدولة مطلوبة.',
+            'country_id.exists' => 'الدولة المحددة غير صحيحة.',
 
-            'address.required' => 'Address is required.',
-            'address.min' => 'Address must be at least 5 characters.',
+            'address.required' => 'العنوان مطلوب.',
+            'address.min' => 'يجب ألا يقل العنوان عن 5 أحرف.',
+            'address.max' => 'يجب ألا يزيد العنوان عن 500 حرف.',
 
-            'gender.required' => 'Gender is required.',
-            'gender.in' => 'Gender must be male or female.',
+            'gender.required' => 'النوع مطلوب.',
+            'gender.in' => 'يجب أن يكون النوع ذكر أو أنثى.',
         ];
+    }
+
+    /**
+     * Override failedValidation to return JSON with status
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        $response = response()->json([
+            'status'  => false,
+            'message' => 'بيانات غير صحيحة.',
+            'errors'  => $validator->errors()
+        ], 422);
+
+        throw new HttpResponseException($response);
     }
 }

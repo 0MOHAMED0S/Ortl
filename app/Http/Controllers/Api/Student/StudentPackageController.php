@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 
 class StudentPackageController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -18,7 +18,8 @@ class StudentPackageController extends Controller
 
             if (!$studentProfile || !$studentProfile->country) {
                 return response()->json([
-                    'message' => 'Student profile or country data not found.'
+                    'status' => false,
+                    'message' => 'ملف الطالب أو بيانات الدولة غير موجودة.'
                 ], 404);
             }
 
@@ -51,7 +52,8 @@ class StudentPackageController extends Controller
             });
 
             return response()->json([
-                'message' => 'Packages retrieved successfully.',
+                'status' => true,
+                'message' => 'تم استرجاع الباقات بنجاح.',
                 'user_country' => [
                     'name' => $country->name,
                     'currency' => $country->currency_code,
@@ -66,7 +68,8 @@ class StudentPackageController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Failed to load packages.'
+                'status' => false,
+                'message' => 'فشل في تحميل الباقات.'
             ], 500);
         }
     }
@@ -78,13 +81,8 @@ class StudentPackageController extends Controller
             $user->load('country');
             $country = $user->country;
 
-            // 1️⃣ Get the base query
-            $query = $user->packages()
-                ->with('package')
-                ->latest();
-
-            // 2️⃣ Calculate Summary Totals (on ALL packages before pagination)
-            $allUserPackages = $query->get(); // Fetch full list for totals
+            $query = $user->packages()->with('package')->latest();
+            $allUserPackages = $query->get();
 
             $totalRemainingMinutes = $allUserPackages->sum('remaining_minutes');
             $totalOriginalMinutes = $allUserPackages->sum(function ($up) {
@@ -94,16 +92,12 @@ class StudentPackageController extends Controller
                 ->where('status', 'active')
                 ->sum('remaining_minutes');
 
-            // 3️⃣ Paginate the results
             $perPage = $request->query('per_page', 10);
             $paginatedPackages = $query->paginate($perPage);
 
-            // 4️⃣ Transform only the items on the current page
             $paginatedPackages->getCollection()->transform(function ($userPackage) use ($country) {
                 $package = $userPackage->package;
-                $localPrice = $country
-                    ? $package->price * $country->rate_to_usd
-                    : $package->price;
+                $localPrice = $country ? $package->price * $country->rate_to_usd : $package->price;
 
                 return [
                     'id' => $userPackage->id,
@@ -126,15 +120,16 @@ class StudentPackageController extends Controller
             });
 
             return response()->json([
-                'success' => true,
+                'status' => true,
+                'message' => 'تم استرجاع باقات المستخدم بنجاح.',
                 'country' => $country?->name ?? 'Default (USD)',
                 'summary' => [
                     'total_original_minutes' => $totalOriginalMinutes,
                     'total_remaining_minutes' => $totalRemainingMinutes,
                     'total_active_remaining_minutes' => $totalActiveRemainingMinutes,
                 ],
-                'packages' => $paginatedPackages // Includes data + meta
-            ]);
+                'packages' => $paginatedPackages
+            ], 200);
         } catch (\Throwable $e) {
             Log::error('User Packages Pagination Error', [
                 'user_id' => auth()->id(),
@@ -142,8 +137,8 @@ class StudentPackageController extends Controller
             ]);
 
             return response()->json([
-                'success' => false,
-                'message' => 'Something went wrong while fetching packages.'
+                'status' => false,
+                'message' => 'حدث خطأ أثناء جلب باقات المستخدم.'
             ], 500);
         }
     }

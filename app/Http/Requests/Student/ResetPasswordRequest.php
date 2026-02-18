@@ -5,8 +5,9 @@ namespace App\Http\Requests\Student;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rules\Password;
 
-class CheckOtpRequest extends FormRequest
+class ResetPasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -16,16 +17,8 @@ class CheckOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => [
-                'required',
-                'email',
-                'min:5',
-                'max:255',
-            ],
-            'otp' => [
-                'required',
-                'digits:4',
-            ],
+            'email'    => ['required', 'email', 'exists:users,email'],
+            'password' => ['required', 'string', 'confirmed', Password::min(8)],
         ];
     }
 
@@ -34,11 +27,11 @@ class CheckOtpRequest extends FormRequest
         return [
             'email.required' => 'البريد الإلكتروني مطلوب.',
             'email.email'    => 'يرجى إدخال بريد إلكتروني صحيح.',
-            'email.min'      => 'يجب ألا يقل البريد الإلكتروني عن 5 أحرف.',
-            'email.max'      => 'يجب ألا يزيد البريد الإلكتروني عن 255 حرفًا.',
+            'email.exists'   => 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.',
 
-            'otp.required'   => 'رمز التحقق مطلوب.',
-            'otp.digits'     => 'يجب أن يكون رمز التحقق مكون من 4 أرقام بالضبط.',
+            'password.required'  => 'كلمة المرور مطلوبة.',
+            'password.confirmed' => 'تأكيد كلمة المرور غير مطابق.',
+            'password.min'       => 'يجب ألا تقل كلمة المرور عن 8 أحرف.',
         ];
     }
 
@@ -47,12 +40,10 @@ class CheckOtpRequest extends FormRequest
      */
     protected function failedValidation(Validator $validator)
     {
-        $response = response()->json([
+        throw new HttpResponseException(response()->json([
             'status'  => false,
             'message' => 'بيانات غير صحيحة.',
             'errors'  => $validator->errors()
-        ], 422);
-
-        throw new HttpResponseException($response);
+        ], 422));
     }
 }

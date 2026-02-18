@@ -3,22 +3,16 @@
 namespace App\Http\Requests\Student;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class LoginRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
@@ -30,13 +24,27 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'البريد الإلكتروني مطلوب',
-            'email.email' => 'البريد الإلكتروني غير صالح',
-            'email.min' => 'البريد الإلكتروني قصير جدًا',
-            'email.max' => 'البريد الإلكتروني طويل جدًا',
+            'email.required' => 'البريد الإلكتروني مطلوب.',
+            'email.email'    => 'البريد الإلكتروني غير صالح.',
+            'email.min'      => 'البريد الإلكتروني قصير جدًا.',
+            'email.max'      => 'البريد الإلكتروني طويل جدًا.',
 
-            'password.required' => 'كلمة المرور مطلوبة',
-            'password.min' => 'كلمة المرور يجب ألا تقل عن 8 أحرف',
+            'password.required' => 'كلمة المرور مطلوبة.',
+            'password.min'      => 'كلمة المرور يجب ألا تقل عن 8 أحرف.',
         ];
+    }
+
+    /**
+     * Override failedValidation to return JSON with status
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        $response = response()->json([
+            'status'  => false,
+            'message' => 'بيانات غير صحيحة.',
+            'errors'  => $validator->errors()
+        ], 422);
+
+        throw new HttpResponseException($response);
     }
 }

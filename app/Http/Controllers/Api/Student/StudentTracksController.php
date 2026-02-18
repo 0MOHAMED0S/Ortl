@@ -10,20 +10,20 @@ use Illuminate\Support\Facades\Log;
 class StudentTracksController extends Controller
 {
     /**
-     * Display a paginated listing of active tracks.
+     * عرض قائمة المسارات (Tracks) النشطة مع Pagination
      */
     public function index(Request $request)
     {
         try {
-            // 1. Fetch active tracks with pagination
-            // Default to 10 items per page if not specified
+            // 1️⃣ عدد العناصر لكل صفحة
             $perPage = $request->query('per_page', 10);
 
+            // 2️⃣ جلب المسارات النشطة مع ترتيبها حسب الأحدث
             $tracks = Track::where('status', 'active')
                 ->latest()
                 ->paginate($perPage);
 
-            // 2. Transform the data to include full icon URLs
+            // 3️⃣ تنسيق البيانات وإضافة رابط الأيقونة الكامل
             $tracks->getCollection()->transform(function ($track) {
                 return [
                     'id'              => $track->id,
@@ -36,19 +36,21 @@ class StudentTracksController extends Controller
                 ];
             });
 
-            // 3. Return a standardized JSON response
+            // 4️⃣ الرد النهائي
             return response()->json([
                 'status'  => true,
-                'message' => 'Tracks retrieved successfully',
+                'message' => 'تم جلب المسارات بنجاح.',
                 'data'    => $tracks
             ], 200);
 
         } catch (\Throwable $e) {
-            Log::error('API Tracks Fetch Error: ' . $e->getMessage());
+            Log::error('خطأ في جلب المسارات (Tracks): ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'status'  => false,
-                'message' => 'Failed to retrieve tracks',
+                'message' => 'فشل في جلب المسارات. حاول مرة أخرى.',
                 'error'   => $e->getMessage()
             ], 500);
         }

@@ -5,8 +5,9 @@ namespace App\Http\Requests\Student;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rules\Password;
 
-class ForgotPasswordSendOtpRequest extends FormRequest
+class ChangePasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -16,17 +17,18 @@ class ForgotPasswordSendOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // البريد الإلكتروني موجود مسبقًا
-            'email' => ['required', 'email', 'exists:users,email'],
+            'current_password' => ['required', 'string'],
+            'new_password'     => ['required', 'string', 'confirmed', Password::min(8)],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'email.required' => 'البريد الإلكتروني مطلوب.',
-            'email.email'    => 'يرجى إدخال بريد إلكتروني صحيح.',
-            'email.exists'   => 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.',
+            'current_password.required' => 'كلمة المرور الحالية مطلوبة.',
+            'new_password.required'     => 'كلمة المرور الجديدة مطلوبة.',
+            'new_password.confirmed'    => 'تأكيد كلمة المرور الجديدة غير مطابق.',
+            'new_password.min'          => 'يجب ألا تقل كلمة المرور الجديدة عن 8 أحرف.',
         ];
     }
 

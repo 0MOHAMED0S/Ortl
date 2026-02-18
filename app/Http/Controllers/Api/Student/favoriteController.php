@@ -7,115 +7,120 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
-class favoriteController extends Controller
+class FavoriteController extends Controller
 {
     public function toggle(Request $request)
     {
         try {
-            // 1. Validation
+            // 1️⃣ Validation
             $validator = Validator::make($request->all(), [
                 'teacher_id' => 'required|exists:teacher_applications,id',
             ], [
-                'teacher_id.required' => 'رقم المعلم مطلوب',
-                'teacher_id.exists' => 'المعلم غير موجود',
+                'teacher_id.required' => 'رقم المعلم مطلوب.',
+                'teacher_id.exists'   => 'المعلم غير موجود.',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
-                    'errors' => $validator->errors()
+                    'status'  => false,
+                    'message' => 'بيانات غير صحيحة.',
+                    'errors'  => $validator->errors(),
                 ], 422);
             }
 
-            // 2. Get student profile
+            // 2️⃣ جلب ملف الطالب
             $student = $request->user()->studentProfile;
 
             if (!$student) {
                 return response()->json([
-                    'message' => 'ملف الطالب غير موجود'
+                    'status'  => false,
+                    'message' => 'ملف الطالب غير موجود.',
                 ], 404);
             }
 
-            // 3. Toggle favorite
+            // 3️⃣ Toggle favorite
             $result = $student->favorites()->toggle($request->teacher_id);
 
-            $status = count($result['attached']) > 0 ? 'added' : 'removed';
+            $status  = count($result['attached']) > 0 ? 'added' : 'removed';
             $message = $status === 'added'
-                ? 'تمت الإضافة إلى المفضلة'
-                : 'تمت الإزالة من المفضلة';
+                ? 'تمت الإضافة إلى المفضلة.'
+                : 'تمت الإزالة من المفضلة.';
 
             return response()->json([
+                'status'  => true,
                 'message' => $message,
-                'status' => $status
+                'favorite_status' => $status
             ], 200);
+
         } catch (\Throwable $e) {
             Log::error('Toggle Favorite Error', [
-                'user_id' => optional($request->user())->id,
+                'user_id'    => optional($request->user())->id,
                 'teacher_id' => $request->teacher_id ?? null,
-                'error' => $e->getMessage(),
+                'error'      => $e->getMessage(),
             ]);
 
             return response()->json([
-                'message' => 'حدث خطأ أثناء تنفيذ العملية'
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء تنفيذ العملية.'
             ], 500);
         }
     }
 
-public function index(Request $request)
-{
-    try {
-        // 1. Get student profile
-        $student = $request->user()->studentProfile;
+    public function index(Request $request)
+    {
+        try {
+            // 1️⃣ جلب ملف الطالب
+            $student = $request->user()->studentProfile;
 
-        if (!$student) {
+            if (!$student) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'ملف الطالب غير موجود.',
+                ], 404);
+            }
+
+            // 2️⃣ جلب المفضلة مع Pagination
+            $perPage = $request->query('per_page', 10);
+            $favorites = $student->favorites()
+                ->where('status', 'approved')
+                ->with('profile.user')
+                ->paginate($perPage);
+
+            // 3️⃣ تنسيق البيانات
+            $favorites->getCollection()->transform(function ($teacher) {
+                $name = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
+                $photoPath = optional($teacher->profile)->profile_photo_path ?? null;
+
+                $photoUrl = $photoPath
+                    ? asset('storage/' . $photoPath)
+                    : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
+
+                return [
+                    'id' => $teacher->id,
+                    'name' => $name,
+                    'photo_url' => $photoUrl,
+                    'qualification' => $teacher->qualification,
+                    'country' => $teacher->origin_country,
+                    'experience_years' => $teacher->experience_years,
+                ];
+            });
+
             return response()->json([
-                'message' => 'ملف الطالب غير موجود'
-            ], 404);
+                'status'  => true,
+                'message' => 'تم جلب المفضلة بنجاح.',
+                'data'    => $favorites
+            ], 200);
+
+        } catch (\Throwable $e) {
+            Log::error('Get Favorites Error', [
+                'user_id' => optional($request->user())->id,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'فشل في جلب المفضلة.'
+            ], 500);
         }
-
-        // 2. Paginate favorites instead of get()
-        $perPage = $request->query('per_page', 10);
-        $favorites = $student->favorites()
-            ->where('status', 'approved')
-            ->with('profile.user')
-            ->paginate($perPage);
-
-        // 3. Transform the items inside the paginator
-        $favorites->getCollection()->transform(function ($teacher) {
-
-            $name = optional(optional($teacher->profile)->user)->name
-                ?? $teacher->full_name;
-
-            $photoPath = $teacher->profile->profile_photo_path ?? null;
-
-            $photoUrl = $photoPath
-                ? asset('storage/' . $photoPath)
-                : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
-
-            return [
-                'id' => $teacher->id,
-                'name' => $name,
-                'photo_url' => $photoUrl,
-                'qualification' => $teacher->qualification,
-                'country' => $teacher->origin_country,
-                'experience_years' => $teacher->experience_years,
-            ];
-        });
-
-        // 4. Return the paginated response
-        return response()->json([
-            'message' => 'تم جلب المفضلة بنجاح',
-            'data' => $favorites // This now contains data + pagination meta
-        ], 200);
-
-    } catch (\Throwable $e) {
-        Log::error('Get Favorites Error', [
-            'user_id' => optional($request->user())->id,
-            'error' => $e->getMessage(),
-        ]);
-
-        return response()->json([
-            'message' => 'فشل في جلب المفضلة'
-        ], 500);
     }
-}
 }

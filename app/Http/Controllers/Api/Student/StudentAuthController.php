@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\Student;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Student\ChangePasswordRequest;
 use App\Http\Requests\Student\CheckOtpRequest;
 use App\Http\Requests\Student\CompleteRegistrationRequest;
 use App\Http\Requests\Student\ForgotPasswordSendOtpRequest;
 use App\Http\Requests\Student\LoginRequest;
+use App\Http\Requests\Student\ResetPasswordRequest;
 use App\Http\Requests\Student\SendOtpRequest;
 use App\Http\Requests\Student\UpdateProfileRequest;
 use App\Mail\OtpMail;
@@ -20,9 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 
 class StudentAuthController extends Controller
 {
@@ -43,7 +43,8 @@ class StudentAuthController extends Controller
             Mail::to($request->email)->send(new OtpMail($otp));
 
             return response()->json([
-                'message' => 'OTP sent successfully.'
+                'status'  => true,
+                'message' => 'تم إرسال رمز التحقق بنجاح.',
             ], 200);
         } catch (\Throwable $e) {
 
@@ -53,10 +54,12 @@ class StudentAuthController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Failed to send OTP. Please try again later.'
+                'status'  => false,
+                'message' => 'فشل في إرسال رمز التحقق. حاول مرة أخرى لاحقاً.',
             ], 500);
         }
     }
+
 
     public function checkOtp(CheckOtpRequest $request)
     {
@@ -68,17 +71,19 @@ class StudentAuthController extends Controller
 
             if (!$otpRecord) {
                 return response()->json([
-                    'message' => 'Invalid or expired OTP.'
+                    'status'  => false,
+                    'message' => 'رمز التحقق غير صحيح أو منتهي الصلاحية.',
                 ], 400);
             }
 
             $otpRecord->update([
                 'is_verified' => true,
-                'otp' => null, // optional but recommended (security)
+                'otp' => null, // لأمان أعلى
             ]);
 
             return response()->json([
-                'message' => 'OTP verified successfully.'
+                'status'  => true,
+                'message' => 'تم التحقق من رمز التأكيد بنجاح.',
             ], 200);
         } catch (\Throwable $e) {
 
@@ -88,59 +93,65 @@ class StudentAuthController extends Controller
             ]);
 
             return response()->json([
-                'message' => $e->getMessage()
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء التحقق من الرمز. حاول مرة أخرى لاحقاً.',
             ], 500);
         }
     }
+
 
     public function completeRegistration(CompleteRegistrationRequest $request)
     {
         DB::beginTransaction();
 
         try {
-            // 🔐 Ensure OTP verified
+            // 🔐 التأكد إن الـ OTP تم التحقق منه
             $otpRecord = OtpCode::where('email', $request->email)
                 ->where('is_verified', true)
                 ->first();
 
             if (!$otpRecord) {
                 return response()->json([
-                    'message' => 'Email not verified. Please verify OTP first.'
+                    'status'  => false,
+                    'message' => 'لم يتم تأكيد البريد الإلكتروني. يرجى إدخال رمز التحقق أولاً.',
                 ], 403);
             }
 
-            // 1️⃣ Create User
+            // 1️⃣ إنشاء المستخدم
             $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
+                'name'     => $request->name,
+                'email'    => $request->email,
                 'password' => Hash::make($request->password),
-                'role' => 'student',
+                'role'     => 'student',
             ]);
 
-            // 2️⃣ Create Student Profile
+            // 2️⃣ إنشاء بروفايل الطالب
             $student = Student::create([
-                'user_id' => $user->id,
-                'country_id' => $request->country_id,
-                'phone' => $request->phone,
-                'address' => $request->address,
-                'qualification' => $request->qualification,
+                'user_id'            => $user->id,
+                'country_id'         => $request->country_id,
+                'phone'              => $request->phone,
+                'address'            => $request->address,
+                'qualification'      => $request->qualification,
                 'professional_status' => $request->professional_status,
-                'gender' => $request->gender,
+                'gender'             => $request->gender,
             ]);
 
-            // 3️⃣ Delete OTP (prevent reuse)
+            // 3️⃣ حذف OTP لمنع إعادة الاستخدام
             $otpRecord->delete();
 
-            // 4️⃣ Generate Token
+            // 4️⃣ إنشاء التوكن
             $token = $user->createToken('auth_token')->plainTextToken;
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Registration successful.',
-                'user' => $user,
-                'profile' => $student,
-                'token' => $token
+                'status'  => true,
+                'message' => 'تم إنشاء الحساب بنجاح.',
+                'data' => [
+                    'user'    => $user,
+                    'profile' => $student,
+                    'token'   => $token,
+                ]
             ], 201);
         } catch (\Throwable $e) {
 
@@ -152,10 +163,12 @@ class StudentAuthController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Registration failed. Please try again.'
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.',
             ], 500);
         }
     }
+
 
     public function login(LoginRequest $request)
     {
@@ -164,26 +177,31 @@ class StudentAuthController extends Controller
 
             if (!$user || !Hash::check($request->password, $user->password)) {
                 return response()->json([
-                    'message' => 'بيانات الاعتماد غير صحيحة'
+                    'status'  => false,
+                    'message' => 'بيانات تسجيل الدخول غير صحيحة.',
                 ], 401);
             }
 
             if ($user->role !== 'student') {
                 return response()->json([
-                    'message' => 'غير مصرح لك بالدخول من هنا'
+                    'status'  => false,
+                    'message' => 'غير مصرح لك بتسجيل الدخول من هنا.',
                 ], 403);
             }
 
-            //  Optional: single-session login
+            // لو حابب تخلي تسجيل دخول بجلسة واحدة فقط
             // $user->tokens()->delete();
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
-                'message' => 'تم تسجيل الدخول بنجاح',
-                'user' => $user,
-                'profile' => $user->studentProfile,
-                'token' => $token
+                'status'  => true,
+                'message' => 'تم تسجيل الدخول بنجاح.',
+                'data' => [
+                    'user'    => $user,
+                    'profile' => $user->studentProfile,
+                    'token'   => $token,
+                ]
             ], 200);
         } catch (\Throwable $e) {
 
@@ -193,10 +211,12 @@ class StudentAuthController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'حدث خطأ أثناء تسجيل الدخول، حاول مرة أخرى'
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء تسجيل الدخول. حاول مرة أخرى.',
             ], 500);
         }
     }
+
 
     public function updateProfile(UpdateProfileRequest $request)
     {
@@ -205,24 +225,25 @@ class StudentAuthController extends Controller
 
         if (!$student) {
             return response()->json([
-                'message' => 'Profile not found'
+                'status'  => false,
+                'message' => 'لم يتم العثور على الملف الشخصي.',
             ], 404);
         }
 
         DB::beginTransaction();
 
         try {
-            // 🔹 Update user name
+            // 🔹 تحديث اسم المستخدم
             if ($request->filled('name')) {
                 $user->update([
                     'name' => $request->name
                 ]);
             }
 
-            // 🔹 Handle profile photo
+            // 🔹 تحديث الصورة الشخصية
             if ($request->hasFile('profile_photo')) {
 
-                // delete old photo
+                // حذف الصورة القديمة
                 if ($student->profile_photo_path) {
                     Storage::disk('public')->delete($student->profile_photo_path);
                 }
@@ -233,7 +254,7 @@ class StudentAuthController extends Controller
                 $student->profile_photo_path = $path;
             }
 
-            // 🔹 Update student fields
+            // 🔹 تحديث بيانات الطالب
             $student->update($request->only([
                 'phone',
                 'address',
@@ -244,12 +265,15 @@ class StudentAuthController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Profile updated successfully',
-                'user' => $user->fresh(),
-                'profile' => $student->fresh(),
-                'photo_url' => $student->profile_photo_path
-                    ? asset('storage/' . $student->profile_photo_path)
-                    : null
+                'status'  => true,
+                'message' => 'تم تحديث الملف الشخصي بنجاح.',
+                'data' => [
+                    'user'  => $user->fresh(),
+                    'profile' => $student->fresh(),
+                    'photo_url' => $student->profile_photo_path
+                        ? asset('storage/' . $student->profile_photo_path)
+                        : null,
+                ]
             ], 200);
         } catch (\Throwable $e) {
 
@@ -261,10 +285,12 @@ class StudentAuthController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Failed to update profile. Please try again.'
+                'status'  => false,
+                'message' => 'فشل في تحديث الملف الشخصي. حاول مرة أخرى.',
             ], 500);
         }
     }
+
 
     public function logout(Request $request)
     {
@@ -273,126 +299,144 @@ class StudentAuthController extends Controller
 
             if (!$user || !$user->currentAccessToken()) {
                 return response()->json([
-                    'message' => 'المستخدم غير مسجل الدخول'
+                    'status'  => false,
+                    'message' => 'المستخدم غير مسجل الدخول.',
                 ], 401);
             }
 
             $user->currentAccessToken()->delete();
 
             return response()->json([
-                'message' => 'تم تسجيل الخروج بنجاح'
+                'status'  => true,
+                'message' => 'تم تسجيل الخروج بنجاح.',
             ], 200);
         } catch (\Throwable $e) {
 
             Log::error('Logout Error', [
                 'user_id' => optional($request->user())->id,
+                'error'   => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء تسجيل الخروج. حاول مرة أخرى.',
+            ], 500);
+        }
+    }
+
+
+    public function changePassword(ChangePasswordRequest $request)
+    {
+        try {
+            $user = $request->user();
+
+            // التحقق من كلمة المرور الحالية
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'كلمة المرور الحالية غير صحيحة.'
+                ], 401);
+            }
+
+            // تحديث كلمة المرور الجديدة
+            $user->update([
+                'password' => Hash::make($request->new_password)
+            ]);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم تغيير كلمة المرور بنجاح.'
+            ], 200);
+        } catch (\Throwable $e) {
+
+            Log::error('Change Password Error', [
+                'user_id' => optional($request->user())->id,
+                'error'   => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء تغيير كلمة المرور. حاول مرة أخرى.'
+            ], 500);
+        }
+    }
+
+
+    public function forgotPasswordSendOtp(ForgotPasswordSendOtpRequest $request)
+    {
+        try {
+            $otp = random_int(1000, 9999);
+
+            OtpCode::updateOrCreate(
+                ['email' => $request->email],
+                [
+                    'otp'         => $otp,
+                    'expires_at'  => now()->addMinutes(10),
+                    'is_verified' => false,
+                ]
+            );
+
+            // إرسال ميل إعادة تعيين كلمة المرور
+            Mail::to($request->email)->send(new ResetOtpMail($otp));
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم إرسال رمز التحقق لإعادة تعيين كلمة المرور.',
+            ], 200);
+        } catch (\Throwable $e) {
+
+            Log::error('Forgot Password OTP Error', [
+                'email' => $request->email,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
-                'message' => 'حدث خطأ أثناء تسجيل الخروج'
+                'status'  => false,
+                'message' => 'فشل في إرسال رمز التحقق. حاول مرة أخرى.',
             ], 500);
         }
     }
-    public function ChangePassword(Request $request)
+
+
+    public function resetPassword(ResetPasswordRequest $request)
     {
-        // 1. التحقق من البيانات المرسلة
-        $validator = Validator::make($request->all(), [
-            'current_password' => ['required', 'string'],
-            'new_password' => ['required', 'string', 'confirmed', Password::min(8)],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user = auth()->user();
-
-        // 2. التأكد من صحة كلمة المرور الحالية
-        if (!Hash::check($request->current_password, $user->password)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'كلمة المرور الحالية غير صحيحة.'
-            ], 401);
-        }
-
-        // 3. تحديث كلمة المرور الجديدة
-        $user->update([
-            'password' => Hash::make($request->new_password)
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'تم تغيير كلمة المرور بنجاح.'
-        ]);
-    }
-public function forgotPasswordSendOtp(ForgotPasswordSendOtpRequest $request)
-{
-    try {
-        $otp = random_int(1000, 9999);
-
-        OtpCode::updateOrCreate(
-            ['email' => $request->email],
-            [
-                'otp' => $otp,
-                'expires_at' => now()->addMinutes(10),
-                'is_verified' => false,
-            ]
-        );
-
-        // Send the SPECIFIC Reset Mailable
-        Mail::to($request->email)->send(new ResetOtpMail($otp));
-
-        return response()->json([
-            'message' => 'تم إرسال رمز التحقق لإعادة تعيين كلمة المرور.'
-        ], 200);
-
-    } catch (\Throwable $e) {
-        Log::error('Forgot Password OTP Error: ' . $e->getMessage());
-        return response()->json(['message' => 'فشل في إرسال الرمز.'], 500);
-    }
-}
-    public function resetPassword(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => ['required', 'email', 'exists:users,email'],
-            'password' => ['required', 'string', 'confirmed', Password::min(8)],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
         try {
-            // 🔐 Check if this email has a verified OTP record
+            // التأكد من وجود OTP موثق
             $otpRecord = OtpCode::where('email', $request->email)
                 ->where('is_verified', true)
                 ->first();
 
             if (!$otpRecord) {
                 return response()->json([
-                    'message' => 'Email not verified. Please verify OTP first.'
+                    'status'  => false,
+                    'message' => 'لم يتم التحقق من البريد الإلكتروني. يرجى تأكيد رمز التحقق أولاً.',
                 ], 403);
             }
 
-            // Update the User
+            // تحديث كلمة المرور
             $user = User::where('email', $request->email)->first();
             $user->update([
                 'password' => Hash::make($request->password)
             ]);
 
-            // Delete OTP record so it can't be used again
+            // حذف سجل OTP لمنع إعادة الاستخدام
             $otpRecord->delete();
 
             return response()->json([
-                'message' => 'Password reset successfully. You can now login.'
+                'status'  => true,
+                'message' => 'تم إعادة تعيين كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن.',
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Reset Password Error', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Something went wrong.'], 500);
+
+            Log::error('Reset Password Error', [
+                'email' => $request->email,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء إعادة تعيين كلمة المرور. حاول مرة أخرى.',
+            ], 500);
         }
     }
 }

@@ -3,23 +3,17 @@
 namespace App\Http\Requests\Admin\Teacher;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class LoginRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules()
+    public function rules(): array
     {
         return [
             'email' => 'required|email|max:255',
@@ -27,7 +21,7 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    public function messages()
+    public function messages(): array
     {
         return [
             'email.required' => 'البريد الإلكتروني مطلوب',
@@ -39,5 +33,17 @@ class LoginRequest extends FormRequest
             'password.min' => 'كلمة المرور يجب أن تكون على الأقل 6 أحرف',
             'password.max' => 'كلمة المرور لا يمكن أن تزيد عن 50 حرفًا',
         ];
+    }
+
+    // ✅ تحويل رد الفشل إلى JSON مع status=false
+    protected function failedValidation(Validator $validator)
+    {
+        $response = response()->json([
+            'status' => false,
+            'message' => 'بيانات غير صحيحة.',
+            'errors' => $validator->errors(),
+        ], 422);
+
+        throw new HttpResponseException($response);
     }
 }
