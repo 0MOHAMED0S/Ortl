@@ -96,7 +96,6 @@
         <span class="icon" role="img" aria-label="Success">✅</span>
         <h1>تمت العملية بنجاح!</h1>
         <p>شكرًا لك! لقد تم دفع قيمة الباقة وتفعيل الدقائق في حسابك بنجاح. يمكنك الآن البدء في رحلتك التعليمية.</p>
-        <a href="{{ route('student.dashboard') }}" class="btn">الذهاب للوحة التحكم</a>
     </div>
 </body>
 </html>
