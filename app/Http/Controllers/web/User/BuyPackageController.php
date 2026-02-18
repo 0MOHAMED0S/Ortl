@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 
 class BuyPackageController extends Controller
 {
-    public function buy(Request $request, package $package, PaymobService $paymob)
+    public function buy(Request $request, Package $package, PaymobService $paymob)
     {
         try {
             $user = auth()->user();
