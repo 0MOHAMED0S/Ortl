@@ -94,5 +94,44 @@ public function logout(Request $request)
         ], 500);
     }
 }
+public function profile(Request $request)
+{
+    try {
+        $user = $request->user();
 
+        // نقوم بجلب الملف الشخصي، ومن داخله نجلب الطلب (application) ومساراته (tracks)
+        $user->load([
+            'teacherProfile.application.tracks',
+        ]);
+
+        if (!$user->isTeacher() || !$user->teacherProfile) {
+            return response()->json([
+                'status' => false,
+                'message' => 'الملف الشخصي غير مكتمل.'
+            ], 403);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'تم جلب البيانات بنجاح',
+            'data' => [
+                'user' => [
+                    'id'    => $user->id,
+                    'name'  => $user->name,
+                    'email' => $user->email,
+                ],
+                'profile' => $user->teacherProfile,
+                // سحب المسارات من داخل الـ application لتجنب خطأ الـ SQL
+                'tracks'  => $user->teacherProfile->application?->tracks ?? [],
+            ]
+        ], 200);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'حدث خطأ أثناء جلب البيانات.',
+            'error'   => config('app.debug') ? $e->getMessage() : null
+        ], 500);
+    }
+}
 }

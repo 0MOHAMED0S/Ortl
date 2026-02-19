@@ -5,26 +5,31 @@ namespace App\Http\Controllers\Api\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Teacher;
 use App\Models\Teacher_application;
+use App\Models\TeacherSlot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class StudentTeacherController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            // 1️⃣ جلب المعلمين الموافق عليهم فقط مع العلاقات
-            $teachers = Teacher_application::where('status', 'approved')
-                ->with('profile.user')
-                ->get();
+            // 1️⃣ تحديد عدد المعلمين في كل صفحة (افتراضياً 10)
+            $perPage = $request->get('per_page', 10);
 
-            // 2️⃣ تنسيق البيانات
-            $formattedTeachers = $teachers->map(function ($teacher) {
+            // 2️⃣ جلب المعلمين الموافق عليهم مع التصفح
+            $teachersPaginator = Teacher_application::where('status', 'approved')
+                ->with(['profile.user'])
+                ->latest() // ترتيب الأحدث أولاً
+                ->paginate($perPage);
 
-                // الاسم: استخدم اسم حساب المستخدم إذا موجود، وإلا اسم التطبيق
+            // 3️⃣ تنسيق البيانات داخل الـ Collection الخاص بالتصفح
+            $teachersPaginator->getCollection()->transform(function ($teacher) {
+
+                // الاسم: اسم المستخدم أو اسم التطبيق
                 $name = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
 
-                // الصورة: استخدم صورة الملف الشخصي إذا موجودة، وإلا استخدم Avatar
+                // الصورة الشخصية
                 $photoPath = optional($teacher->profile)->profile_photo_path ?? null;
                 $photoUrl = $photoPath
                     ? asset('storage/' . $photoPath)
@@ -43,16 +48,26 @@ class StudentTeacherController extends Controller
                 ];
             });
 
+            // 4️⃣ إرجاع الاستجابة مع بيانات التصفح كاملة
             return response()->json([
                 'status'  => true,
                 'message' => 'تم استرجاع المعلمين بنجاح.',
-                'data'    => $formattedTeachers
+                'data'    => [
+                    'teachers' => $teachersPaginator->items(), // المصفوفة المنسقة
+                    'pagination' => [
+                        'total'        => $teachersPaginator->total(),
+                        'count'        => $teachersPaginator->count(),
+                        'per_page'     => (int) $teachersPaginator->perPage(),
+                        'current_page' => $teachersPaginator->currentPage(),
+                        'total_pages'  => $teachersPaginator->lastPage(),
+                        'next_page_url' => $teachersPaginator->nextPageUrl(),
+                        'prev_page_url' => $teachersPaginator->previousPageUrl(),
+                    ]
+                ]
             ], 200);
         } catch (\Throwable $e) {
-
-            Log::error('فشل في جلب المعلمين', [
+            Log::error('فشل في جلب المعلمين مع التصفح', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -112,6 +127,75 @@ class StudentTeacherController extends Controller
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء جلب الملف الشخصي للمعلم.'
+            ], 500);
+        }
+    }
+
+    public function getTeacherAvailableSlots(Request $request, $teacherId)
+    {
+        try {
+            // 1️⃣ التأكد من وجود المعلم
+            $teacherExists = \App\Models\Teacher::where('id', $teacherId)->exists();
+
+            if (!$teacherExists) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'عذراً، المعلم المطلوب غير موجود.'
+                ], 404);
+            }
+
+            // 2️⃣ بناء الاستعلام للمواعيد المتاحة
+            $query = TeacherSlot::where('teacher_id', $teacherId)
+                ->where('is_booked', false)
+                ->where(function ($query) {
+                    $query->where('date', '>', now()->toDateString())
+                        ->orWhere(function ($q) {
+                            $q->where('date', now()->toDateString())
+                                ->where('start_time', '>', now()->format('H:i:s'));
+                        });
+                })
+                ->orderBy('date', 'asc')
+                ->orderBy('start_time', 'asc');
+
+            // 3️⃣ تطبيق التصفح (مثلاً 20 موعد في الصفحة)
+            $perPage = $request->get('per_page', 20);
+            $paginator = $query->paginate($perPage);
+
+            // 4️⃣ تحويل السجلات الحالية لمجموعة (Collection) وتجميعها حسب التاريخ
+            $groupedSlots = $paginator->getCollection()->groupBy('date');
+
+            if ($paginator->isEmpty()) {
+                return response()->json([
+                    'status' => true,
+                    'message' => 'لا توجد مواعيد متاحة حالياً.',
+                    'data' => [],
+                    'pagination' => null
+                ], 200);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'تم جلب المواعيد بنجاح.',
+                'data' => [
+                    'calendar' => $groupedSlots,
+                    'pagination' => [
+                        'total'        => $paginator->total(),
+                        'count'        => $paginator->count(),
+                        'per_page'     => $paginator->perPage(),
+                        'current_page' => $paginator->currentPage(),
+                        'total_pages'  => $paginator->lastPage(),
+                        'next_page'    => $paginator->nextPageUrl(),
+                        'prev_page'    => $paginator->previousPageUrl(),
+                    ]
+                ]
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Get Available Slots Error: ' . $e->getMessage());
+
+            return response()->json([
+                'status' => false,
+                'message' => 'حدث خطأ أثناء جلب المواعيد.',
+                'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }

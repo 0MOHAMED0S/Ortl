@@ -37,4 +37,5 @@ class Teacher_application extends Model
     {
         return $this->hasOne(Teacher::class, 'teacher_application_id');
     }
+    
 }

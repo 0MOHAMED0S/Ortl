@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Student\StudentPackageController;
 use App\Http\Controllers\Api\Student\StudentTeacherController;
 use App\Http\Controllers\Api\Student\StudentTracksController;
 use App\Http\Controllers\Api\Teacher\TeacherAuthController;
+use App\Http\Controllers\Api\Teacher\TeacherSlotController;
 use App\Http\Controllers\web\User\BuyPackageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,13 @@ Route::prefix('teacher')->group(function () {
     Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
         // Logout
         Route::post('/logout', [TeacherAuthController::class, 'logout']);
+        Route::get('/ads', [AdsController::class, 'index']);
+        Route::get('/profile', [TeacherAuthController::class, 'profile']);
+        Route::post('/slots', [TeacherSlotController::class, 'setAvailability']);
+        Route::get('/my-slots', [TeacherSlotController::class, 'getMySlots']);
+        Route::delete('/slots/{id}', [TeacherSlotController::class, 'deleteSlot']);
+        Route::post('/slots-by-day', [TeacherSlotController::class, 'deleteDaySlots']);
+
     });
 });
 
@@ -63,6 +71,7 @@ Route::prefix('student')->group(function () {
         Route::get('/tracks', [StudentTracksController::class, 'index']);
         Route::get('teachers/{id}', [StudentTeacherController::class, 'show']);
         Route::post('/package/{id}/coupon', [StudentPackageController::class, 'getPrice']);
+        Route::get('/{id}/available-slots', [StudentTeacherController::class, 'getTeacherAvailableSlots']);
 
     });
 });

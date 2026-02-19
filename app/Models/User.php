@@ -68,22 +68,22 @@ class User extends Authenticatable
         return $this->hasOneThrough(Teacher_application::class, Teacher::class, 'user_id', 'id', 'id', 'teacher_application_id');
     }
     public function packages()
-{
-    return $this->hasMany(UserPackage::class);
-}
+    {
+        return $this->hasMany(UserPackage::class);
+    }
 
-public function country()
-{
-    // هذه العلاقة تعني: ابحث عن الدولة من خلال جدول الطلاب
-    return $this->hasOneThrough(
-        Country::class,
-        Student::class,
-        'user_id',    // Foreign key on Student table
-        'id',         // Foreign key on Country table
-        'id',         // Local key on User table
-        'country_id'  // Local key on Student table
-    );
-}
+    public function country()
+    {
+        // هذه العلاقة تعني: ابحث عن الدولة من خلال جدول الطلاب
+        return $this->hasOneThrough(
+            Country::class,
+            Student::class,
+            'user_id',    // Foreign key on Student table
+            'id',         // Foreign key on Country table
+            'id',         // Local key on User table
+            'country_id'  // Local key on Student table
+        );
+    }
     /**
      * Get the attributes that should be cast.
      *
@@ -96,5 +96,4 @@ public function country()
             'password' => 'hashed',
         ];
     }
-
 }
