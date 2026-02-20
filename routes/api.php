@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Student\StudentPackageController;
 use App\Http\Controllers\Api\Student\StudentTeacherController;
 use App\Http\Controllers\Api\Student\StudentTracksController;
 use App\Http\Controllers\Api\Teacher\TeacherAuthController;
+use App\Http\Controllers\Api\Teacher\TeacherSessionController;
 use App\Http\Controllers\Api\Teacher\TeacherSlotController;
 use App\Http\Controllers\web\User\BuyPackageController;
 use Illuminate\Http\Request;
@@ -33,12 +34,16 @@ Route::prefix('teacher')->group(function () {
         Route::get('/my-slots', [TeacherSlotController::class, 'getMySlots']);
         Route::delete('/slots/{id}', [TeacherSlotController::class, 'deleteSlot']);
         Route::post('/slots-by-day', [TeacherSlotController::class, 'deleteDaySlots']);
-
+        Route::post('/sessions/{sessionId}/start', [TeacherSessionController::class, 'startSession']);
+        Route::get('/sessions/{sessionId}/attendance', [TeacherSessionController::class, 'getAttendance']);
+        Route::post('/sessions/{sessionId}/end', [TeacherSessionController::class, 'endSession']);
+        Route::get('/sessions/my-sessions', [TeacherSessionController::class, 'getTeacherSessions']);
     });
 });
 
 // student endpoints
 Route::prefix('student')->group(function () {
+
     // Register
     Route::post('/register/send-otp', [StudentAuthController::class, 'sendOtp']);
     Route::post('/register/check-otp', [StudentAuthController::class, 'checkOtp']);
@@ -46,17 +51,17 @@ Route::prefix('student')->group(function () {
     Route::post('/forgot-password/send-otp', [StudentAuthController::class, 'forgotPasswordSendOtp']);
     Route::post('/forgot-password/check-otp', [StudentAuthController::class, 'checkOtp']);
     Route::post('/forgot-password/reset', [StudentAuthController::class, 'resetPassword']);
-
     // Login
     Route::post('/login', [StudentAuthController::class, 'login']);
-
     // Get Countries for Registration Dropdown
     Route::get('/countries', [CountryController::class, 'index']);
 
     Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
+        Route::get('/sessions/available-sessions', [TeacherSessionController::class, 'getAllSessionsForStudent']);
+        Route::post('/sessions/{sessionId}/join', [TeacherSessionController::class, 'joinSession']);
+        Route::post('/sessions/{sessionId}/leave', [TeacherSessionController::class, 'leaveSession']);
         Route::post('/profile/update', [StudentAuthController::class, 'updateProfile']);
         Route::post('/change-password', [StudentAuthController::class, 'ChangePassword']);
-
         // Logout
         Route::post('/logout', [StudentAuthController::class, 'logout']);
         Route::get('/packages', [StudentPackageController::class, 'index']);
@@ -65,14 +70,12 @@ Route::prefix('student')->group(function () {
         // FAVORITES ROUTES
         Route::post('/favorites/toggle', [favoriteController::class, 'toggle']);
         Route::get('/favorites', [favoriteController::class, 'index']);
-
         Route::post('/packages/{package}/buy', [BuyPackageController::class, 'buy'])->name('packages.buy');
         Route::get('/user-packages', [StudentPackageController::class, 'userPackages']);
         Route::get('/tracks', [StudentTracksController::class, 'index']);
         Route::get('teachers/{id}', [StudentTeacherController::class, 'show']);
         Route::post('/package/{id}/coupon', [StudentPackageController::class, 'getPrice']);
         Route::get('/{id}/available-slots', [StudentTeacherController::class, 'getTeacherAvailableSlots']);
-
     });
 });
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);

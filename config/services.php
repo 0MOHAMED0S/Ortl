@@ -38,5 +38,9 @@ return [
             'base_url' => env('PAYMOB_BASE_URL', 'https://accept.paymob.com/api'),
             'api_key'  => env('PAYMOB_API_KEY'),
         ],
+'agora' => [
+    'app_id' => env('AGORA_APP_ID'),
+    'app_certificate' => env('AGORA_APP_CERTIFICATE'),
+],
 
 ];

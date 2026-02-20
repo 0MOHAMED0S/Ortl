@@ -7,6 +7,7 @@ use App\Http\Controllers\web\Admin\ContactSettingController;
 use App\Http\Controllers\web\Admin\CouponsController;
 use App\Http\Controllers\web\Admin\PackageController;
 use App\Http\Controllers\web\Admin\ProfileController;
+use App\Http\Controllers\web\Admin\RecitationSessionController;
 use App\Http\Controllers\web\Admin\SettingController;
 use App\Http\Controllers\web\Admin\TeacherController;
 use App\Http\Controllers\web\Admin\TrackController as AdminTrackController;
@@ -46,6 +47,10 @@ Route::prefix('admin')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('admin.login.post');
 
     Route::middleware('admin')->group(function () {
+
+            Route::get('/recitations/create', [RecitationSessionController::class, 'create'])->name('admin.recitations.create');
+            Route::post('/recitations', [RecitationSessionController::class, 'store'])->name('admin.recitations.store');
+
         Route::get('/dashboard', fn() => view('dashboard.index'))->name('admin.dashboard');
         Route::post('settings/toggle-registration', [SettingController::class, 'toggleTeacherRegistration'])->name('settings.toggleRegistration');
         Route::post('/teachers/{id}/update-details', [TeacherController::class, 'updateDetails'])->name('teacher.updateDetails');
@@ -68,9 +73,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/students', function () {
             return view('dashboard.students');
         })->name('admin.students');
-        Route::get('/sessions', function () {
-            return view('dashboard.sessions');
-        })->name('admin.sessions');
+        // Route::get('/sessions', function () {
+        //     return view('dashboard.sessions');
+        // })->name('admin.sessions');
         Route::get('/Subscriptions', function () {
             return view('dashboard.Subscriptions');
         })->name('admin.subscriptions');

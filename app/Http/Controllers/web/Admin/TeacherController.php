@@ -149,4 +149,5 @@ class TeacherController extends Controller
 
         return redirect()->back()->with('success', 'تم تحديث بيانات المعلم بنجاح');
     }
+    
 }

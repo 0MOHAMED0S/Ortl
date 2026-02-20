@@ -300,7 +300,7 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{{ route('admin.sessions') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.sessions') ? 'active' : '' }}">
+                    <a href="{{ route('admin.recitations.create') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.sessions') ? 'active' : '' }}">
                         <i class="fa-solid fa-video"></i> المقرأه
                     </a>
                 </li>

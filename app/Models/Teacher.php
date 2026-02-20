@@ -15,10 +15,6 @@ public function user()
 public function slots() {
     return $this->hasMany(TeacherSlot::class);
 }
-// app/Models/Teacher.php
-
-// app/Models/Teacher.php
-
 public function tracks()
 {
     // هنا نقول لارفل: اجلب المسارات المرتبطة بالطلب (application) التابع لهذا المعلم
