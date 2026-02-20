@@ -41,4 +41,4 @@ Schedule::call(function () {
     } catch (\Exception $e) {
         Log::error("Cron Job Error (Expired Sessions): " . $e->getMessage());
     }
-})->everyFifteenMinutes();
+})->everyMinute();
