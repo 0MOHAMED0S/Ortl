@@ -9,21 +9,13 @@ use Illuminate\Support\Facades\Log;
 
 class StudentTracksController extends Controller
 {
-    /**
-     * عرض قائمة المسارات (Tracks) النشطة مع Pagination
-     */
     public function index(Request $request)
     {
         try {
-            // 1️⃣ عدد العناصر لكل صفحة
             $perPage = $request->query('per_page', 10);
-
-            // 2️⃣ جلب المسارات النشطة مع ترتيبها حسب الأحدث
             $tracks = Track::where('status', 'active')
                 ->latest()
                 ->paginate($perPage);
-
-            // 3️⃣ تنسيق البيانات وإضافة رابط الأيقونة الكامل
             $tracks->getCollection()->transform(function ($track) {
                 return [
                     'id'              => $track->id,
@@ -36,13 +28,11 @@ class StudentTracksController extends Controller
                 ];
             });
 
-            // 4️⃣ الرد النهائي
             return response()->json([
                 'status'  => true,
                 'message' => 'تم جلب المسارات بنجاح.',
                 'data'    => $tracks
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('خطأ في جلب المسارات (Tracks): ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()

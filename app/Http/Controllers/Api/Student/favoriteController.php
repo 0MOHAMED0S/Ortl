@@ -51,7 +51,6 @@ class FavoriteController extends Controller
                 'message' => $message,
                 'favorite_status' => $status
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Toggle Favorite Error', [
                 'user_id'    => optional($request->user())->id,
@@ -69,7 +68,6 @@ class FavoriteController extends Controller
     public function index(Request $request)
     {
         try {
-            // 1️⃣ جلب ملف الطالب
             $student = $request->user()->studentProfile;
 
             if (!$student) {
@@ -79,14 +77,12 @@ class FavoriteController extends Controller
                 ], 404);
             }
 
-            // 2️⃣ جلب المفضلة مع Pagination
             $perPage = $request->query('per_page', 10);
             $favorites = $student->favorites()
                 ->where('status', 'approved')
                 ->with('profile.user')
                 ->paginate($perPage);
 
-            // 3️⃣ تنسيق البيانات
             $favorites->getCollection()->transform(function ($teacher) {
                 $name = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
                 $photoPath = optional($teacher->profile)->profile_photo_path ?? null;
@@ -110,7 +106,6 @@ class FavoriteController extends Controller
                 'message' => 'تم جلب المفضلة بنجاح.',
                 'data'    => $favorites
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Get Favorites Error', [
                 'user_id' => optional($request->user())->id,

@@ -53,7 +53,8 @@ Route::prefix('student')->group(function () {
     Route::post('/forgot-password/reset', [StudentAuthController::class, 'resetPassword']);
     // Login
     Route::post('/login', [StudentAuthController::class, 'login']);
-    // Get Countries for Registration Dropdown
+
+    // Get Countries
     Route::get('/countries', [CountryController::class, 'index']);
 
     Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
@@ -61,6 +62,8 @@ Route::prefix('student')->group(function () {
         Route::post('/sessions/{sessionId}/join', [TeacherSessionController::class, 'joinSession']);
         Route::post('/sessions/{sessionId}/leave', [TeacherSessionController::class, 'leaveSession']);
         Route::post('/profile/update', [StudentAuthController::class, 'updateProfile']);
+
+        
         Route::post('/change-password', [StudentAuthController::class, 'ChangePassword']);
         // Logout
         Route::post('/logout', [StudentAuthController::class, 'logout']);
