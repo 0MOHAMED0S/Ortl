@@ -18,9 +18,6 @@ class TeacherSessionController extends Controller
         $this->agoraService = $agoraService;
     }
 
-    /**
-     * المعلم يبدأ الحصة
-     */
     public function startSession(Request $request, $sessionId)
     {
         try {
@@ -73,10 +70,6 @@ class TeacherSessionController extends Controller
         }
     }
 
-
-    /**
-     * الطالب ينضم للحصة ويسجل وقت الدخول
-     */
     public function joinSession(Request $request, $sessionId)
     {
         try {
@@ -138,9 +131,6 @@ class TeacherSessionController extends Controller
     }
 
 
-    /**
-     * تسجيل وقت خروج الطالب أو المعلم عند إغلاق القناة
-     */
     public function leaveSession(Request $request, $sessionId)
     {
         try {
@@ -182,10 +172,6 @@ class TeacherSessionController extends Controller
         }
     }
 
-
-    /**
-     * المعلم ينهي الحصة ويغلقها على الجميع
-     */
     public function endSession(Request $request, $sessionId)
     {
         try {
@@ -234,11 +220,6 @@ class TeacherSessionController extends Controller
             ], 500);
         }
     }
-
-
-    /**
-     * جلب كشف الحضور للحصة (خاص بالمعلم)
-     */
     public function getAttendance($sessionId)
     {
         try {
@@ -298,10 +279,6 @@ class TeacherSessionController extends Controller
         }
     }
 
-
-    /**
-     * جلب جميع الحصص المتاحة للطلاب (القادمة والجارية)
-     */
     public function getAllSessionsForStudent(Request $request)
     {
         try {
@@ -346,10 +323,6 @@ class TeacherSessionController extends Controller
         }
     }
 
-
-    /**
-     * جلب الحصص الخاصة بالمعلم المسجل دخوله حالياً
-     */
     public function getTeacherSessions(Request $request)
     {
         try {

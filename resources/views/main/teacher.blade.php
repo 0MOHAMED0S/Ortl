@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>انضم للكادر التعليمي - ورتل</title>
-    <link rel="icon" href="{{ asset('images/LOGO-01.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ asset('images/mainlogo.png') }}" type="image/svg+xml">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -486,7 +486,7 @@
 
     <nav class="navbar fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="#"><img width="70px" height="70px" src="{{ asset('images/LOGO-01.svg') }}"
+            <a class="navbar-brand" href="#"><img width="70px" height="70px" src="{{ asset('images/mainlogo.png') }}"
                     alt="ورتل"></a>
             <a href="{{ route('welcome') }}" class="back-link">
                 العودة للرئيسية <i class="fa-solid fa-arrow-left"></i>

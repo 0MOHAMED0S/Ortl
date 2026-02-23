@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تم الإرسال بنجاح - ورتل</title>
-    <link rel="icon" href="{{ asset('images/LOGO-01.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ asset('images/mainlogo.png') }}" type="image/svg+xml">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -251,7 +251,7 @@
 
     {{-- <nav class="navbar">
         <div class="container justify-content-center">
-            <a class="navbar-brand" href="#"><img src="{{ asset('images/wrtlv3.png') }}" alt="ورتل"></a>
+            <a class="navbar-brand" href="#"><img src="{{ asset('images/mainlogo.png') }}" alt="ورتل"></a>
         </div>
     </nav> --}}
 

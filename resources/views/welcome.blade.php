@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ورتل - رتل القرآن ترتيلاً</title>
-    <link rel="icon" href="{{ asset('images/LOGO-01.svg') }}" type="image/png">
+    <link rel="icon" href="{{ asset('images/mainlogo.png') }}" type="image/png">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -45,7 +45,7 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        body.loading-locked {
+        body.loading-locked, body.nav-locked {
             overflow: hidden !important;
             height: 100vh;
         }
@@ -1203,7 +1203,7 @@
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
             <a class="navbar-brand" href="#"><img width="70px" height="70px"
-                    src="{{ asset('images/LOGO-01.svg') }}" alt="ورتل"></a>
+                    src="{{ asset('images/mainlogo.png') }}" alt="ورتل"></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
                 <i class="fa-solid fa-bars-staggered"></i>
             </button>
@@ -1911,12 +1911,10 @@
                     setTimeout(() => animateCounter(counter), 20); // updates every 20ms
                 } else {
                     counter.innerText = target;
-                    // Optional: Add K or M suffixes manually if needed, or handle in PHP
                     if (target > 1000) counter.innerText += '+';
                 }
             };
 
-            // Trigger animation when section is in view
             const observerOptions = {
                 threshold: 0.5
             };
@@ -1925,7 +1923,7 @@
                     if (entry.isIntersecting) {
                         const counter = entry.target;
                         animateCounter(counter);
-                        observer.unobserve(counter); // Only run once
+                        observer.unobserve(counter);
                     }
                 });
             }, observerOptions);
@@ -1933,64 +1931,87 @@
             counters.forEach(counter => {
                 observer.observe(counter);
             });
+
+            // =========================================
+            // NAVBAR CUSTOM LOGIC (FIX FOR RESPONSIVE)
+            // =========================================
+            const $navbarCollapse = $('.navbar-collapse');
+            const $body = $('body');
+
+            // 1. Lock/Unlock Scroll when navbar toggles
+            $navbarCollapse.on('show.bs.collapse', function () {
+                $body.addClass('nav-locked');
+            });
+
+            $navbarCollapse.on('hide.bs.collapse', function () {
+                $body.removeClass('nav-locked');
+            });
+
+            // 2. Close navbar when clicking any link
+            $('.navbar-nav .nav-link, .nav-link-teacher, .btn-nav-cta').on('click', function(){
+                if ($('.navbar-toggler').is(':visible')) {
+                    $navbarCollapse.collapse('hide');
+                }
+            });
+
+            // 3. Close navbar when clicking outside
+            $(document).on('click', function (event) {
+                const clickOver = $(event.target);
+                const _opened = $navbarCollapse.hasClass('show');
+                if (_opened === true && !clickOver.closest('.navbar').length) {
+                    $navbarCollapse.collapse('hide');
+                }
+            });
         });
-    </script>
-    <script>
+
+        // Contact Form AJAX
         document.getElementById('contactForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+            e.preventDefault();
+            const form = this;
+            const btn = document.getElementById('submitBtn');
+            const msgBox = document.getElementById('formMessage');
+            const spinner = btn.querySelector('.spinner-border');
 
-    const form = this;
-    const btn = document.getElementById('submitBtn');
-    const msgBox = document.getElementById('formMessage');
-    const spinner = btn.querySelector('.spinner-border');
+            btn.disabled = true;
+            if(spinner) spinner.classList.remove('d-none');
+            msgBox.classList.add('d-none');
 
-    // UI Loading State
-    btn.disabled = true;
-    if(spinner) spinner.classList.remove('d-none');
-    msgBox.classList.add('d-none');
+            const formData = new FormData(form);
 
-    const formData = new FormData(form);
+            fetch("{{ route('contact.send') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    'Accept': 'application/json'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                if(spinner) spinner.classList.add('d-none');
+                msgBox.classList.remove('d-none', 'alert-success', 'alert-danger');
 
-    fetch("{{ route('contact.send') }}", {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
-            'Accept': 'application/json' // Forces Laravel to return JSON validation errors
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        btn.disabled = false;
-        if(spinner) spinner.classList.add('d-none');
-
-        msgBox.classList.remove('d-none', 'alert-success', 'alert-danger');
-
-        if (data.status === 'success') {
-            // Success Logic
-            msgBox.classList.add('alert-success');
-            msgBox.innerText = data.message;
-            form.reset();
-        } else if (data.errors) {
-            // Validation Error Logic
-            msgBox.classList.add('alert-danger');
-            // Show the first validation error found
-            msgBox.innerText = Object.values(data.errors)[0][0];
-        } else {
-            // General Error Logic
-            msgBox.classList.add('alert-danger');
-            msgBox.innerText = data.message || 'حدث خطأ غير متوقع.';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        btn.disabled = false;
-        if(spinner) spinner.classList.add('d-none');
-        msgBox.classList.remove('d-none', 'alert-success');
-        msgBox.classList.add('alert-danger');
-        msgBox.innerText = 'فشل الاتصال بالخادم.';
-    });
-});
+                if (data.status === 'success') {
+                    msgBox.classList.add('alert-success');
+                    msgBox.innerText = data.message;
+                    form.reset();
+                } else if (data.errors) {
+                    msgBox.classList.add('alert-danger');
+                    msgBox.innerText = Object.values(data.errors)[0][0];
+                } else {
+                    msgBox.classList.add('alert-danger');
+                    msgBox.innerText = data.message || 'حدث خطأ غير متوقع.';
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                if(spinner) spinner.classList.add('d-none');
+                msgBox.classList.remove('d-none', 'alert-success');
+                msgBox.classList.add('alert-danger');
+                msgBox.innerText = 'فشل الاتصال بالخادم.';
+            });
+        });
     </script>
 </body>
 

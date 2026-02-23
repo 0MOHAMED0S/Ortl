@@ -61,8 +61,6 @@ public function login(LoginRequest $request)
         ], 500);
     }
 }
-
-
 public function logout(Request $request)
 {
     try {
