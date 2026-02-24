@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Ads\AdsController;
 use App\Http\Controllers\Api\Country\CountryController;
 use App\Http\Controllers\Api\Student\favoriteController;
 use App\Http\Controllers\Api\Student\StudentAuthController;
+use App\Http\Controllers\Api\Student\StudentBuyPackageController;
 use App\Http\Controllers\Api\Student\StudentPackageController;
 use App\Http\Controllers\Api\Student\StudentTeacherController;
 use App\Http\Controllers\Api\Student\StudentTracksController;
@@ -22,7 +23,6 @@ Route::get('/user', function (Request $request) {
 
 // Teacher Authentication Routes
 Route::prefix('teacher')->group(function () {
-
     // Login (Public)
     Route::post('/login', [TeacherAuthController::class, 'login']);
     Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
@@ -51,6 +51,14 @@ Route::prefix('student')->group(function () {
     Route::post('/forgot-password/send-otp', [StudentAuthController::class, 'forgotPasswordSendOtp']);
     Route::post('/forgot-password/check-otp', [StudentAuthController::class, 'checkOtp']);
     Route::post('/forgot-password/reset', [StudentAuthController::class, 'resetPassword']);
+
+    Route::group(['prefix' => 'paytabs'], function () {
+
+        // Change Route::post to Route::match
+        Route::match(['get', 'post'], '/response', [StudentBuyPackageController::class, 'handleResponse'])->name('api.paytabs.response');
+        Route::post('/callback', [StudentBuyPackageController::class, 'handleCallback'])->name('api.paytabs.callback');
+    });
+
     // Login
     Route::post('/login', [StudentAuthController::class, 'login']);
 
@@ -62,8 +70,8 @@ Route::prefix('student')->group(function () {
         Route::post('/sessions/{sessionId}/join', [TeacherSessionController::class, 'joinSession']);
         Route::post('/sessions/{sessionId}/leave', [TeacherSessionController::class, 'leaveSession']);
         Route::post('/profile/update', [StudentAuthController::class, 'updateProfile']);
+Route::get('/profile', [StudentAuthController::class, 'getProfile']);
 
-        
         Route::post('/change-password', [StudentAuthController::class, 'ChangePassword']);
         // Logout
         Route::post('/logout', [StudentAuthController::class, 'logout']);
@@ -74,6 +82,7 @@ Route::prefix('student')->group(function () {
         Route::post('/favorites/toggle', [favoriteController::class, 'toggle']);
         Route::get('/favorites', [favoriteController::class, 'index']);
         Route::post('/packages/{package}/buy', [BuyPackageController::class, 'buy'])->name('packages.buy');
+        Route::post('/package/buy', [StudentBuyPackageController::class, 'buyPackage']);
         Route::get('/user-packages', [StudentPackageController::class, 'userPackages']);
         Route::get('/tracks', [StudentTracksController::class, 'index']);
         Route::get('teachers/{id}', [StudentTeacherController::class, 'show']);

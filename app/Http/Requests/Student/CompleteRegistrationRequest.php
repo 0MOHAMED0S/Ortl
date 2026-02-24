@@ -16,18 +16,21 @@ class CompleteRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // بيانات المستخدم
+            // User Data
             'name' => ['required', 'string', 'min:3', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
 
-            // بيانات الملف الشخصي للطالب
+            // Student Profile Data
             'phone' => ['required', 'string', 'min:6', 'max:20'],
             'country_id' => ['required', 'exists:countries,id'],
             'address' => ['required', 'string', 'min:5', 'max:500'],
             'qualification' => ['nullable', 'string', 'max:255'],
             'professional_status' => ['nullable', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
+
+            // New Profile Photo Field
+            'profile_photo_path' => ['required', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ];
     }
 
@@ -59,12 +62,15 @@ class CompleteRegistrationRequest extends FormRequest
 
             'gender.required' => 'النوع مطلوب.',
             'gender.in' => 'يجب أن يكون النوع ذكر أو أنثى.',
+
+            // Profile Photo Messages
+            'profile_photo_path.required' => 'الصورة الشخصية مطلوبة.',
+            'profile_photo_path.image' => 'يجب أن يكون الملف المرفوع صورة.',
+            'profile_photo_path.mimes' => 'يجب أن تكون الصورة بصيغة: jpeg, png, jpg, gif.',
+            'profile_photo_path.max' => 'يجب ألا يتجاوز حجم الصورة 2 ميجابايت.',
         ];
     }
 
-    /**
-     * Override failedValidation to return JSON with status
-     */
     protected function failedValidation(Validator $validator)
     {
         $response = response()->json([

@@ -34,4 +34,5 @@ class Student extends Model
         return $this->belongsToMany(Teacher_application::class, 'favorites', 'student_id', 'teacher_id')
             ->withTimestamps();
     }
+    
 }

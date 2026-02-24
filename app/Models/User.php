@@ -71,8 +71,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserPackage::class);
     }
-// داخل App\Models\User.php
-
+public function student()
+{
+    return $this->hasOne(Student::class);
+}
 public function teacher()
 {
     // هذا سيعمل كاختصار لـ teacherProfile

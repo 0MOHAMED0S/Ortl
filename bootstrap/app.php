@@ -12,16 +12,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
-            'admin' => \App\Http\Middleware\AdminMiddleware::class,
-
-        ]);
-        $middleware->validateCsrfTokens(except: [
-        'payments/callback', // تأكد أن المسار هنا يطابق المسار في ملف الـ Routes
-        'api/payments/callback'
+    $middleware->alias([
+        'role' => \App\Http\Middleware\RoleMiddleware::class,
+        'admin' => \App\Http\Middleware\AdminMiddleware::class,
     ]);
-    })
+
+$middleware->validateCsrfTokens(except: [
+        'api/student/paytabs/*',
+        'api/student/paytabs/response',
+        'api/student/paytabs/callback',
+    ]);
+})
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();

@@ -105,7 +105,7 @@ class StudentAuthController extends Controller
         DB::beginTransaction();
 
         try {
-            // 🔐 التأكد إن الـ OTP تم التحقق منه
+            // 🔐 التأكد من أن الـ OTP تم التحقق منه
             $otpRecord = OtpCode::where('email', $request->email)
                 ->where('is_verified', true)
                 ->first();
@@ -117,6 +117,13 @@ class StudentAuthController extends Controller
                 ], 403);
             }
 
+            // 📸 معالجة رفع الصورة الشخصية
+            $photoPath = null;
+            if ($request->hasFile('profile_photo_path')) {
+                // تخزين الصورة في مجلد 'profiles' داخل الـ public disk
+                $photoPath = $request->file('profile_photo_path')->store('profiles', 'public');
+            }
+
             // 1️⃣ إنشاء المستخدم
             $user = User::create([
                 'name'     => $request->name,
@@ -125,15 +132,16 @@ class StudentAuthController extends Controller
                 'role'     => 'student',
             ]);
 
-            // 2️⃣ إنشاء بروفايل الطالب
+            // 2️⃣ إنشاء بروفايل الطالب (مع إضافة مسار الصورة)
             $student = Student::create([
-                'user_id'            => $user->id,
-                'country_id'         => $request->country_id,
-                'phone'              => $request->phone,
-                'address'            => $request->address,
-                'qualification'      => $request->qualification,
+                'user_id'             => $user->id,
+                'country_id'          => $request->country_id,
+                'phone'               => $request->phone,
+                'address'             => $request->address,
+                'qualification'       => $request->qualification,
                 'professional_status' => $request->professional_status,
-                'gender'             => $request->gender,
+                'gender'              => $request->gender,
+                'profile_photo_path'  => $photoPath, // حفظ المسار هنا
             ]);
 
             // 3️⃣ حذف OTP لمنع إعادة الاستخدام
@@ -154,9 +162,10 @@ class StudentAuthController extends Controller
                 ]
             ], 201);
         } catch (\Throwable $e) {
-
             DB::rollBack();
-
+            if (isset($photoPath) && $photoPath) {
+                Storage::disk('public')->delete($photoPath);
+            }
             Log::error('Complete Registration Error', [
                 'email' => $request->email,
                 'error' => $e->getMessage()
@@ -165,6 +174,7 @@ class StudentAuthController extends Controller
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.',
+                'error'   => $e->getMessage() // اختياري أثناء التطوير
             ], 500);
         }
     }
@@ -218,80 +228,104 @@ class StudentAuthController extends Controller
     }
 
 
-    public function updateProfile(UpdateProfileRequest $request)
-    {
-        $user = $request->user();
-        $student = $user->studentProfile;
+public function updateProfile(UpdateProfileRequest $request)
+{
+    $user = $request->user();
+    // Use the correct relation name (matching your User model)
+    $student = $user->student;
 
-        if (!$student) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'لم يتم العثور على الملف الشخصي.',
-            ], 404);
-        }
-
-        DB::beginTransaction();
-
-        try {
-            // 🔹 تحديث اسم المستخدم
-            if ($request->filled('name')) {
-                $user->update([
-                    'name' => $request->name
-                ]);
-            }
-
-            // 🔹 تحديث الصورة الشخصية
-            if ($request->hasFile('profile_photo')) {
-
-                // حذف الصورة القديمة
-                if ($student->profile_photo_path) {
-                    Storage::disk('public')->delete($student->profile_photo_path);
-                }
-
-                $path = $request->file('profile_photo')
-                    ->store('students/photos', 'public');
-
-                $student->profile_photo_path = $path;
-            }
-
-            // 🔹 تحديث بيانات الطالب
-            $student->update($request->only([
-                'phone',
-                'address',
-                'qualification',
-                'professional_status',
-            ]));
-
-            DB::commit();
-
-            return response()->json([
-                'status'  => true,
-                'message' => 'تم تحديث الملف الشخصي بنجاح.',
-                'data' => [
-                    'user'  => $user->fresh(),
-                    'profile' => $student->fresh(),
-                    'photo_url' => $student->profile_photo_path
-                        ? asset('storage/' . $student->profile_photo_path)
-                        : null,
-                ]
-            ], 200);
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            Log::error('Update Profile Error', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'status'  => false,
-                'message' => 'فشل في تحديث الملف الشخصي. حاول مرة أخرى.',
-            ], 500);
-        }
+    if (!$student) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'لم يتم العثور على الملف الشخصي.',
+        ], 404);
     }
 
+    DB::beginTransaction();
 
+    try {
+        // 🔹 Update User Name
+        if ($request->filled('name')) {
+            $user->update(['name' => $request->name]);
+        }
+
+        // 🔹 Prepare Student Data
+        $studentData = $request->only([
+            'phone',
+            'address',
+            'qualification',
+            'professional_status',
+            'country_id', // Added country_id in case they want to change it
+            'gender'      // Added gender
+        ]);
+
+        // 🔹 Handle Profile Photo
+        if ($request->hasFile('profile_photo')) {
+            // Delete old photo if it exists
+            if ($student->profile_photo_path) {
+                Storage::disk('public')->delete($student->profile_photo_path);
+            }
+
+            // Store new photo and add to the update array
+            $studentData['profile_photo_path'] = $request->file('profile_photo')
+                ->store('students/photos', 'public');
+        }
+
+        // 🔹 Update Student Profile in one go
+        $student->update($studentData);
+
+        DB::commit();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم تحديث الملف الشخصي بنجاح.',
+            'data' => [
+                'user'    => $user->fresh(),
+                'profile' => $student->fresh(),
+                'photo_url' => $student->profile_photo_path
+                    ? asset('storage/' . $student->profile_photo_path)
+                    : null,
+            ]
+        ], 200);
+
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        Log::error('Update Profile Error', [
+            'user_id' => $user->id,
+            'error'   => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'status'  => false,
+            'message' => 'فشل في تحديث الملف الشخصي. حاول مرة أخرى.',
+        ], 500);
+    }
+}
+
+public function getProfile(Request $request)
+{
+    try {
+        // Load the user with their student relationship
+        $user = $request->user()->load('student');
+
+        // Optional: Append the full URL for the profile photo
+        if ($user->student && $user->student->profile_photo_path) {
+            $user->student->profile_photo_url = asset('storage/' . $user->student->profile_photo_path);
+        }
+
+        return response()->json([
+            'status' => true,
+            'data'   => $user
+        ], 200);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'حدث خطأ أثناء جلب البيانات.',
+        ], 500);
+    }
+}
     public function logout(Request $request)
     {
         try {
