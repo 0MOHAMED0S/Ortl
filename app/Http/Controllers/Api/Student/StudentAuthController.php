@@ -302,28 +302,31 @@ class StudentAuthController extends Controller
         }
     }
 
-    public function getProfile(Request $request)
-    {
-        try {
-            // Load the user with their student relationship
-            $user = $request->user()->load('student');
+public function getProfile(Request $request)
+{
+    try {
+        // تحميل الطالب مع الدولة المرتبطة به في استعلام واحد
+        $user = $request->user()->load(['student.country']);
 
-            // Optional: Append the full URL for the profile photo
-            if ($user->student && $user->student->profile_photo_path) {
-                $user->student->profile_photo_url = asset('storage/' . $user->student->profile_photo_path);
-            }
-
-            return response()->json([
-                'status' => true,
-                'data'   => $user
-            ], 200);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'حدث خطأ أثناء جلب البيانات.',
-            ], 500);
+        if ($user->student) {
+            // إضافة رابط الصورة كاملًا
+            $user->student->profile_photo_url = $user->student->profile_photo_path
+                ? asset('storage/' . $user->student->profile_photo_path)
+                : null;
         }
+
+        return response()->json([
+            'status' => true,
+            'data'   => $user
+        ], 200);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'حدث خطأ أثناء جلب البيانات.',
+        ], 500);
     }
+}
     public function logout(Request $request)
     {
         try {
