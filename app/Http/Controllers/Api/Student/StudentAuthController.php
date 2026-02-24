@@ -228,104 +228,102 @@ class StudentAuthController extends Controller
     }
 
 
-public function updateProfile(UpdateProfileRequest $request)
-{
-    $user = $request->user();
-    // Use the correct relation name (matching your User model)
-    $student = $user->student;
+    public function updateProfile(UpdateProfileRequest $request)
+    {
+        $user = $request->user();
+        // تأكد أن العلاقة في موديل User اسمها student
+        $student = $user->student;
 
-    if (!$student) {
-        return response()->json([
-            'status'  => false,
-            'message' => 'لم يتم العثور على الملف الشخصي.',
-        ], 404);
-    }
-
-    DB::beginTransaction();
-
-    try {
-        // 🔹 Update User Name
-        if ($request->filled('name')) {
-            $user->update(['name' => $request->name]);
+        if (!$student) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'لم يتم العثور على الملف الشخصي.',
+            ], 404);
         }
 
-        // 🔹 Prepare Student Data
-        $studentData = $request->only([
-            'phone',
-            'address',
-            'qualification',
-            'professional_status',
-            'country_id', // Added country_id in case they want to change it
-            'gender'      // Added gender
-        ]);
+        DB::beginTransaction();
 
-        // 🔹 Handle Profile Photo
-        if ($request->hasFile('profile_photo')) {
-            // Delete old photo if it exists
-            if ($student->profile_photo_path) {
-                Storage::disk('public')->delete($student->profile_photo_path);
+        try {
+            // 🔹 تحديث اسم المستخدم إذا تم إرساله
+            if ($request->filled('name')) {
+                $user->update(['name' => $request->name]);
             }
 
-            // Store new photo and add to the update array
-            $studentData['profile_photo_path'] = $request->file('profile_photo')
-                ->store('students/photos', 'public');
+            // 🔹 تجهيز بيانات الطالب للتحديث
+            $studentData = $request->only([
+                'phone',
+                'address',
+                'qualification',
+                'professional_status',
+                'country_id',
+                'gender'
+            ]);
+
+            // 🔹 معالجة الصورة الشخصية (باستخدام الاسم الجديد profile_photo_path)
+            if ($request->hasFile('profile_photo_path')) {
+                // حذف الصورة القديمة من السيرفر لتوفير المساحة
+                if ($student->profile_photo_path) {
+                    Storage::disk('public')->delete($student->profile_photo_path);
+                }
+
+                // تخزين الصورة الجديدة وإضافة المسار لمصفوفة التحديث
+                $studentData['profile_photo_path'] = $request->file('profile_photo_path')
+                    ->store('students/photos', 'public');
+            }
+
+            // 🔹 تحديث سجل الطالب في قاعدة البيانات
+            $student->update($studentData);
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم تحديث الملف الشخصي بنجاح.',
+                'data' => [
+                    'user'      => $user->fresh(),
+                    'profile'   => $student->fresh(),
+                    'photo_url' => $student->profile_photo_path
+                        ? asset('storage/' . $student->profile_photo_path)
+                        : null,
+                ]
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('Update Profile Error', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'فشل في تحديث الملف الشخصي. حاول مرة أخرى.',
+            ], 500);
         }
-
-        // 🔹 Update Student Profile in one go
-        $student->update($studentData);
-
-        DB::commit();
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'تم تحديث الملف الشخصي بنجاح.',
-            'data' => [
-                'user'    => $user->fresh(),
-                'profile' => $student->fresh(),
-                'photo_url' => $student->profile_photo_path
-                    ? asset('storage/' . $student->profile_photo_path)
-                    : null,
-            ]
-        ], 200);
-
-    } catch (\Throwable $e) {
-        DB::rollBack();
-
-        Log::error('Update Profile Error', [
-            'user_id' => $user->id,
-            'error'   => $e->getMessage()
-        ]);
-
-        return response()->json([
-            'status'  => false,
-            'message' => 'فشل في تحديث الملف الشخصي. حاول مرة أخرى.',
-        ], 500);
     }
-}
 
-public function getProfile(Request $request)
-{
-    try {
-        // Load the user with their student relationship
-        $user = $request->user()->load('student');
+    public function getProfile(Request $request)
+    {
+        try {
+            // Load the user with their student relationship
+            $user = $request->user()->load('student');
 
-        // Optional: Append the full URL for the profile photo
-        if ($user->student && $user->student->profile_photo_path) {
-            $user->student->profile_photo_url = asset('storage/' . $user->student->profile_photo_path);
+            // Optional: Append the full URL for the profile photo
+            if ($user->student && $user->student->profile_photo_path) {
+                $user->student->profile_photo_url = asset('storage/' . $user->student->profile_photo_path);
+            }
+
+            return response()->json([
+                'status' => true,
+                'data'   => $user
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء جلب البيانات.',
+            ], 500);
         }
-
-        return response()->json([
-            'status' => true,
-            'data'   => $user
-        ], 200);
-
-    } catch (\Throwable $e) {
-        return response()->json([
-            'status'  => false,
-            'message' => 'حدث خطأ أثناء جلب البيانات.',
-        ], 500);
     }
-}
     public function logout(Request $request)
     {
         try {
