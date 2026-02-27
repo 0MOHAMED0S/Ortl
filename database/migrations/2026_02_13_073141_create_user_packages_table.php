@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('remaining_minutes');
             $table->timestamp('expires_at');
             $table->enum('status', ['active', 'expired', 'exhausted'])->default('active');
+            $table->boolean('is_gift')->default(false);
             $table->timestamps();
         });
     }

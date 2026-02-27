@@ -14,31 +14,27 @@ class Track extends Model
         'status',
         'icon'
     ];
-// app/Models/Track.php
 
-public function teacherApplications()
-{
-    return $this->belongsToMany(
-        Teacher_application::class,
-        'teacher_application_tracks', // تأكد من وجود هذا الجدول في قاعدة البيانات
-        'track_id',
-        'teacher_application_id'
-    );
-}
+    public function teacherApplications()
+    {
+        return $this->belongsToMany(
+            Teacher_application::class,
+            'teacher_application_tracks',
+            'track_id',
+            'teacher_application_id'
+        );
+    }
 
-// app/Models/Track.php
-
-public function teachers()
-{
-    return $this->hasManyThrough(
-        Teacher::class,
-        Teacher_application::class,
-        'id', // مفتاح خارجي في Teacher_application (سيتم تجاهله لأننا نستخدم belongsToMany)
-        'teacher_application_id', // مفتاح خارجي في Teachers
-        'id', // مفتاح محلي في Track
-        'id'  // مفتاح محلي في Teacher_application
-    )->whereHas('application.tracks', function($q) {
-        $q->where('tracks.id', $this->id);
-    });
-}
+    // 🔥 هذه هي العلاقة المصححة والاحترافية
+    public function teachers()
+    {
+        return $this->belongsToMany(
+            Teacher::class,
+            'teacher_application_tracks', // الجدول الوسيط (Pivot Table)
+            'track_id',                   // المفتاح الأجنبي للمسار في الجدول الوسيط
+            'teacher_application_id',     // المفتاح الأجنبي في الجدول الوسيط الذي يربط بالمعلم
+            'id',                         // المفتاح المحلي في جدول المسارات (tracks)
+            'teacher_application_id'      // المفتاح المحلي في جدول المعلمين (teachers) الذي يطابق الجدول الوسيط
+        );
+    }
 }

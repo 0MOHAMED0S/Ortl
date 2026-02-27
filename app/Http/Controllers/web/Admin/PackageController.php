@@ -14,15 +14,17 @@ class PackageController extends Controller
     public function index()
     {
         try {
-            $packages = Package::latest()->get();
+            // جلب الباقات مع عدد المشتركين الحقيقيين في كل باقة
+            $packages = Package::withCount(['userPackages as subscribers_count'])
+                ->latest()
+                ->get();
 
-            // Dynamic Stats
-            $totalPackages   = $packages->count();
-            $activePackages  = $packages->where('status', 'active')->count();
+            $totalPackages    = $packages->count();
+            $activePackages   = $packages->where('status', 'active')->count();
             $inactivePackages = $packages->where('status', 'inactive')->count();
 
-            // Temporary Fake Subscribers Count
-            $totalSubscribers = 1250;
+            // إجمالي المشتركين الحقيقيين (Unique Users) في كل الباقات النشطة
+            $totalSubscribers = \App\Models\UserPackage::distinct('user_id')->count();
 
             return view('dashboard.packages', compact(
                 'packages',
@@ -32,13 +34,7 @@ class PackageController extends Controller
                 'totalSubscribers'
             ));
         } catch (\Throwable $e) {
-
-            Log::error('Packages Index Error', [
-                'message' => $e->getMessage(),
-                'file'    => $e->getFile(),
-                'line'    => $e->getLine(),
-            ]);
-
+            Log::error('Packages Index Error: ' . $e->getMessage());
             return back()->with('error', 'حدث خطأ أثناء تحميل الباقات');
         }
     }
@@ -54,7 +50,6 @@ class PackageController extends Controller
                 ->route('packages.index')
                 ->with('success', 'تم إنشاء الباقة بنجاح');
         } catch (\Throwable $e) {
-
             Log::error('Package Store Error', [
                 'data'    => $request->validated(),
                 'message' => $e->getMessage(),
@@ -75,7 +70,6 @@ class PackageController extends Controller
                 ->route('packages.index')
                 ->with('success', 'تم تحديث الباقة بنجاح');
         } catch (\Throwable $e) {
-
             Log::error('Package Update Error', [
                 'package_id' => $package->id,
                 'data'       => $request->validated(),
@@ -85,6 +79,37 @@ class PackageController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'حدث خطأ أثناء تحديث الباقة');
+        }
+    }
+
+    /**
+     * حذف الباقة فقط إذا لم تكن مرتبطة بأي مستخدمين
+     */
+    public function destroy(Package $package)
+    {
+        try {
+            // التحقق مما إذا كانت الباقة مستخدمة (مرتبطة بجدول user_packages)
+            if ($package->userPackages()->exists()) {
+                return back()->with('error', 'عفواً، لا يمكن حذف هذه الباقة لوجود مشتركين (حاليين أو سابقين) مرتبطين بها. بدلاً من ذلك، يمكنك تغيير حالتها إلى "معطلة".');
+            }
+
+            // إذا كان لديك جدول آخر مثل الطلبات (orders) يمكنك إضافة الشرط أيضاً:
+            // if ($package->orders()->exists()) { ... }
+
+            // إذا لم تكن مرتبطة بأي شيء، قم بحذفها
+            $package->delete();
+
+            return redirect()
+                ->route('packages.index')
+                ->with('success', 'تم حذف الباقة بنجاح من النظام');
+
+        } catch (\Throwable $e) {
+            Log::error('Package Delete Error', [
+                'package_id' => $package->id,
+                'message'    => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'حدث خطأ غير متوقع أثناء محاولة حذف الباقة');
         }
     }
 }

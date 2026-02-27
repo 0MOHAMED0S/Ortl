@@ -15,6 +15,11 @@ class Ad extends Model
         'image',    // Optional if using background colors
         'bg_color', // Added for background color
         'status',
+            'coupon_id', // Added for the coupon association
 
     ];
+    public function coupon()
+    {
+        return $this->belongsTo(Coupon::class, 'coupon_id');
+    }
 }

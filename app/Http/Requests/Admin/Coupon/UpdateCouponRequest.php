@@ -6,31 +6,29 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateCouponRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-     public function rules(): array
+    public function rules(): array
     {
-        // لو جاي بس يغير الحالة → مفيش validation
+        // إذا كان الطلب لتغيير الحالة فقط، لا نحتاج لقواعد التحقق
         if ($this->has('status_toggle')) {
             return [];
         }
 
+        // جلب معرف الكوبون من المسار (الراوت) أيًا كان اسمه {id} أو {coupon}
+        $couponId = $this->route('id') ?? $this->route('coupon');
+
         return [
-            'code' => 'required|string|max:20|unique:coupons,code,' . $this->route('id'),
+            // إضافة استثناء للمعرف الحالي ليتجاهل الكود الخاص به عند التحقق من عدم التكرار
+            'code' => 'required|string|max:20|unique:coupons,code,' . $couponId,
             'percent' => 'required|integer|min:1|max:100',
             'limit' => 'required|integer|min:1|max:100000',
-            'expiry_date' => 'required|date|after:today',
+            // تم تغيير after:today إلى after_or_equal:today
+            // للسماح باختيار تاريخ اليوم إذا لم ينتهي بعد
+            'expiry_date' => 'required|date|after_or_equal:today',
         ];
     }
 
@@ -40,7 +38,7 @@ class UpdateCouponRequest extends FormRequest
             'code.required' => 'كود الكوبون مطلوب',
             'code.string'   => 'كود الكوبون يجب أن يكون نصًا',
             'code.max'      => 'كود الكوبون لا يزيد عن 20 حرفًا',
-            'code.unique'   => 'هذا الكود مستخدم من قبل',
+            'code.unique'   => 'هذا الكود مستخدم من قبل، اختر كوداً آخر',
 
             'percent.required' => 'نسبة الخصم مطلوبة',
             'percent.integer'  => 'نسبة الخصم يجب أن تكون رقمًا صحيحًا',
@@ -49,12 +47,12 @@ class UpdateCouponRequest extends FormRequest
 
             'limit.required' => 'عدد مرات الاستخدام مطلوب',
             'limit.integer'  => 'عدد مرات الاستخدام يجب أن يكون رقمًا صحيحًا',
-            'limit.min'      => 'عدد مرات الاستخدام يجب أن يكون على الأقل مرة واحدة',
+            'limit.min'      => 'يجب أن يكون الحد الأدنى مرة واحدة',
             'limit.max'      => 'عدد مرات الاستخدام كبير جدًا',
 
             'expiry_date.required' => 'تاريخ الانتهاء مطلوب',
             'expiry_date.date'     => 'صيغة تاريخ الانتهاء غير صحيحة',
-            'expiry_date.after'    => 'تاريخ الانتهاء يجب أن يكون في المستقبل',
+            'expiry_date.after_or_equal' => 'تاريخ الانتهاء لا يمكن أن يكون في الماضي',
         ];
     }
 

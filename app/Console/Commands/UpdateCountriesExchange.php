@@ -17,6 +17,17 @@ class UpdateCountriesExchange extends Command
 
         $countries = Http::get('https://restcountries.com/v3.1/all?fields=name,cca2,currencies,idd')->json();
 
+        // 🟢 قائمة بأكواد الدول العربية والدول الأجنبية الشهيرة (ISO 3166-1 alpha-2)
+        $activeCountryCodes = [
+            // --- الدول العربية ---
+            'EG', 'SA', 'AE', 'QA', 'KW', 'BH', 'OM', 'JO', 'LB', 'SY',
+            'IQ', 'PS', 'YE', 'MA', 'DZ', 'TN', 'LY', 'SD', 'SO', 'MR',
+            'DJ', 'KM',
+            // --- الدول الأجنبية الشهيرة ---
+            'US', 'GB', 'CA', 'AU', 'DE', 'FR', 'IT', 'ES', 'JP', 'CN',
+            'IN', 'RU', 'BR', 'TR', 'KR', 'MY', 'SE', 'SG', 'CH', 'NL'
+        ];
+
         foreach ($countries as $c) {
 
             // Skip if no currency defined
@@ -42,6 +53,9 @@ class UpdateCountriesExchange extends Command
                 $phoneCode = $c['idd']['root'] . $c['idd']['suffixes'][0];
             }
 
+            // 🟢 تحديد حالة الدولة بناءً على وجودها في المصفوفة
+            $isActive = in_array($c['cca2'], $activeCountryCodes);
+
             // Save or update
             Country::updateOrCreate(
                 ['code' => $c['cca2']],
@@ -52,13 +66,17 @@ class UpdateCountriesExchange extends Command
                     'currency_symbol' => $currency['symbol'] ?? null,
                     'rate_to_usd' => $rate,
                     'phone_code' => $phoneCode,
+                    'status' => $isActive, // حفظ الحالة هنا
                 ]
             );
 
-            $this->info("Updated {$c['name']['common']} ({$currencyCode}) => 1 USD = {$rate} {$currencyCode}, Phone: {$phoneCode}");
+            // طباعة رسالة توضح حالة الدولة في الـ Terminal
+            $statusText = $isActive ? '✅ Active' : '❌ Inactive';
+            $this->info("Updated {$c['name']['common']} ({$currencyCode}) => 1 USD = {$rate} {$currencyCode}, Phone: {$phoneCode} | [{$statusText}]");
         }
 
         $this->info('All countries updated successfully!');
     }
 }
 //php artisan countries:update-exchange
+

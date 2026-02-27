@@ -38,6 +38,7 @@ Route::prefix('teacher')->group(function () {
         Route::get('/sessions/{sessionId}/attendance', [TeacherSessionController::class, 'getAttendance']);
         Route::post('/sessions/{sessionId}/end', [TeacherSessionController::class, 'endSession']);
         Route::get('/sessions/my-sessions', [TeacherSessionController::class, 'getTeacherSessions']);
+        Route::post('/toggle-online', [TeacherAuthController::class, 'toggleOnlineStatus']);
     });
 });
 

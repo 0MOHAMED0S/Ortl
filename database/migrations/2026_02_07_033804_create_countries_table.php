@@ -21,6 +21,10 @@ return new class extends Migration
             $table->string('paymob_integration_id')->nullable();
             $table->decimal('rate_to_usd', 15, 6)->nullable();
             $table->string('phone_code')->nullable();
+
+            // إضافة عمود الحالة (status) مع قيمة افتراضية false
+            $table->boolean('status')->default(false);
+
             $table->timestamps();
         });
     }

@@ -12,23 +12,23 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('teacher_application_tracks', function (Blueprint $table) {
-    $table->id();
+            $table->id();
 
-    $table->foreignId('teacher_application_id')
-        ->constrained('teacher_applications')
-        ->cascadeOnDelete();
+            $table->foreignId('teacher_application_id')
+                ->constrained('teacher_applications')
+                ->cascadeOnDelete();
 
-    $table->foreignId('track_id')
-        ->constrained('tracks')
-        ->cascadeOnDelete();
+            $table->foreignId('track_id')
+                ->constrained('tracks')
+                ->cascadeOnDelete();
 
-    $table->timestamps();
+            $table->timestamps();
 
-    $table->unique(
-        ['teacher_application_id', 'track_id'],
-        'teacher_app_track_unique'
-    );
-});
+            $table->unique(
+                ['teacher_application_id', 'track_id'],
+                'teacher_app_track_unique'
+            );
+        });
     }
 
     /**

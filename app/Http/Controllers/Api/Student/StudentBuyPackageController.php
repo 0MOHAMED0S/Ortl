@@ -128,54 +128,54 @@ class StudentBuyPackageController extends Controller
     }
 
     // 2️⃣ PayTabs Server Callback (IMPORTANT)
-// 2️⃣ PayTabs Server Callback (IMPORTANT)
-public function handleCallback(Request $request)
-{
-    $payload = $request->all();
+    // 2️⃣ PayTabs Server Callback (IMPORTANT)
+    public function handleCallback(Request $request)
+    {
+        $payload = $request->all();
 
-    // Mapping Cart ID and Status for both "Flat" and "Nested" PayTabs formats
-    $orderId = $payload['cartId'] ?? $payload['cart_id'] ?? null;
-    $status  = $payload['respStatus'] ?? $payload['payment_result']['response_status'] ?? null;
+        // Mapping Cart ID and Status for both "Flat" and "Nested" PayTabs formats
+        $orderId = $payload['cartId'] ?? $payload['cart_id'] ?? null;
+        $status  = $payload['respStatus'] ?? $payload['payment_result']['response_status'] ?? null;
 
-    if ($status === 'A' && $orderId) {
-        $order = Order::find($orderId);
+        if ($status === 'A' && $orderId) {
+            $order = Order::find($orderId);
 
-        // Only process if the order exists and isn't already paid (prevents duplicate processing)
-        if ($order && $order->status !== 'paid') {
-            DB::transaction(function () use ($order, $payload) {
-                // A. Update the Order Status
-                $order->update([
-                    'status' => 'paid',
-                    'transaction_id' => $payload['tranRef'] ?? $payload['tran_ref'] ?? null
-                ]);
+            // Only process if the order exists and isn't already paid (prevents duplicate processing)
+            if ($order && $order->status !== 'paid') {
+                DB::transaction(function () use ($order, $payload) {
+                    // A. Update the Order Status
+                    $order->update([
+                        'status' => 'paid',
+                        'transaction_id' => $payload['tranRef'] ?? $payload['tran_ref'] ?? null
+                    ]);
 
-                // B. Professional Coupon Update
-                if ($order->coupon_id) {
-                    $coupon = Coupon::find($order->coupon_id);
-                    if ($coupon) {
-                        $coupon->increment('used');
-                        Log::info("Coupon ID {$coupon->id} usage incremented for Order #{$order->id}");
+                    // B. Professional Coupon Update
+                    if ($order->coupon_id) {
+                        $coupon = Coupon::find($order->coupon_id);
+                        if ($coupon) {
+                            $coupon->increment('used');
+                            Log::info("Coupon ID {$coupon->id} usage incremented for Order #{$order->id}");
+                        }
                     }
-                }
 
-                // C. Activate the User's Package
-                $package = $order->package; // Assuming Order has 'package' relationship
-                UserPackage::create([
-                    'user_id'           => $order->user_id,
-                    'package_id'        => $order->package_id,
-                    'remaining_minutes' => $package->base_minutes + ($package->bonus_minutes ?? 0),
-                    'expires_at'        => now()->addDays($package->validity_days),
-                    'status'            => 'active'
-                ]);
+                    // C. Activate the User's Package
+                    $package = $order->package; // Assuming Order has 'package' relationship
+                    UserPackage::create([
+                        'user_id'           => $order->user_id,
+                        'package_id'        => $order->package_id,
+                        'remaining_minutes' => $package->base_minutes + ($package->bonus_minutes ?? 0),
+                        'expires_at'        => now()->addDays($package->validity_days),
+                        'status'            => 'active'
+                    ]);
 
-                Log::info("Order #{$order->id} fulfilled successfully.");
-            });
+                    Log::info("Order #{$order->id} fulfilled successfully.");
+                });
+            }
         }
-    }
 
-    // Always return 200 OK to PayTabs so they stop retrying the webhook
-    return response('OK');
-}
+        // Always return 200 OK to PayTabs so they stop retrying the webhook
+        return response('OK');
+    }
 
     // 3️⃣ Frontend Redirect
     public function handleResponse(Request $request)

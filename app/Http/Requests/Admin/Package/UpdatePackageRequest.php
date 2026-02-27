@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Package;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePackageRequest extends FormRequest
 {
@@ -13,55 +14,88 @@ class UpdatePackageRequest extends FormRequest
 
     public function rules(): array
     {
-        $packageId = $this->route('package')->id;
+        $package = $this->route('package');
 
         return [
+
+            /* =======================
+               Package Name
+            ======================== */
             'name' => [
+                'sometimes',
                 'required',
                 'string',
                 'max:255',
-                'unique:packages,name,' . $packageId,
+                Rule::unique('packages', 'name')->ignore($package?->id),
             ],
 
+            /* =======================
+               Price
+            ======================== */
             'price' => [
+                'sometimes',
                 'required',
                 'numeric',
                 'min:0',
             ],
 
+            /* =======================
+               Discount
+            ======================== */
             'discount' => [
+                'sometimes',
                 'nullable',
                 'integer',
                 'min:0',
                 'max:100',
             ],
 
+            /* =======================
+               Base Minutes
+            ======================== */
             'base_minutes' => [
+                'sometimes',
                 'required',
                 'integer',
                 'min:1',
             ],
 
+            /* =======================
+               Bonus Minutes
+            ======================== */
             'bonus_minutes' => [
+                'sometimes',
                 'nullable',
                 'integer',
                 'min:0',
             ],
 
+            /* =======================
+               Validity Days
+            ======================== */
             'validity_days' => [
+                'sometimes',
                 'required',
                 'integer',
                 'min:1',
             ],
 
+            /* =======================
+               Description
+            ======================== */
             'description' => [
+                'sometimes',
                 'required',
                 'string',
             ],
 
+            /* =======================
+               Status
+            ======================== */
             'status' => [
+                'sometimes',
                 'required',
-                'in:active,inactive',
+                Rule::in(['active', 'inactive']),
             ],
         ];
     }
@@ -69,60 +103,23 @@ class UpdatePackageRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'name.required' => 'يرجى إدخال اسم الباقة.',
+            'name.unique'   => 'اسم الباقة مستخدم مسبقًا.',
 
-            /* =======================
-               Package Name
-            ======================== */
-            'name.required' => 'اسم الباقة مطلوب',
-            'name.string'   => 'اسم الباقة يجب أن يكون نصًا',
-            'name.max'      => 'اسم الباقة لا يجب أن يتجاوز 255 حرفًا',
-            'name.unique'   => 'اسم الباقة مستخدم بالفعل، الرجاء اختيار اسم آخر',
+            'price.required' => 'يرجى إدخال سعر الباقة.',
+            'price.numeric'  => 'السعر يجب أن يكون رقمًا صحيحًا.',
 
-            /* =======================
-               Price
-            ======================== */
-            'price.required' => 'سعر الباقة مطلوب',
-            'price.numeric'  => 'سعر الباقة يجب أن يكون رقمًا',
-            'price.min'      => 'سعر الباقة لا يمكن أن يكون أقل من صفر',
+            'discount.integer' => 'نسبة الخصم يجب أن تكون رقمًا صحيحًا.',
+            'discount.max'     => 'نسبة الخصم لا يمكن أن تتجاوز 100٪.',
 
-            /* =======================
-               Discount
-            ======================== */
-            'discount.integer' => 'نسبة الخصم يجب أن تكون رقمًا صحيحًا',
-            'discount.min'     => 'نسبة الخصم لا يمكن أن تكون أقل من 0%',
-            'discount.max'     => 'نسبة الخصم لا يمكن أن تتجاوز 100%',
+            'base_minutes.required' => 'يرجى تحديد عدد الدقائق الأساسية.',
+            'bonus_minutes.integer' => 'الدقائق الإضافية يجب أن تكون رقمًا صحيحًا.',
 
-            /* =======================
-               Base Minutes
-            ======================== */
-            'base_minutes.required' => 'عدد الدقائق الأساسية مطلوب',
-            'base_minutes.integer'  => 'عدد الدقائق الأساسية يجب أن يكون رقمًا صحيحًا',
-            'base_minutes.min'      => 'عدد الدقائق الأساسية يجب أن يكون دقيقة واحدة على الأقل',
+            'validity_days.required' => 'يرجى تحديد مدة الصلاحية.',
+            'description.required'   => 'يرجى إدخال وصف الباقة.',
 
-            /* =======================
-               Bonus Minutes
-            ======================== */
-            'bonus_minutes.integer' => 'الدقائق الإضافية يجب أن تكون رقمًا صحيحًا',
-            'bonus_minutes.min'     => 'الدقائق الإضافية لا يمكن أن تكون أقل من صفر',
-
-            /* =======================
-               Validity Days
-            ======================== */
-            'validity_days.required' => 'مدة صلاحية الباقة مطلوبة',
-            'validity_days.integer'  => 'مدة الصلاحية يجب أن تكون رقمًا صحيحًا',
-            'validity_days.min'      => 'مدة الصلاحية يجب أن تكون يومًا واحدًا على الأقل',
-
-            /* =======================
-               Description
-            ======================== */
-            'description.required' => 'وصف الباقة مطلوب',
-            'description.string'   => 'وصف الباقة يجب أن يكون نصًا',
-
-            /* =======================
-               Status
-            ======================== */
-            'status.required' => 'حالة الباقة مطلوبة',
-            'status.in'       => 'حالة الباقة يجب أن تكون إما نشطة أو غير نشطة',
+            'status.required' => 'يرجى تحديد حالة الباقة.',
+            'status.in'       => 'قيمة الحالة غير صحيحة.',
         ];
     }
 }

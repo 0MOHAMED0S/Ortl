@@ -9,6 +9,8 @@ use App\Http\Controllers\web\Admin\PackageController;
 use App\Http\Controllers\web\Admin\ProfileController;
 use App\Http\Controllers\web\Admin\RecitationSessionController;
 use App\Http\Controllers\web\Admin\SettingController;
+use App\Http\Controllers\web\Admin\StudentsController;
+use App\Http\Controllers\web\Admin\SubscriptionsController;
 use App\Http\Controllers\web\Admin\TeacherController;
 use App\Http\Controllers\web\Admin\TrackController as AdminTrackController;
 use App\Http\Controllers\web\User\ContactController;
@@ -48,8 +50,8 @@ Route::prefix('admin')->group(function () {
 
     Route::middleware('admin')->group(function () {
 
-            Route::get('/recitations/create', [RecitationSessionController::class, 'create'])->name('admin.recitations.create');
-            Route::post('/recitations', [RecitationSessionController::class, 'store'])->name('admin.recitations.store');
+        Route::get('/recitations/create', [RecitationSessionController::class, 'create'])->name('admin.recitations.create');
+        Route::post('/recitations', [RecitationSessionController::class, 'store'])->name('admin.recitations.store');
 
         Route::get('/dashboard', fn() => view('dashboard.index'))->name('admin.dashboard');
         Route::post('settings/toggle-registration', [SettingController::class, 'toggleTeacherRegistration'])->name('settings.toggleRegistration');
@@ -70,19 +72,14 @@ Route::prefix('admin')->group(function () {
         Route::put('/profile/update', [ProfileController::class, 'updateProfile'])->name('profile.update');
         Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('password.update');
 
-        Route::get('/students', function () {
-            return view('dashboard.students');
-        })->name('admin.students');
-        // Route::get('/sessions', function () {
-        //     return view('dashboard.sessions');
-        // })->name('admin.sessions');
-        Route::get('/Subscriptions', function () {
-            return view('dashboard.Subscriptions');
-        })->name('admin.subscriptions');
+        Route::get('/students', [StudentsController::class, 'index'])->name('admin.students');
+        Route::put('/students/{id}', [StudentsController::class, 'update'])->name('admin.students.update');
+        Route::post('/students/gift/{id}', [StudentsController::class, 'giftPackage'])->name('admin.students.gift');
+        Route::get('/Subscriptions', [SubscriptionsController::class, 'index'])->name('admin.subscriptions');
+        Route::put('/teachers/{teacher}/tracks', [AdminTrackController::class, 'updateTeacherTracks'])->name('teachers.tracks.update');
     });
 });
 
 Route::post('/teacher-apply', [TeacherApplicationController::class, 'store'])
     ->name('teacher.apply');
 Route::post('/contact-us', [ContactController::class, 'sendEmail'])->name('contact.send');
-
