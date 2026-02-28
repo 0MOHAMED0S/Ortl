@@ -12,14 +12,15 @@ class AdsController extends Controller
     /**
      * عرض الإعلانات النشطة مع Pagination
      */
-    public function index(Request $request)
+public function index(Request $request)
     {
         try {
             // 1️⃣ عدد العناصر لكل صفحة
             $perPage = $request->query('per_page', 10);
 
-            // 2️⃣ جلب الإعلانات النشطة
+            // 2️⃣ جلب الإعلانات النشطة مع الكوبونات المرتبطة بها
             $ads = Ad::where('status', 'active')
+                ->with('coupon') // ✅ جلب علاقة الكوبون لتسريع الاستعلام
                 ->latest()
                 ->paginate($perPage);
 
@@ -31,6 +32,13 @@ class AdsController extends Controller
                     'subtitle'  => $ad->subtitle,
                     'bg_color'  => $ad->bg_color,
                     'image_url' => $ad->image ? asset('storage/' . $ad->image) : null,
+
+                    // ✅ إرفاق بيانات الكوبون إذا كان موجوداً، وإلا يرجع null
+                    'coupon'    => $ad->coupon ? [
+                        'id'      => $ad->coupon->id,
+                        'code'    => $ad->coupon->code,
+                        'percent' => $ad->coupon->percent,
+                    ] : null,
                 ];
             });
 
@@ -42,14 +50,14 @@ class AdsController extends Controller
             ], 200);
 
         } catch (\Throwable $e) {
-            Log::error('Ads Fetch Error: ' . $e->getMessage(), [
+            \Illuminate\Support\Facades\Log::error('Ads Fetch Error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'status'  => false,
                 'message' => 'فشل في جلب الإعلانات. حاول مرة أخرى.',
-                'error'   => $e->getMessage()
+                'error'   => config('app.debug') ? $e->getMessage() : null // يفضل إخفاء رسالة الخطأ الحقيقية في الـ Production
             ], 500);
         }
     }
