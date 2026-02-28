@@ -100,7 +100,7 @@ class StudentAuthController extends Controller
     }
 
 
-    public function completeRegistration(CompleteRegistrationRequest $request)
+public function completeRegistration(CompleteRegistrationRequest $request)
     {
         DB::beginTransaction();
 
@@ -124,16 +124,18 @@ class StudentAuthController extends Controller
                 $photoPath = $request->file('profile_photo_path')->store('profiles', 'public');
             }
 
-            // 1️⃣ إنشاء المستخدم مع تعيين حالة تأكيد البريد
+            // 1️⃣ إنشاء المستخدم (بدون تمرير email_verified_at هنا)
             $user = User::create([
-                'name'              => $request->name,
-                'email'             => $request->email,
-                'password'          => Hash::make($request->password),
-                'role'              => 'student',
-                'email_verified_at' => now(), // ✅ توثيق البريد الإلكتروني فوراً
+                'name'     => $request->name,
+                'email'    => $request->email,
+                'password' => Hash::make($request->password),
+                'role'     => 'student',
             ]);
 
-            // 2️⃣ إنشاء بروفايل الطالب (مع إضافة مسار الصورة)
+            // ✅ توثيق البريد الإلكتروني فوراً (هذه الدالة تضع now() في قاعدة البيانات مباشرة)
+            $user->markEmailAsVerified();
+
+            // 2️⃣ إنشاء بروفايل الطالب
             $student = Student::create([
                 'user_id'             => $user->id,
                 'country_id'          => $request->country_id,
@@ -142,7 +144,7 @@ class StudentAuthController extends Controller
                 'qualification'       => $request->qualification,
                 'professional_status' => $request->professional_status,
                 'gender'              => $request->gender,
-                'profile_photo_path'  => $photoPath, // حفظ المسار هنا
+                'profile_photo_path'  => $photoPath,
             ]);
 
             // 3️⃣ حذف OTP لمنع إعادة الاستخدام
@@ -162,15 +164,16 @@ class StudentAuthController extends Controller
                     'token'   => $token,
                 ]
             ], 201);
+
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            // في حالة فشل عملية قاعدة البيانات، نقوم بمسح الصورة التي تم رفعها (تنظيف)
+            // تنظيف الصورة إذا فشلت العملية
             if (isset($photoPath) && $photoPath) {
-                Storage::disk('public')->delete($photoPath);
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($photoPath);
             }
 
-            Log::error('Complete Registration Error', [
+            \Illuminate\Support\Facades\Log::error('Complete Registration Error', [
                 'email' => $request->email,
                 'error' => $e->getMessage()
             ]);
@@ -178,7 +181,7 @@ class StudentAuthController extends Controller
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.',
-                'error'   => $e->getMessage() // اختياري أثناء التطوير
+                'error'   => $e->getMessage()
             ], 500);
         }
     }
