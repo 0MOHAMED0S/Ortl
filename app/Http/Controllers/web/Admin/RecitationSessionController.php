@@ -13,10 +13,7 @@ class RecitationSessionController extends Controller
 {
     public function create()
     {
-        // ✅ جلب المعلمين مع حساباتهم ومساراتهم لتمكين البحث بالمسار في الواجهة
         $teachers = Teacher::with(['user', 'tracks'])->get();
-
-        // ✅ جلب الجلسات مع المعلم، والطلاب الحاضرين
         $sessions = RecitationSession::with(['teacher.user', 'students.student'])
             ->latest()
             ->get();
@@ -45,7 +42,6 @@ class RecitationSessionController extends Controller
             RecitationSession::create($validated);
 
             return back()->with('success', 'تم جدولة الجلسة بنجاح.');
-
         } catch (\Exception $e) {
             Log::error("Failed to store recitation session: " . $e->getMessage());
             return back()->withInput()->with('error', 'حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى.');
@@ -73,7 +69,6 @@ class RecitationSessionController extends Controller
             $session->update($validated);
 
             return back()->with('success', 'تم تحديث بيانات الجلسة بنجاح.');
-
         } catch (\Exception $e) {
             Log::error("Failed to update recitation session: " . $e->getMessage());
             return back()->withInput()->with('error', 'حدث خطأ أثناء التحديث.');
@@ -87,7 +82,6 @@ class RecitationSessionController extends Controller
             $session->delete();
 
             return back()->with('success', 'تم حذف الجلسة نهائياً.');
-
         } catch (\Exception $e) {
             Log::error("Failed to delete recitation session: " . $e->getMessage());
             return back()->with('error', 'حدث خطأ أثناء محاولة الحذف.');
