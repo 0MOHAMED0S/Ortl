@@ -129,7 +129,6 @@ class TeacherAuthController extends Controller
             ], 500);
         }
     }
-
     public function toggleOnlineStatus(Request $request)
     {
         try {

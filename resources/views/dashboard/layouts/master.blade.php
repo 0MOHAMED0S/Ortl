@@ -300,7 +300,7 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{{ route('admin.recitations.create') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.sessions') ? 'active' : '' }}">
+                    <a href="{{ route('admin.recitations.create') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.recitations.create') ? 'active' : '' }}">
                         <i class="fa-solid fa-video"></i> المقرأه
                     </a>
                 </li>
@@ -309,6 +309,11 @@
                         <i class="fa-solid fa-file-invoice-dollar"></i> الاشتراكات
                     </a>
                 </li>
+                <li>
+    <a href="{{ route('countries.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'countries.') ? 'active' : '' }}">
+        <i class="fa-solid fa-tags"></i> الدول
+    </a>
+</li>
 <li>
     <a href="{{ route('profile') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'profile') ? 'active' : '' }}">
         <i class="fa-solid fa-tags"></i> الملف الشخصي

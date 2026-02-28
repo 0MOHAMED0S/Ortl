@@ -124,12 +124,13 @@ class StudentAuthController extends Controller
                 $photoPath = $request->file('profile_photo_path')->store('profiles', 'public');
             }
 
-            // 1️⃣ إنشاء المستخدم
+            // 1️⃣ إنشاء المستخدم مع تعيين حالة تأكيد البريد
             $user = User::create([
-                'name'     => $request->name,
-                'email'    => $request->email,
-                'password' => Hash::make($request->password),
-                'role'     => 'student',
+                'name'              => $request->name,
+                'email'             => $request->email,
+                'password'          => Hash::make($request->password),
+                'role'              => 'student',
+                'email_verified_at' => now(), // ✅ توثيق البريد الإلكتروني فوراً
             ]);
 
             // 2️⃣ إنشاء بروفايل الطالب (مع إضافة مسار الصورة)
@@ -163,9 +164,12 @@ class StudentAuthController extends Controller
             ], 201);
         } catch (\Throwable $e) {
             DB::rollBack();
+
+            // في حالة فشل عملية قاعدة البيانات، نقوم بمسح الصورة التي تم رفعها (تنظيف)
             if (isset($photoPath) && $photoPath) {
                 Storage::disk('public')->delete($photoPath);
             }
+
             Log::error('Complete Registration Error', [
                 'email' => $request->email,
                 'error' => $e->getMessage()
@@ -302,31 +306,30 @@ class StudentAuthController extends Controller
         }
     }
 
-public function getProfile(Request $request)
-{
-    try {
-        // تحميل الطالب مع الدولة المرتبطة به في استعلام واحد
-        $user = $request->user()->load(['student.country']);
+    public function getProfile(Request $request)
+    {
+        try {
+            // تحميل الطالب مع الدولة المرتبطة به في استعلام واحد
+            $user = $request->user()->load(['student.country']);
 
-        if ($user->student) {
-            // إضافة رابط الصورة كاملًا
-            $user->student->profile_photo_url = $user->student->profile_photo_path
-                ? asset('storage/' . $user->student->profile_photo_path)
-                : null;
+            if ($user->student) {
+                // إضافة رابط الصورة كاملًا
+                $user->student->profile_photo_url = $user->student->profile_photo_path
+                    ? asset('storage/' . $user->student->profile_photo_path)
+                    : null;
+            }
+
+            return response()->json([
+                'status' => true,
+                'data'   => $user
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء جلب البيانات.',
+            ], 500);
         }
-
-        return response()->json([
-            'status' => true,
-            'data'   => $user
-        ], 200);
-
-    } catch (\Throwable $e) {
-        return response()->json([
-            'status'  => false,
-            'message' => 'حدث خطأ أثناء جلب البيانات.',
-        ], 500);
     }
-}
     public function logout(Request $request)
     {
         try {

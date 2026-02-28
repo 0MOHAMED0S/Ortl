@@ -23,7 +23,7 @@ class TeacherController extends Controller
         return view('dashboard.teachers', compact('teachers'));
     }
 
-    public function approve(ApproveTeacherRequest $request, $id)
+public function approve(ApproveTeacherRequest $request, $id)
     {
         $application = Teacher_application::findOrFail($id);
 
@@ -45,12 +45,13 @@ class TeacherController extends Controller
                 $photoPath = $application->profile_photo_path;
             }
 
-            // 2. إنشاء المستخدم
+            // 2. إنشاء المستخدم مع تأكيد البريد الإلكتروني فوراً
             $user = User::create([
-                'name'     => $application->full_name,
-                'email'    => $request->email,
-                'password' => Hash::make($request->password),
-                'role'     => 'teacher',
+                'name'              => $application->full_name,
+                'email'             => $request->email,
+                'password'          => Hash::make($request->password),
+                'role'              => 'teacher',
+                'email_verified_at' => now(), // ✅ تم إضافة توثيق البريد هنا
             ]);
 
             // 3. إنشاء بروفايل المعلم
@@ -149,5 +150,5 @@ class TeacherController extends Controller
 
         return redirect()->back()->with('success', 'تم تحديث بيانات المعلم بنجاح');
     }
-    
+
 }

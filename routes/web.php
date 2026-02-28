@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\web\Admin\AdsController;
 use App\Http\Controllers\web\Admin\AuthController;
 use App\Http\Controllers\web\Admin\ContactSettingController;
+use App\Http\Controllers\web\Admin\CountryController;
 use App\Http\Controllers\web\Admin\CouponsController;
 use App\Http\Controllers\web\Admin\PackageController;
 use App\Http\Controllers\web\Admin\ProfileController;
@@ -77,6 +78,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/students/gift/{id}', [StudentsController::class, 'giftPackage'])->name('admin.students.gift');
         Route::get('/Subscriptions', [SubscriptionsController::class, 'index'])->name('admin.subscriptions');
         Route::put('/teachers/{teacher}/tracks', [AdminTrackController::class, 'updateTeacherTracks'])->name('teachers.tracks.update');
+        Route::get('/countries', [CountryController::class, 'index'])->name('countries.index');
+        Route::put('/countries/{country}/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle_status');
+        Route::put('/recitations/{id}', [RecitationSessionController::class, 'update'])->name('admin.recitations.update');
+Route::delete('/recitations/{id}', [RecitationSessionController::class, 'destroy'])->name('admin.recitations.destroy');
     });
 });
 

@@ -17,7 +17,6 @@ class UpdateCountriesExchange extends Command
 
         $countries = Http::get('https://restcountries.com/v3.1/all?fields=name,cca2,currencies,idd')->json();
 
-        // 🟢 قائمة بأكواد الدول العربية والدول الأجنبية الشهيرة (ISO 3166-1 alpha-2)
         $activeCountryCodes = [
             // --- الدول العربية ---
             'EG', 'SA', 'AE', 'QA', 'KW', 'BH', 'OM', 'JO', 'LB', 'SY',

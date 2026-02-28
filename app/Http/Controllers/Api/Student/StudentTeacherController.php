@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class StudentTeacherController extends Controller
 {
-    public function index(Request $request)
+public function index(Request $request)
     {
         try {
             // 1️⃣ تحديد عدد المعلمين في كل صفحة (افتراضياً 10)
@@ -36,15 +36,17 @@ class StudentTeacherController extends Controller
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
                 return [
-                    'id' => $teacher->id,
-                    'name' => $name,
-                    'photo_url' => $photoUrl,
-                    'qualification' => $teacher->qualification,
-                    'country' => $teacher->origin_country,
-                    'languages' => $teacher->languages,
-                    'specialties' => $teacher->specialties,
+                    'id'               => $teacher->id,
+                    'name'             => $name,
+                    'photo_url'        => $photoUrl,
+                    // ✅ إضافة حالة الاتصال هنا
+                    'is_online'        => (bool) optional($teacher->profile)->is_online,
+                    'qualification'    => $teacher->qualification,
+                    'country'          => $teacher->origin_country,
+                    'languages'        => $teacher->languages,
+                    'specialties'      => $teacher->specialties,
                     'experience_years' => $teacher->experience_years,
-                    'about' => $teacher->ijazas_text,
+                    'about'            => $teacher->ijazas_text,
                 ];
             });
 
@@ -55,11 +57,11 @@ class StudentTeacherController extends Controller
                 'data'    => [
                     'teachers' => $teachersPaginator->items(), // المصفوفة المنسقة
                     'pagination' => [
-                        'total'        => $teachersPaginator->total(),
-                        'count'        => $teachersPaginator->count(),
-                        'per_page'     => (int) $teachersPaginator->perPage(),
-                        'current_page' => $teachersPaginator->currentPage(),
-                        'total_pages'  => $teachersPaginator->lastPage(),
+                        'total'         => $teachersPaginator->total(),
+                        'count'         => $teachersPaginator->count(),
+                        'per_page'      => (int) $teachersPaginator->perPage(),
+                        'current_page'  => $teachersPaginator->currentPage(),
+                        'total_pages'   => $teachersPaginator->lastPage(),
                         'next_page_url' => $teachersPaginator->nextPageUrl(),
                         'prev_page_url' => $teachersPaginator->previousPageUrl(),
                     ]
@@ -102,6 +104,8 @@ class StudentTeacherController extends Controller
                 'user_id'          => $teacher->user_id,
                 'name'             => $name,
                 'photo_url'        => $photoUrl,
+                // ✅ إضافة حالة الاتصال هنا
+                'is_online'        => (bool) $teacher->is_online,
                 'qualification'    => $teacher->application->qualification,
                 'country'          => $teacher->application->origin_country,
                 'languages'        => $teacher->application->languages,

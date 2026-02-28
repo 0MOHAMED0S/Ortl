@@ -28,7 +28,7 @@ public function index(Request $request)
             $query->where(function ($q) use ($search) {
                 $q->whereHas('user', function ($u) use ($search) {
                     $u->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
                 })
                 ->orWhere('transaction_id', 'like', "%{$search}%")
                 ->orWhere('paymob_order_id', 'like', "%{$search}%");

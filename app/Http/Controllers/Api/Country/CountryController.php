@@ -15,15 +15,22 @@ class CountryController extends Controller
     public function index(Request $request)
     {
         try {
-            // 1️⃣ تهيئة الاستعلام
-            $query = Country::query()->select('id', 'name', 'phone_code', 'code');
+            // 1️⃣ تهيئة الاستعلام وجلب الدول المفعلة فقط
+            $query = Country::query()
+                ->select('id', 'name', 'phone_code', 'code')
+                ->where('status', true); // ✅ شرط أن تكون الدولة مفعلة
 
             // 2️⃣ البحث في الاسم، الكود، أو كود الهاتف
             if ($request->has('search')) {
                 $searchTerm = $request->search;
-                $query->where('name', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('code', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('phone_code', 'LIKE', "%{$searchTerm}%");
+
+                // ✅ استخدام دالة (Closure) لتجميع شروط البحث بالأقواس في الـ SQL
+                // حتى لا يتداخل orWhere مع شرط الـ status
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('code', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('phone_code', 'LIKE', "%{$searchTerm}%");
+                });
             }
 
             // 3️⃣ Pagination
@@ -32,9 +39,10 @@ class CountryController extends Controller
 
             return response()->json([
                 'status'  => true,
-                'message' => 'تم جلب قائمة الدول بنجاح.',
+                'message' => 'تم جلب قائمة الدول المفعلة بنجاح.',
                 'data'    => $countries
             ], 200);
+
         } catch (\Throwable $e) {
             Log::error('Failed to retrieve countries: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()

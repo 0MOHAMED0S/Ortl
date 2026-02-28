@@ -13,55 +13,84 @@ class RecitationSessionController extends Controller
 {
     public function create()
     {
-        $teachers = Teacher::with('user')->get();
-        $sessions = RecitationSession::with('teacher.user')
+        // ✅ جلب المعلمين مع حساباتهم ومساراتهم لتمكين البحث بالمسار في الواجهة
+        $teachers = Teacher::with(['user', 'tracks'])->get();
+
+        // ✅ جلب الجلسات مع المعلم، والطلاب الحاضرين
+        $sessions = RecitationSession::with(['teacher.user', 'students.student'])
             ->latest()
             ->get();
 
         return view('dashboard.sessions', compact('teachers', 'sessions'));
     }
 
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'title'            => 'required|string|max:255',
+            'teacher_id'       => 'required|exists:teachers,id',
+            'start_at'         => 'required|date',
+            'end_at'           => 'required|date|after:start_at',
+            'max_participants' => 'required|integer|min:1',
+        ]);
 
-public function store(Request $request)
-{
-    // 1. التحقق من الصلاحية (يفضل استخدام Middleware بدلاً من التحقق اليدوي)
-    if (!auth()->user()->isAdmin()) {
-        abort(403, 'Unauthorized action.');
+        try {
+            $start = Carbon::parse($validated['start_at']);
+            $end = Carbon::parse($validated['end_at']);
+
+            $validated['duration_minutes'] = $start->diffInMinutes($end);
+            $validated['created_by']       = auth()->id();
+            $validated['channel_name']     = 'recitation_' . bin2hex(random_bytes(6));
+
+            RecitationSession::create($validated);
+
+            return back()->with('success', 'تم جدولة الجلسة بنجاح.');
+
+        } catch (\Exception $e) {
+            Log::error("Failed to store recitation session: " . $e->getMessage());
+            return back()->withInput()->with('error', 'حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى.');
+        }
     }
 
-    // 2. التحقق من البيانات
-    $validated = $request->validate([
-        'title' => 'required|string|max:255',
-        'description' => 'nullable|string',
-        'teacher_id' => 'required|exists:teachers,id',
-        'start_at' => 'required|date',
-        'end_at' => 'required|date|after:start_at',
-        'max_participants' => 'required|integer|min:1',
-    ]);
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'title'            => 'required|string|max:255',
+            'teacher_id'       => 'required|exists:teachers,id',
+            'start_at'         => 'required|date',
+            'end_at'           => 'required|date|after:start_at',
+            'max_participants' => 'required|integer|min:1',
+        ]);
 
-    try {
-        // 3. معالجة البيانات الإضافية
-        $start = \Carbon\Carbon::parse($validated['start_at']);
-        $end = \Carbon\Carbon::parse($validated['end_at']);
+        try {
+            $session = RecitationSession::findOrFail($id);
 
-        $validated['duration_minutes'] = $start->diffInMinutes($end);
-        $validated['created_by'] = auth()->id();
-        $validated['channel_name'] = 'recitation_' . bin2hex(random_bytes(6)); // أكثر أماناً من uniqid
+            $start = Carbon::parse($validated['start_at']);
+            $end = Carbon::parse($validated['end_at']);
 
-        // 4. التخزين الفعلي
-        $session = RecitationSession::create($validated);
+            $validated['duration_minutes'] = $start->diffInMinutes($end);
 
-        return redirect()
-            ->route('admin.recitations.create') // يفضل التوجيه للقائمة بعد النجاح
-            ->with('success', 'تم إنشاء الحصة بنجاح.');
+            $session->update($validated);
 
-    } catch (\Exception $e) {
-        // تسجيل الخطأ إذا فشل التخزين لأي سبب تقني
-        Log::error("Failed to store recitation session: " . $e->getMessage());
+            return back()->with('success', 'تم تحديث بيانات الجلسة بنجاح.');
 
-        return back()
-            ->withInput()
-            ->with('error', 'حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى.');
+        } catch (\Exception $e) {
+            Log::error("Failed to update recitation session: " . $e->getMessage());
+            return back()->withInput()->with('error', 'حدث خطأ أثناء التحديث.');
+        }
     }
-}
+
+    public function destroy($id)
+    {
+        try {
+            $session = RecitationSession::findOrFail($id);
+            $session->delete();
+
+            return back()->with('success', 'تم حذف الجلسة نهائياً.');
+
+        } catch (\Exception $e) {
+            Log::error("Failed to delete recitation session: " . $e->getMessage());
+            return back()->with('error', 'حدث خطأ أثناء محاولة الحذف.');
+        }
+    }
 }
