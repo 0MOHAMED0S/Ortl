@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class StudentTeacherController extends Controller
 {
-public function index(Request $request)
+    public function index(Request $request)
     {
         try {
             // 1️⃣ تحديد عدد المعلمين في كل صفحة (افتراضياً 10)

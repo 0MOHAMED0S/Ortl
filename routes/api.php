@@ -47,7 +47,7 @@ Route::prefix('teacher')->group(function () {
             Route::get('/requests', [TeacherWalletController::class, 'getAllRequests']); // سجل كل الطلبات
             Route::delete('/requests/{id}/cancel', [TeacherWalletController::class, 'cancelRequest']); // إلغاء طلب سحب
         });
-        
+
     });
 });
 
@@ -80,7 +80,6 @@ Route::prefix('student')->group(function () {
         Route::post('/sessions/{sessionId}/leave', [TeacherSessionController::class, 'leaveSession']);
         Route::post('/profile/update', [StudentAuthController::class, 'updateProfile']);
         Route::get('/profile', [StudentAuthController::class, 'getProfile']);
-
         Route::post('/change-password', [StudentAuthController::class, 'ChangePassword']);
         // Logout
         Route::post('/logout', [StudentAuthController::class, 'logout']);

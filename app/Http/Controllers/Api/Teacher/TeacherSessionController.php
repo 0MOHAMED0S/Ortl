@@ -17,7 +17,6 @@ class TeacherSessionController extends Controller
     {
         $this->agoraService = $agoraService;
     }
-
     /**
      * انضمام المعلم للحصة (كـ Host)
      * يمكنه الدخول والخروج في أي وقت طالما وقت الحصة لم ينتهِ
@@ -84,7 +83,6 @@ class TeacherSessionController extends Controller
             ], 500);
         }
     }
-
     /**
      * انضمام الطالب للحصة (كـ Subscriber)
      */
@@ -154,8 +152,6 @@ class TeacherSessionController extends Controller
             ], 500);
         }
     }
-
-
     /**
      * تسجيل مغادرة الطالب للحصة
      */
