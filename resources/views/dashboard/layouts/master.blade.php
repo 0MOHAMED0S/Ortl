@@ -310,6 +310,11 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{{ route('admin.withdrawals.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.withdrawals') ? 'active' : '' }}">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> السحب
+                    </a>
+                </li>
+                <li>
     <a href="{{ route('countries.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'countries.') ? 'active' : '' }}">
         <i class="fa-solid fa-tags"></i> الدول
     </a>

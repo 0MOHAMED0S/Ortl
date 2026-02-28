@@ -29,4 +29,8 @@ class Teacher extends Model
         // Make sure 'teacher_application_id' exists in your 'teachers' table
         return $this->belongsTo(Teacher_application::class, 'teacher_application_id');
     }
+    public function withdrawalRequests()
+    {
+        return $this->hasMany(WithdrawalRequest::class);
+    }
 }

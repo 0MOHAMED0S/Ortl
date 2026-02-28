@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Student\StudentTracksController;
 use App\Http\Controllers\Api\Teacher\TeacherAuthController;
 use App\Http\Controllers\Api\Teacher\TeacherSessionController;
 use App\Http\Controllers\Api\Teacher\TeacherSlotController;
+use App\Http\Controllers\Api\Teacher\TeacherWalletController;
 use App\Http\Controllers\web\User\BuyPackageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,14 @@ Route::prefix('teacher')->group(function () {
         Route::post('/sessions/{sessionId}/end', [TeacherSessionController::class, 'endSession']);
         Route::get('/sessions/my-sessions', [TeacherSessionController::class, 'getTeacherSessions']);
         Route::post('/toggle-online', [TeacherAuthController::class, 'toggleOnlineStatus']);
+
+        Route::prefix('wallet')->group(function () {
+            Route::get('/', [TeacherWalletController::class, 'getWallet']); // المحفظة الأساسية
+            Route::post('/withdraw', [TeacherWalletController::class, 'requestWithdrawal']); // طلب سحب
+            Route::get('/requests', [TeacherWalletController::class, 'getAllRequests']); // سجل كل الطلبات
+            Route::delete('/requests/{id}/cancel', [TeacherWalletController::class, 'cancelRequest']); // إلغاء طلب سحب
+        });
+        
     });
 });
 
@@ -54,7 +63,6 @@ Route::prefix('student')->group(function () {
     Route::post('/forgot-password/reset', [StudentAuthController::class, 'resetPassword']);
 
     Route::group(['prefix' => 'paytabs'], function () {
-
         // Change Route::post to Route::match
         Route::match(['get', 'post'], '/response', [StudentBuyPackageController::class, 'handleResponse'])->name('api.paytabs.response');
         Route::post('/callback', [StudentBuyPackageController::class, 'handleCallback'])->name('api.paytabs.callback');
@@ -71,7 +79,7 @@ Route::prefix('student')->group(function () {
         Route::post('/sessions/{sessionId}/join', [TeacherSessionController::class, 'joinSession']);
         Route::post('/sessions/{sessionId}/leave', [TeacherSessionController::class, 'leaveSession']);
         Route::post('/profile/update', [StudentAuthController::class, 'updateProfile']);
-Route::get('/profile', [StudentAuthController::class, 'getProfile']);
+        Route::get('/profile', [StudentAuthController::class, 'getProfile']);
 
         Route::post('/change-password', [StudentAuthController::class, 'ChangePassword']);
         // Logout

@@ -20,6 +20,8 @@ use App\Http\Controllers\web\User\TeacherApplicationController;
 use App\Http\Controllers\web\User\TrackController;
 use App\Models\ContactSetting;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\web\Admin\WithdrawalController;
+
 
 // Route::get('/', function () {
 //     return view('welcome');
@@ -82,6 +84,9 @@ Route::prefix('admin')->group(function () {
         Route::put('/countries/{country}/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle_status');
         Route::put('/recitations/{id}', [RecitationSessionController::class, 'update'])->name('admin.recitations.update');
 Route::delete('/recitations/{id}', [RecitationSessionController::class, 'destroy'])->name('admin.recitations.destroy');
+
+Route::get('/withdrawals', [WithdrawalController::class, 'index'])->name('admin.withdrawals.index');
+Route::put('/withdrawals/{id}/status', [WithdrawalController::class, 'updateStatus'])->name('admin.withdrawals.update_status');
     });
 });
 
