@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Ads\AdsController;
 use App\Http\Controllers\Api\Country\CountryController;
 use App\Http\Controllers\Api\Student\favoriteController;
+use App\Http\Controllers\Api\Student\PrivateCallController;
 use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\Api\Student\StudentBuyPackageController;
 use App\Http\Controllers\Api\Student\StudentPackageController;
@@ -47,7 +48,6 @@ Route::prefix('teacher')->group(function () {
             Route::get('/requests', [TeacherWalletController::class, 'getAllRequests']); // سجل كل الطلبات
             Route::delete('/requests/{id}/cancel', [TeacherWalletController::class, 'cancelRequest']); // إلغاء طلب سحب
         });
-
     });
 });
 
@@ -96,6 +96,15 @@ Route::prefix('student')->group(function () {
         Route::get('teachers/{id}', [StudentTeacherController::class, 'show']);
         Route::post('/package/{id}/coupon', [StudentPackageController::class, 'getPrice']);
         Route::get('/{id}/available-slots', [StudentTeacherController::class, 'getTeacherAvailableSlots']);
+
+        // الطالب يبدأ المكالمة
+        Route::post('/call/start', [PrivateCallController::class, 'startCall']);
+
+        // المعلم ينضم للمكالمة
+        Route::post('/call/{callId}/join', [PrivateCallController::class, 'joinCall']);
+
+        // أي طرف يقوم بإنهاء المكالمة
+        Route::post('/call/{callId}/end', [PrivateCallController::class, 'endCall']);
     });
 });
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);
