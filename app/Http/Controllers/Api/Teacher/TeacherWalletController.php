@@ -247,4 +247,5 @@ class TeacherWalletController extends Controller
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء محاولة إلغاء الطلب.'], 500);
         }
     }
+    
 }

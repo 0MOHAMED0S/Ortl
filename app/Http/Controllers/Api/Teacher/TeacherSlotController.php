@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Api\Teacher;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teacher\DeleteDaySlotsRequest;
 use App\Http\Requests\Teacher\SetAvailabilityRequest;
+use App\Models\CallSession;
+use App\Models\SlotBooking;
 use App\Models\TeacherSlot;
+use App\Models\UserPackage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -221,6 +224,112 @@ class TeacherSlotController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'حدث خطأ أثناء محاولة الحذف الجماعي، يرجى المحاولة لاحقاً.'
+            ], 500);
+        }
+    }
+    public function cancelSlotByTeacher(Request $request)
+    {
+        $request->validate([
+            'slot_id' => 'required|exists:teacher_slots,id'
+        ]);
+
+        // نفترض أن الدخول الحالي هو للمعلم
+        $teacherUser = auth()->user();
+        $teacher = $teacherUser->teacherProfile; // تأكد من اسم علاقة المعلم في موديل User
+
+        if (!$teacher) {
+            return response()->json(['status' => false, 'message' => 'غير مصرح لك.'], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1️⃣ جلب الموعد والتأكد أنه يخص هذا المعلم وأنه محجوز
+            $slot = TeacherSlot::where('id', $request->slot_id)
+                ->where('teacher_id', $teacher->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$slot) {
+                DB::rollBack();
+                return response()->json(['status' => false, 'message' => 'الموعد غير موجود أو لا يتبع لك.'], 404);
+            }
+
+            if (!$slot->is_booked) {
+                DB::rollBack();
+                return response()->json(['status' => false, 'message' => 'هذا الموعد غير محجوز مسبقاً.'], 400);
+            }
+
+            // 2️⃣ جلب تفاصيل الحجز الفعلي لمعرفة الطالب وعدد الدقائق المخصومة
+            $booking = SlotBooking::where('teacher_slot_id', $slot->id)
+                ->where('status', 'scheduled')
+                ->lockForUpdate()
+                ->first();
+
+            if ($booking) {
+                $studentId = $booking->user_id;
+                $refundMinutes = $booking->deducted_minutes;
+
+                // 3️⃣ عملية الاسترجاع المالي (Refund) للطالب
+                if ($refundMinutes > 0) {
+                    // نبحث عن باقة نشطة للطالب لنعيد الدقائق إليها (نختار الأطول صلاحية)
+                    $activePackage = UserPackage::where('user_id', $studentId)
+                        ->whereIn('status', ['active', 'Active'])
+                        ->orderBy('expires_at', 'desc')
+                        ->first();
+
+                    if ($activePackage) {
+                        // إضافة الدقائق للباقة النشطة
+                        $activePackage->increment('remaining_minutes', $refundMinutes);
+                    } else {
+                        // إذا لم تكن هناك باقة نشطة، نجلب أحدث باقة منتهية ونعيد تفعيلها
+                        $expiredPackage = UserPackage::where('user_id', $studentId)
+                            ->orderBy('id', 'desc')
+                            ->first();
+
+                        if ($expiredPackage) {
+                            $expiredPackage->update([
+                                'remaining_minutes' => $expiredPackage->remaining_minutes + $refundMinutes,
+                                'status'            => 'active'
+                            ]);
+                        }
+                    }
+                }
+
+                // 4️⃣ تحديث حالة الحجز إلى ملغي
+                $booking->update(['status' => 'cancelled']);
+
+                // 5️⃣ حذف أو إلغاء جلسة المكالمة المجدولة (Call Session)
+                $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
+
+                CallSession::where('teacher_id', $teacher->id)
+                    ->where('student_id', $studentId)
+                    ->where('started_at', $slotStartDateTime)
+                    ->whereIn('status', ['scheduled', 'initiated'])
+                    ->delete(); // مسح الجلسة لكي تختفي من التطبيق
+            }
+
+            // 6️⃣ تحرير الموعد ليكون متاحاً لطلاب آخرين
+            $slot->update([
+                'is_booked'  => false,
+                'student_id' => null // إذا كنت قد أضفت هذا الحقل سابقاً
+            ]);
+
+            DB::commit();
+
+            // 💡 هنا يُفضل إرسال إشعار (FCM/Pusher) للطالب لإخباره أن المعلم ألغى الموعد وتم استرجاع رصيده.
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم إلغاء الموعد بنجاح، وتمت إعادة الدقائق لرصيد الطالب.'
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Cancel Slot Error: ' . $e->getMessage());
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء الإلغاء.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }

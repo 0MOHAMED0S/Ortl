@@ -5,11 +5,13 @@ use App\Http\Controllers\Api\Country\CountryController;
 use App\Http\Controllers\Api\Student\favoriteController;
 use App\Http\Controllers\Api\Student\PrivateCallController;
 use App\Http\Controllers\Api\Student\StudentAuthController;
+use App\Http\Controllers\Api\Student\StudentBookingController;
 use App\Http\Controllers\Api\Student\StudentBuyPackageController;
 use App\Http\Controllers\Api\Student\StudentPackageController;
 use App\Http\Controllers\Api\Student\StudentTeacherController;
 use App\Http\Controllers\Api\Student\StudentTracksController;
 use App\Http\Controllers\Api\Teacher\TeacherAuthController;
+use App\Http\Controllers\Api\Teacher\TeacherBookingController;
 use App\Http\Controllers\Api\Teacher\TeacherSessionController;
 use App\Http\Controllers\Api\Teacher\TeacherSlotController;
 use App\Http\Controllers\Api\Teacher\TeacherWalletController;
@@ -44,6 +46,10 @@ Route::prefix('teacher')->group(function () {
         // المعلم ينضم للمكالمة
         Route::post('/call/{callId}/join', [PrivateCallController::class, 'joinCall']);
         Route::post('/call/{callId}/end', [PrivateCallController::class, 'endCall']);
+        Route::post('/slots/cancel', [TeacherSlotController::class, 'cancelSlotByTeacher']);
+        Route::get('/bookings', [TeacherBookingController::class, 'getTeacherBookings']);
+        Route::post('/bookings/start', [TeacherBookingController::class, 'startBookedSession']);
+Route::post('/bookings/end', [TeacherBookingController::class, 'endBookedSession']);
 
         Route::prefix('wallet')->group(function () {
             Route::get('/', [TeacherWalletController::class, 'getWallet']); // المحفظة الأساسية
@@ -106,6 +112,11 @@ Route::prefix('student')->group(function () {
         Route::post('/call/{callId}/end', [PrivateCallController::class, 'endCall']);
 
         Route::post('/book-slot', [StudentTeacherController::class, 'bookSlot']);
+        // عرض جميع مواعيد الطالب المحجوزة
+        Route::get('/my-bookings', [StudentBookingController::class, 'getStudentBookings']);
+
+        // الانضمام لجلسة الموعد المحجوز (Agora)
+        Route::post('/bookings/join', [StudentBookingController::class, 'joinBookedSession']);
     });
 });
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);

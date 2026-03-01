@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-
+use App\Models\SlotBooking;
 class StudentTeacherController extends Controller
 {
     public function index(Request $request)
@@ -213,6 +213,8 @@ class StudentTeacherController extends Controller
      * 🚀 دالة حجز موعد مع المعلم
      * ==========================================
      */
+
+
     public function bookSlot(Request $request)
     {
         $request->validate([
@@ -221,74 +223,103 @@ class StudentTeacherController extends Controller
 
         $user = auth()->user();
 
-        // 1️⃣ التحقق من رصيد الطالب (هل يمتلك دقائق للحجز؟)
-        $totalAvailableMinutes = UserPackage::where('user_id', $user->id)
-            ->whereIn('status', ['active', 'Active'])
-            ->where('remaining_minutes', '>', 0)
-            ->where(function ($q) {
-                $q->where('expires_at', '>', now())
-                  ->orWhereNull('expires_at');
-            })
-            ->sum('remaining_minutes');
-
-        if ($totalAvailableMinutes <= 0) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'رصيد الدقائق الخاص بك لا يكفي لحجز هذا الموعد. يرجى شحن الباقة.'
-            ], 400);
-        }
-
         DB::beginTransaction();
         try {
-            // 2️⃣ جلب الموعد مع قفل الصف (Lock For Update) لمنع الحجز المزدوج
+            // 1️⃣ جلب الموعد مع قفل الصف لمنع الحجز المزدوج
             $slot = TeacherSlot::where('id', $request->slot_id)
                 ->lockForUpdate()
                 ->first();
 
-            // التحقق مما إذا كان الموعد قد حُجز للتو من طالب آخر
+            // التحقق مما إذا كان محجوزاً
             if ($slot->is_booked) {
                 DB::rollBack();
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'عذراً، هذا الموعد تم حجزه للتو بواسطة طالب آخر.'
-                ], 400);
+                return response()->json(['status' => false, 'message' => 'عذراً، هذا الموعد تم حجزه للتو بواسطة طالب آخر.'], 400);
             }
 
-            // التحقق من أن الموعد ليس في الماضي
-            $slotDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
-            if ($slotDateTime->isPast()) {
+            // التحقق من وقت الموعد
+            $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
+            $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
+
+            if ($slotStartDateTime->isPast()) {
+                DB::rollBack();
+                return response()->json(['status' => false, 'message' => 'لا يمكنك حجز موعد في الماضي.'], 400);
+            }
+
+            // 2️⃣ حساب مدة الموعد بالدقائق
+            $slotDurationMinutes = $slotStartDateTime->diffInMinutes($slotEndDateTime);
+
+            // 3️⃣ التحقق من رصيد الطالب وجلب الباقات مع قفلها مالياً
+            $activePackages = UserPackage::where('user_id', $user->id)
+                ->whereIn('status', ['active', 'Active'])
+                ->where('remaining_minutes', '>', 0)
+                ->where(function ($q) {
+                    $q->where('expires_at', '>', now())
+                      ->orWhereNull('expires_at');
+                })
+                ->orderByRaw('expires_at IS NULL, expires_at ASC') // الباقات الأقرب انتهاءً أولاً
+                ->lockForUpdate() // قفل مالي
+                ->get();
+
+            $totalAvailableMinutes = $activePackages->sum('remaining_minutes');
+
+            // هل يمتلك دقائق تكفي لتغطية مدة الموعد بالكامل؟
+            if ($totalAvailableMinutes < $slotDurationMinutes) {
                 DB::rollBack();
                 return response()->json([
                     'status'  => false,
-                    'message' => 'لا يمكنك حجز موعد في الماضي.'
+                    'message' => "رصيدك غير كافٍ. الموعد يتطلب {$slotDurationMinutes} دقيقة، ورصيدك الحالي {$totalAvailableMinutes} دقيقة."
                 ], 400);
             }
 
-            // 3️⃣ تحديث الموعد ليصبح محجوزاً باسم الطالب
-            $slot->update([
-                'is_booked'  => true,
-                'student_id' => $user->id // تأكد أن حقل student_id موجود في جدول teacher_slots
+            // 4️⃣ خصم الدقائق من الباقات تدريجياً (الدفع المسبق)
+            $minutesLeftToDeduct = $slotDurationMinutes;
+
+            foreach ($activePackages as $package) {
+                if ($minutesLeftToDeduct <= 0) break;
+
+                $deductFromThisPackage = min($package->remaining_minutes, $minutesLeftToDeduct);
+
+                $package->remaining_minutes -= $deductFromThisPackage;
+                $minutesLeftToDeduct -= $deductFromThisPackage;
+
+                if ($package->remaining_minutes <= 0) {
+                    $package->remaining_minutes = 0;
+                    $package->status = 'expired';
+                }
+
+                $package->save();
+            }
+
+            // 5️⃣ تحديث الموعد الأساسي
+            $slot->update(['is_booked' => true]);
+
+            // 6️⃣ تسجيل الحجز في جدول الـ Pivot
+            $booking = SlotBooking::create([
+                'user_id'          => $user->id,
+                'teacher_slot_id'  => $slot->id,
+                'deducted_minutes' => $slotDurationMinutes, // حفظ ما تم خصمه
+                'status'           => 'scheduled'
             ]);
 
-            // 4️⃣ (اختياري/مهم) إنشاء جلسة مكالمة مجدولة (Scheduled Call)
-            // لكي تظهر للمعلم والطالب في قائمة مواعيدهم القادمة ويدخلوا إليها عبر Agora لاحقاً
+            // 7️⃣ إنشاء جلسة المكالمة المجدولة لكي تظهر في التطبيق
             $channelName = 'scheduled_call_' . $user->id . '_' . $slot->teacher_id . '_' . time();
-
-            $callSession = CallSession::create([
+           $callSession = CallSession::create([
                 'student_id'   => $user->id,
                 'teacher_id'   => $slot->teacher_id,
                 'channel_name' => $channelName,
-                'status'       => 'scheduled', // حالة الجلسة مجدولة
-                'started_at'   => $slotDateTime, // وقت الجلسة الفعلي
+                // 👇 تم تغيير الكلمة هنا لكي تقبلها قاعدة البيانات
+                'status'       => 'initiated',
+                'started_at'   => $slotStartDateTime,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'status'  => true,
-                'message' => 'تم حجز الموعد بنجاح.',
+                'message' => "تم حجز الموعد بنجاح وخصم {$slotDurationMinutes} دقيقة من رصيدك.",
                 'data'    => [
                     'slot'         => $slot,
+                    'booking'      => $booking,
                     'call_session' => $callSession
                 ]
             ], 200);
@@ -297,10 +328,15 @@ class StudentTeacherController extends Controller
             DB::rollBack();
             Log::error('Book Slot Error: ' . $e->getMessage());
 
+            // 🚀 التعديل هنا: كشف الخطأ الحقيقي للمطور
             return response()->json([
                 'status'  => false,
-                'message' => 'حدث خطأ أثناء إتمام الحجز. يرجى المحاولة لاحقاً.'
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => $e->getFile()
             ], 500);
         }
     }
+
+
 }

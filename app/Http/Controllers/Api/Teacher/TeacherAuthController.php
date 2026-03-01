@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Events\TeacherStatusChanged;
 
 class TeacherAuthController extends Controller
 {
@@ -129,6 +130,7 @@ class TeacherAuthController extends Controller
             ], 500);
         }
     }
+
     public function toggleOnlineStatus(Request $request)
     {
         try {
@@ -145,14 +147,22 @@ class TeacherAuthController extends Controller
             }
 
             // 2. قلب الحالة الحالية (Toggle)
-            // إذا كان متصل (true) سيصبح غير متصل (false) والعكس
             $newStatus = !$profile->is_online;
 
             $profile->update([
                 'is_online' => $newStatus
             ]);
 
-            // 3. إرجاع رسالة نجاح
+            // ==========================================
+            // 🚀 3. بث الحالة الجديدة عبر Pusher في الوقت الفعلي
+            // ==========================================
+            try {
+                broadcast(new TeacherStatusChanged($profile->id, (bool) $newStatus));
+            } catch (\Exception $e) {
+                Log::error('Pusher Broadcast Error in Status Toggle: ' . $e->getMessage());
+            }
+
+            // 4. إرجاع رسالة نجاح
             return response()->json([
                 'status' => true,
                 'message' => $newStatus ? 'أنت الآن متصل ومتاح لاستقبال الطلاب' : 'أنت الآن غير متصل',
@@ -160,8 +170,9 @@ class TeacherAuthController extends Controller
                     'is_online' => $profile->is_online
                 ]
             ], 200);
+
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Teacher Toggle Online Status Error', [
+            Log::error('Teacher Toggle Online Status Error', [
                 'user_id' => optional($request->user())->id,
                 'error' => $e->getMessage()
             ]);
