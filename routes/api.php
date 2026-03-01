@@ -64,7 +64,6 @@ Route::prefix('student')->group(function () {
     Route::post('/forgot-password/send-otp', [StudentAuthController::class, 'forgotPasswordSendOtp']);
     Route::post('/forgot-password/check-otp', [StudentAuthController::class, 'checkOtp']);
     Route::post('/forgot-password/reset', [StudentAuthController::class, 'resetPassword']);
-
     Route::group(['prefix' => 'paytabs'], function () {
         // Change Route::post to Route::match
         Route::match(['get', 'post'], '/response', [StudentBuyPackageController::class, 'handleResponse'])->name('api.paytabs.response');
@@ -105,6 +104,8 @@ Route::prefix('student')->group(function () {
 
         // أي طرف يقوم بإنهاء المكالمة
         Route::post('/call/{callId}/end', [PrivateCallController::class, 'endCall']);
+
+        Route::post('/book-slot', [StudentTeacherController::class, 'bookSlot']);
     });
 });
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);

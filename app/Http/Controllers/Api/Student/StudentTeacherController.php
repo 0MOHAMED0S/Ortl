@@ -6,8 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Teacher;
 use App\Models\Teacher_application;
 use App\Models\TeacherSlot;
+use App\Models\UserPackage;
+use App\Models\CallSession;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class StudentTeacherController extends Controller
 {
@@ -39,7 +43,6 @@ class StudentTeacherController extends Controller
                     'id'               => $teacher->id,
                     'name'             => $name,
                     'photo_url'        => $photoUrl,
-                    // ✅ إضافة حالة الاتصال هنا
                     'is_online'        => (bool) optional($teacher->profile)->is_online,
                     'qualification'    => $teacher->qualification,
                     'country'          => $teacher->origin_country,
@@ -93,7 +96,7 @@ class StudentTeacherController extends Controller
             }
 
             // 2️⃣ تنسيق البيانات
-            $name = $teacher->user->name ?? $teacher->application->full_name;
+            $name = $teacher->user->name ?? optional($teacher->application)->full_name;
 
             $photoUrl = $teacher->profile_photo_path
                 ? asset('storage/' . $teacher->profile_photo_path)
@@ -104,20 +107,19 @@ class StudentTeacherController extends Controller
                 'user_id'          => $teacher->user_id,
                 'name'             => $name,
                 'photo_url'        => $photoUrl,
-                // ✅ إضافة حالة الاتصال هنا
                 'is_online'        => (bool) $teacher->is_online,
-                'qualification'    => $teacher->application->qualification,
-                'country'          => $teacher->application->origin_country,
-                'languages'        => $teacher->application->languages,
-                'experience_years' => $teacher->application->experience_years,
-                'about'            => $teacher->application->ijazas_text,
+                'qualification'    => optional($teacher->application)->qualification,
+                'country'          => optional($teacher->application)->origin_country,
+                'languages'        => optional($teacher->application)->languages,
+                'experience_years' => optional($teacher->application)->experience_years,
+                'about'            => optional($teacher->application)->ijazas_text,
                 'minutes_balance'  => $teacher->minutes,
-                'specialties'      => $teacher->application->tracks->map(function ($track) {
+                'specialties'      => optional(optional($teacher->application)->tracks)->map(function ($track) {
                     return [
                         'id'   => $track->id,
                         'name' => $track->name,
                     ];
-                }),
+                }) ?? [],
             ];
 
             return response()->json([
@@ -139,7 +141,7 @@ class StudentTeacherController extends Controller
     {
         try {
             // 1️⃣ التأكد من وجود المعلم
-            $teacherExists = \App\Models\Teacher::where('id', $teacherId)->exists();
+            $teacherExists = Teacher::where('id', $teacherId)->exists();
 
             if (!$teacherExists) {
                 return response()->json([
@@ -148,7 +150,7 @@ class StudentTeacherController extends Controller
                 ], 404);
             }
 
-            // 2️⃣ بناء الاستعلام للمواعيد المتاحة
+            // 2️⃣ بناء الاستعلام للمواعيد المتاحة (في المستقبل فقط)
             $query = TeacherSlot::where('teacher_id', $teacherId)
                 ->where('is_booked', false)
                 ->where(function ($query) {
@@ -161,18 +163,20 @@ class StudentTeacherController extends Controller
                 ->orderBy('date', 'asc')
                 ->orderBy('start_time', 'asc');
 
-            // 3️⃣ تطبيق التصفح (مثلاً 20 موعد في الصفحة)
+            // 3️⃣ تطبيق التصفح
             $perPage = $request->get('per_page', 20);
             $paginator = $query->paginate($perPage);
 
-            // 4️⃣ تحويل السجلات الحالية لمجموعة (Collection) وتجميعها حسب التاريخ
+            // 4️⃣ تحويل السجلات الحالية لمجموعة وتجميعها حسب التاريخ
             $groupedSlots = $paginator->getCollection()->groupBy('date');
 
             if ($paginator->isEmpty()) {
                 return response()->json([
                     'status' => true,
                     'message' => 'لا توجد مواعيد متاحة حالياً.',
-                    'data' => [],
+                    'data' => [
+                        'calendar' => [],
+                    ],
                     'pagination' => null
                 ], 200);
             }
@@ -200,6 +204,102 @@ class StudentTeacherController extends Controller
                 'status' => false,
                 'message' => 'حدث خطأ أثناء جلب المواعيد.',
                 'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
+     * ==========================================
+     * 🚀 دالة حجز موعد مع المعلم
+     * ==========================================
+     */
+    public function bookSlot(Request $request)
+    {
+        $request->validate([
+            'slot_id' => 'required|exists:teacher_slots,id'
+        ]);
+
+        $user = auth()->user();
+
+        // 1️⃣ التحقق من رصيد الطالب (هل يمتلك دقائق للحجز؟)
+        $totalAvailableMinutes = UserPackage::where('user_id', $user->id)
+            ->whereIn('status', ['active', 'Active'])
+            ->where('remaining_minutes', '>', 0)
+            ->where(function ($q) {
+                $q->where('expires_at', '>', now())
+                  ->orWhereNull('expires_at');
+            })
+            ->sum('remaining_minutes');
+
+        if ($totalAvailableMinutes <= 0) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'رصيد الدقائق الخاص بك لا يكفي لحجز هذا الموعد. يرجى شحن الباقة.'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // 2️⃣ جلب الموعد مع قفل الصف (Lock For Update) لمنع الحجز المزدوج
+            $slot = TeacherSlot::where('id', $request->slot_id)
+                ->lockForUpdate()
+                ->first();
+
+            // التحقق مما إذا كان الموعد قد حُجز للتو من طالب آخر
+            if ($slot->is_booked) {
+                DB::rollBack();
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'عذراً، هذا الموعد تم حجزه للتو بواسطة طالب آخر.'
+                ], 400);
+            }
+
+            // التحقق من أن الموعد ليس في الماضي
+            $slotDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
+            if ($slotDateTime->isPast()) {
+                DB::rollBack();
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'لا يمكنك حجز موعد في الماضي.'
+                ], 400);
+            }
+
+            // 3️⃣ تحديث الموعد ليصبح محجوزاً باسم الطالب
+            $slot->update([
+                'is_booked'  => true,
+                'student_id' => $user->id // تأكد أن حقل student_id موجود في جدول teacher_slots
+            ]);
+
+            // 4️⃣ (اختياري/مهم) إنشاء جلسة مكالمة مجدولة (Scheduled Call)
+            // لكي تظهر للمعلم والطالب في قائمة مواعيدهم القادمة ويدخلوا إليها عبر Agora لاحقاً
+            $channelName = 'scheduled_call_' . $user->id . '_' . $slot->teacher_id . '_' . time();
+
+            $callSession = CallSession::create([
+                'student_id'   => $user->id,
+                'teacher_id'   => $slot->teacher_id,
+                'channel_name' => $channelName,
+                'status'       => 'scheduled', // حالة الجلسة مجدولة
+                'started_at'   => $slotDateTime, // وقت الجلسة الفعلي
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم حجز الموعد بنجاح.',
+                'data'    => [
+                    'slot'         => $slot,
+                    'call_session' => $callSession
+                ]
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Book Slot Error: ' . $e->getMessage());
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء إتمام الحجز. يرجى المحاولة لاحقاً.'
             ], 500);
         }
     }

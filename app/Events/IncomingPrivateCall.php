@@ -2,8 +2,8 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow; // لسرعة الإرسال الفورية
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -23,8 +23,7 @@ class IncomingPrivateCall implements ShouldBroadcastNow
 
     public function broadcastOn()
     {
-        // القناة الخاصة بالمعلم
-        return new Channel('teacher.' . $this->teacherId);
+        return new PrivateChannel('teacher.' . $this->teacherId);
     }
 
     public function broadcastAs()
