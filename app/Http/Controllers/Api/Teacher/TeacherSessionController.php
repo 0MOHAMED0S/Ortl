@@ -279,13 +279,13 @@ class TeacherSessionController extends Controller
         }
     }
 
-    public function getAllSessionsForStudent(Request $request)
+public function getAllSessionsForStudent(Request $request)
     {
         try {
             $perPage = $request->query('per_page', 10);
 
             $sessions = RecitationSession::with(['teacher.user'])
-                ->whereIn('status', ['live', 'upcoming'])
+                ->whereIn('status', ['live', 'upcoming', 'scheduled']) // تم إضافة scheduled
                 ->where('end_at', '>', now())
                 ->orderBy('start_at', 'asc')
                 ->paginate($perPage);

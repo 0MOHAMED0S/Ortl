@@ -41,6 +41,8 @@ Route::prefix('teacher')->group(function () {
         Route::post('/sessions/{sessionId}/end', [TeacherSessionController::class, 'endSession']);
         Route::get('/sessions/my-sessions', [TeacherSessionController::class, 'getTeacherSessions']);
         Route::post('/toggle-online', [TeacherAuthController::class, 'toggleOnlineStatus']);
+        // المعلم ينضم للمكالمة
+        Route::post('/call/{callId}/join', [PrivateCallController::class, 'joinCall']);
 
         Route::prefix('wallet')->group(function () {
             Route::get('/', [TeacherWalletController::class, 'getWallet']); // المحفظة الأساسية
@@ -99,9 +101,6 @@ Route::prefix('student')->group(function () {
 
         // الطالب يبدأ المكالمة
         Route::post('/call/start', [PrivateCallController::class, 'startCall']);
-
-        // المعلم ينضم للمكالمة
-        Route::post('/call/{callId}/join', [PrivateCallController::class, 'joinCall']);
 
         // أي طرف يقوم بإنهاء المكالمة
         Route::post('/call/{callId}/end', [PrivateCallController::class, 'endCall']);
