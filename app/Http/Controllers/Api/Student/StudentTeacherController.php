@@ -15,50 +15,67 @@ use Carbon\Carbon;
 use App\Models\SlotBooking;
 class StudentTeacherController extends Controller
 {
-    public function index(Request $request)
+public function index(Request $request)
     {
         try {
             // 1️⃣ تحديد عدد المعلمين في كل صفحة (افتراضياً 10)
             $perPage = $request->get('per_page', 10);
 
-            // 2️⃣ جلب المعلمين الموافق عليهم مع التصفح
+            // 2️⃣ جلب طلبات المعلمين الموافق عليها مع جميع العلاقات
             $teachersPaginator = Teacher_application::where('status', 'approved')
-                ->with(['profile.user'])
-                ->latest() // ترتيب الأحدث أولاً
+                ->with(['profile.user', 'tracks']) // جلب الملف، المستخدم، والمسارات
+                ->latest()
                 ->paginate($perPage);
 
-            // 3️⃣ تنسيق البيانات داخل الـ Collection الخاص بالتصفح
-            $teachersPaginator->getCollection()->transform(function ($teacher) {
+            // 3️⃣ تنسيق البيانات
+            $teachersPaginator->getCollection()->transform(function ($application) {
 
-                // الاسم: اسم المستخدم أو اسم التطبيق
-                $name = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
+                $profile = $application->profile;
+                $user = optional($profile)->user;
 
-                // الصورة الشخصية
-                $photoPath = optional($teacher->profile)->profile_photo_path ?? null;
+                // الاسم والصورة
+                $name = optional($user)->name ?? $application->full_name;
+                $photoPath = optional($profile)->profile_photo_path ?? $application->profile_photo_path;
                 $photoUrl = $photoPath
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
                 return [
-                    'id'               => $teacher->id,
+                    // ==========================================
+                    // 🌟 1. الحقول الأساسية (نفس الهيكل القديم للموبايل)
+                    // ==========================================
+                    'id'               => optional($profile)->id, // 👈 تم التعديل: هذا هو ID المعلم الحقيقي (وليس الطلب) للحجوزات
+                    'application_id'   => $application->id,
                     'name'             => $name,
                     'photo_url'        => $photoUrl,
-                    'is_online'        => (bool) optional($teacher->profile)->is_online,
-                    'qualification'    => $teacher->qualification,
-                    'country'          => $teacher->origin_country,
-                    'languages'        => $teacher->languages,
-                    'specialties'      => $teacher->specialties,
-                    'experience_years' => $teacher->experience_years,
-                    'about'            => $teacher->ijazas_text,
+                    'is_online'        => (bool) optional($profile)->is_online,
+                    'qualification'    => $application->qualification,
+                    'country'          => $application->origin_country,
+                    'languages'        => $application->languages,
+                    'specialties'      => $application->tracks->map(function ($track) {
+                        return [
+                            'id'   => $track->id,
+                            'name' => $track->name,
+                        ];
+                    }), // 👈 تم الإصلاح: لن تعود null بعد الآن!
+                    'experience_years' => $application->experience_years,
+                    'about'            => $application->ijazas_text,
+
+                    // ==========================================
+                    // 📦 2. كل شيء آخر (إرجاع الكائنات بالكامل كما طلبت)
+                    // ==========================================
+                    'user_data'        => $user,
+                    'profile_data'     => $profile,
+                    'application_data' => $application,
                 ];
             });
 
-            // 4️⃣ إرجاع الاستجابة مع بيانات التصفح كاملة
+            // 4️⃣ إرجاع الاستجابة
             return response()->json([
                 'status'  => true,
                 'message' => 'تم استرجاع المعلمين بنجاح.',
                 'data'    => [
-                    'teachers' => $teachersPaginator->items(), // المصفوفة المنسقة
+                    'teachers'   => $teachersPaginator->items(),
                     'pagination' => [
                         'total'         => $teachersPaginator->total(),
                         'count'         => $teachersPaginator->count(),
@@ -70,14 +87,16 @@ class StudentTeacherController extends Controller
                     ]
                 ]
             ], 200);
+
         } catch (\Throwable $e) {
-            Log::error('فشل في جلب المعلمين مع التصفح', [
+            \Illuminate\Support\Facades\Log::error('فشل في جلب المعلمين مع التصفح', [
                 'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'status'  => false,
-                'message' => 'حدث خطأ أثناء استرجاع المعلمين. حاول مرة أخرى لاحقًا.'
+                'message' => 'حدث خطأ أثناء استرجاع المعلمين.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }

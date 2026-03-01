@@ -21,8 +21,8 @@ class Teacher_application_track extends Model
         return $this->belongsTo(Teacher_application::class, 'teacher_application_id');
     }
     // app/Models/Teacher_application.php
-public function tracks()
-{
-    return $this->belongsToMany(Track::class, 'teacher_application_tracks', 'teacher_application_id', 'track_id');
-}
+    public function tracks()
+    {
+        return $this->belongsToMany(Track::class, 'teacher_application_tracks', 'teacher_application_id', 'track_id');
+    }
 }
