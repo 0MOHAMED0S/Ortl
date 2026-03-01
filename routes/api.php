@@ -43,6 +43,7 @@ Route::prefix('teacher')->group(function () {
         Route::post('/toggle-online', [TeacherAuthController::class, 'toggleOnlineStatus']);
         // المعلم ينضم للمكالمة
         Route::post('/call/{callId}/join', [PrivateCallController::class, 'joinCall']);
+        Route::post('/call/{callId}/end', [PrivateCallController::class, 'endCall']);
 
         Route::prefix('wallet')->group(function () {
             Route::get('/', [TeacherWalletController::class, 'getWallet']); // المحفظة الأساسية

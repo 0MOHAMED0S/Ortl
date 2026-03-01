@@ -33,4 +33,8 @@ class Teacher extends Model
     {
         return $this->hasMany(WithdrawalRequest::class);
     }
+    public function callSessions()
+    {
+        return $this->hasMany(CallSession::class, 'teacher_id');
+    }
 }

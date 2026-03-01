@@ -11,13 +11,17 @@ use Illuminate\Support\Facades\Log;
 
 class RecitationSessionController extends Controller
 {
-    public function create()
+public function create() // يفضل تسميتها index لأنها تعرض الجدول
     {
+        // 1. جلب جميع المعلمين مع بياناتهم لتعبئة الـ Select2 في المودال
         $teachers = Teacher::with(['user', 'tracks'])->get();
+
+        // 2. جلب كل الجلسات مع بيانات المعلم والطلاب الحاضرين
         $sessions = RecitationSession::with(['teacher.user', 'students.student'])
             ->latest()
             ->get();
 
+        // 3. إرجاع الواجهة
         return view('dashboard.sessions', compact('teachers', 'sessions'));
     }
 

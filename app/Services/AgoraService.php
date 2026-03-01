@@ -29,4 +29,17 @@ class AgoraService
 
         return RtcToken::buildTokenWithUid($client, $user);
     }
+    // In AgoraService.php
+    public function kickAllUsers($channelName)
+    {
+        // Agora uses a REST API for "Cloud Recording" or "Rule Management"
+        // To simply stop a call, you can use the "Kick out" RESTful API
+        // Documentation: https://docs.agora.io/en/video-calling/develop/lock-room
+
+        $appId = config('services.agora.app_id');
+        $customerKey = config('services.agora.customer_id');
+        $customerSecret = config('services.agora.customer_certificate');
+
+        // Implementation of Agora REST API to terminate the channel
+    }
 }

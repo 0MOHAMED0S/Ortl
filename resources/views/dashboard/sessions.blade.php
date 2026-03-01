@@ -69,6 +69,7 @@
         .select2-container--default .select2-selection--single { height: auto !important; min-height: 50px !important; padding: 8px 12px !important; border-radius: 12px !important; border: 1.5px solid #e2e8f0 !important; background-color: #f8fafc !important; }
         .select2-container--default .select2-selection--single .select2-selection__arrow { top: 12px !important; right: 10px !important; }
         .select2-track-badge { background: #e0e7ff; color: #4338ca; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-right: 4px; font-weight: bold; }
+        .select2-dropdown { z-index: 100000; } /* لحل مشكلة Select2 خلف الـ Modal */
 
         /* Attendance List */
         .student-list-item { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
@@ -81,6 +82,7 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 @endsection
+
 @section('title')
     <div class="d-flex justify-content-between align-items-center w-100">
         <div>
@@ -88,6 +90,7 @@
         </div>
     </div>
 @endsection
+
 @section('content')
 
 {{-- التنبيهات --}}
@@ -173,21 +176,35 @@
                 <tbody id="sessionsTableBody">
                     @forelse($sessions as $session)
                         @php
-                            $now = now();
-                            $isLive = $now->between($session->start_at, $session->end_at);
-                            $isUpcoming = $now->lt($session->start_at);
+                            // ====== حساب الحالة بشكل دقيق ======
+                            $now = \Carbon\Carbon::now();
+                            $startAt = \Carbon\Carbon::parse($session->start_at);
+                            $endAt = \Carbon\Carbon::parse($session->end_at);
+                            $dbStatus = strtolower($session->status ?? '');
 
-                            $status = 'ended';
-                            if($isLive) $status = 'live';
-                            elseif($isUpcoming) $status = 'upcoming';
+                            // 1. إذا كانت الحالة في قاعدة البيانات "ended" أو الوقت الحالي تخطى وقت الانتهاء -> مكتملة
+                            if ($dbStatus === 'ended' || $now->isAfter($endAt)) {
+                                $currentStatus = 'ended';
+                            }
+                            // 2. إذا كانت الحالة في قاعدة البيانات "live" أو الوقت الحالي يقع بين وقت البدء والانتهاء -> لايف
+                            elseif ($dbStatus === 'live' || $now->between($startAt, $endAt)) {
+                                $currentStatus = 'live';
+                            }
+                            // 3. خلاف ذلك (لم تبدأ بعد) -> قادمة
+                            else {
+                                $currentStatus = 'upcoming';
+                            }
 
-                            // دمج الكلمات ليتم البحث عنها
+                            // حساب المدة
+                            $duration = $session->duration_minutes ?? $startAt->diffInMinutes($endAt);
+
+                            // دمج النصوص للبحث
                             $tName = optional(optional($session->teacher)->user)->name ?? '';
                             $searchString = strtolower($session->title . ' ' . $tName . ' ' . $session->channel_name);
                         @endphp
-                        {{-- تم تغيير data() إلى HTML Attributes لتجنب مشاكل الـ jQuery --}}
-                        <tr class="session-row" data-status="{{ $status }}" data-search="{{ $searchString }}">
 
+                        {{-- تم تغيير data-status ليعتمد على المتغير الجديد --}}
+                        <tr class="session-row" data-status="{{ $currentStatus }}" data-search="{{ $searchString }}">
                             {{-- تفاصيل الجلسة --}}
                             <td class="text-start">
                                 <h6 class="fw-bold text-dark m-0 mb-2" style="font-size: 1rem;">{{ $session->title }}</h6>
@@ -208,11 +225,11 @@
                             {{-- التوقيت --}}
                             <td class="text-start">
                                 <div class="d-flex flex-column">
-                                    <span class="fw-bold text-dark"><i class="fa-regular fa-calendar text-primary me-1"></i> {{ \Carbon\Carbon::parse($session->start_at)->translatedFormat('d M Y') }}</span>
+                                    <span class="fw-bold text-dark"><i class="fa-regular fa-calendar text-primary me-1"></i> {{ $startAt->translatedFormat('d M Y') }}</span>
                                     <div class="mt-1 small">
-                                        <span class="text-muted">من</span> <span class="fw-bold">{{ \Carbon\Carbon::parse($session->start_at)->format('h:i A') }}</span>
-                                        <span class="text-muted mx-1">إلى</span> <span class="fw-bold">{{ \Carbon\Carbon::parse($session->end_at)->format('h:i A') }}</span>
-                                        <span class="badge bg-success bg-opacity-10 text-success ms-2 border border-success border-opacity-25">{{ $session->duration_minutes }} دقيقة</span>
+                                        <span class="text-muted">من</span> <span class="fw-bold">{{ $startAt->format('h:i A') }}</span>
+                                        <span class="text-muted mx-1">إلى</span> <span class="fw-bold">{{ $endAt->format('h:i A') }}</span>
+                                        <span class="badge bg-success bg-opacity-10 text-success ms-2 border border-success border-opacity-25">{{ $duration }} دقيقة</span>
                                     </div>
                                 </div>
                             </td>
@@ -221,10 +238,10 @@
                             <td class="text-center">
                                 <div class="d-flex flex-column align-items-center gap-2">
                                     <span class="badge bg-light text-dark border fs-6 px-3 py-2 shadow-sm">
-                                        <i class="fa-solid fa-users text-primary me-2"></i> {{ $session->students->count() }} / {{ $session->max_participants }}
+                                        <i class="fa-solid fa-users text-primary me-2"></i> {{ $session->students ? $session->students->count() : 0 }} / {{ $session->max_participants }}
                                     </span>
-                                    @if($session->students->count() > 0)
-                                        <button class="btn btn-link btn-sm text-decoration-none fw-bold p-0" data-bs-toggle="modal" data-bs-target="#attendeesModal{{ $session->id }}">عرض السجل</button>
+                                    @if(isset($session->students) && $session->students->count() > 0)
+                                        <button class="btn btn-link btn-sm text-decoration-none fw-bold p-0" data-bs-toggle="modal" data-bs-target="#attendeesModal_{{ $session->id }}">عرض السجل</button>
                                     @else
                                         <span class="text-muted small">لا يوجد حضور</span>
                                     @endif
@@ -233,9 +250,9 @@
 
                             {{-- الحالة --}}
                             <td class="text-center">
-                                @if($status == 'live')
+                                @if($currentStatus == 'live')
                                     <span class="badge bg-danger-subtle text-danger badge-status border border-danger border-opacity-25"><span class="status-live-pulse"></span> جاري الآن</span>
-                                @elseif($status == 'upcoming')
+                                @elseif($currentStatus == 'upcoming')
                                     <span class="badge bg-primary-subtle text-primary badge-status border border-primary border-opacity-25"><i class="fa-regular fa-clock me-1"></i> قادمة</span>
                                 @else
                                     <span class="badge bg-secondary-subtle text-secondary badge-status border border-secondary border-opacity-25"><i class="fa-solid fa-check-double me-1"></i> مكتملة</span>
@@ -248,10 +265,10 @@
                                     <button class="action-btn copy" onclick="copyLink('{{ $session->channel_name }}')" title="نسخ رابط الجلسة">
                                         <i class="fa-solid fa-link"></i>
                                     </button>
-                                    <button class="action-btn" data-bs-toggle="modal" data-bs-target="#editSessionModal{{ $session->id }}" title="تعديل">
+                                    <button class="action-btn" data-bs-toggle="modal" data-bs-target="#editSessionModal_{{ $session->id }}" title="تعديل">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                     </button>
-                                    <button class="action-btn delete" data-bs-toggle="modal" data-bs-target="#deleteSessionModal{{ $session->id }}" title="حذف">
+                                    <button class="action-btn delete" data-bs-toggle="modal" data-bs-target="#deleteSessionModal_{{ $session->id }}" title="حذف">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 </div>
@@ -281,7 +298,7 @@
 @endsection
 
 {{-- ========================================== --}}
-{{-- 3. Modals Section (مفصول عن الجدول لتجنب الأخطاء) --}}
+{{-- 3. Modals Section --}}
 {{-- ========================================== --}}
 @section('modals')
 
@@ -303,7 +320,7 @@
 
                         <div class="col-md-8">
                             <label class="form-label fw-bold small">اختيار المعلم (ابحث بالاسم أو المسار) <span class="text-danger">*</span></label>
-                            <select name="teacher_id" class="form-select select2-teacher-create" style="width: 100%" required>
+                            <select name="teacher_id" id="teacherSelectCreate" class="form-select select2-teacher-create" style="width: 100%" required>
                                 <option></option>
                                 @foreach($teachers as $teacher)
                                     @php
@@ -349,11 +366,11 @@
         </div>
     </div>
 
-    {{-- حلقة تكرار المودالات (تعديل، حذف، سجل حضور) لكل جلسة --}}
     @foreach($sessions as $session)
+        {{-- تم تغيير الـ ID بإضافة _ لتجنب التداخل --}}
 
         {{-- Modal: View Attendees --}}
-        <div class="modal fade" id="attendeesModal{{ $session->id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="attendeesModal_{{ $session->id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content modal-content-pro">
                     <div class="modal-header border-bottom p-4">
@@ -364,30 +381,32 @@
                         <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body p-0 custom-scrollbar">
-                        @forelse($session->students as $attendee)
-                            <div class="student-list-item">
-                                <div class="d-flex align-items-center gap-3">
-                                    <img src="https://ui-avatars.com/api/?name={{ urlencode(optional($attendee->student)->name ?? 'طالب') }}&background=random" class="rounded-circle shadow-sm" width="45" height="45">
-                                    <div>
-                                        <h6 class="m-0 fw-bold text-dark">{{ optional($attendee->student)->name ?? 'طالب محذوف' }}</h6>
-                                        <small class="text-muted">{{ optional($attendee->student)->email ?? '' }}</small>
+                        @if(isset($session->students))
+                            @forelse($session->students as $attendee)
+                                <div class="student-list-item">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <img src="https://ui-avatars.com/api/?name={{ urlencode(optional($attendee->student)->name ?? 'طالب') }}&background=random" class="rounded-circle shadow-sm" width="45" height="45">
+                                        <div>
+                                            <h6 class="m-0 fw-bold text-dark">{{ optional($attendee->student)->name ?? 'طالب محذوف' }}</h6>
+                                            <small class="text-muted">{{ optional($attendee->student)->email ?? '' }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="text-end" style="background: #f8fafc; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                        <small class="d-block text-success fw-bold mb-1"><i class="fa-solid fa-arrow-right-to-bracket"></i> دخول: {{ optional($attendee->joined_at)->format('h:i A') ?? '-' }}</small>
+                                        @if($attendee->left_at)
+                                            <small class="d-block text-danger fw-bold"><i class="fa-solid fa-arrow-right-from-bracket"></i> خروج: {{ \Carbon\Carbon::parse($attendee->left_at)->format('h:i A') }}</small>
+                                        @else
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 mt-1">متواجد حالياً</span>
+                                        @endif
                                     </div>
                                 </div>
-                                <div class="text-end" style="background: #f8fafc; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                                    <small class="d-block text-success fw-bold mb-1"><i class="fa-solid fa-arrow-right-to-bracket"></i> دخول: {{ optional($attendee->joined_at)->format('h:i A') ?? '-' }}</small>
-                                    @if($attendee->left_at)
-                                        <small class="d-block text-danger fw-bold"><i class="fa-solid fa-arrow-right-from-bracket"></i> خروج: {{ $attendee->left_at->format('h:i A') }}</small>
-                                    @else
-                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 mt-1">متواجد حالياً</span>
-                                    @endif
+                            @empty
+                                <div class="p-5 text-center text-muted">
+                                    <i class="fa-solid fa-users-slash fs-1 mb-3 opacity-25"></i>
+                                    <p class="m-0">لا يوجد حضور مسجل حتى الآن.</p>
                                 </div>
-                            </div>
-                        @empty
-                            <div class="p-5 text-center text-muted">
-                                <i class="fa-solid fa-users-slash fs-1 mb-3 opacity-25"></i>
-                                <p class="m-0">لا يوجد حضور مسجل حتى الآن.</p>
-                            </div>
-                        @endforelse
+                            @endforelse
+                        @endif
                     </div>
                     <div class="modal-footer border-0 p-3 justify-content-center">
                         <button type="button" class="btn btn-light rounded-pill px-5 fw-bold border shadow-sm" data-bs-dismiss="modal">إغلاق</button>
@@ -397,7 +416,7 @@
         </div>
 
         {{-- Modal: Edit Session --}}
-        <div class="modal fade" id="editSessionModal{{ $session->id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="editSessionModal_{{ $session->id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
                 <form action="{{ route('admin.recitations.update', $session->id) }}" method="POST" class="modal-content modal-content-pro">
                     @csrf @method('PUT')
@@ -461,7 +480,7 @@
         </div>
 
         {{-- Modal: Delete Session --}}
-        <div class="modal fade" id="deleteSessionModal{{ $session->id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="deleteSessionModal_{{ $session->id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-sm">
                 <div class="modal-content modal-content-pro text-center">
                     <div class="modal-body p-4">
@@ -496,7 +515,7 @@
             $('.custom-toast').fadeOut('slow');
         }, 5000);
 
-        // ✅ حل جذري لمشكلة عدم القدرة على الكتابة داخل بحث Select2 في الـ Modals
+        // حل مشكلة تركيز Select2 داخل Modals Bootstrap 5
         $.fn.modal.Constructor.prototype.enforceFocus = function() {};
 
         // تنسيق ظهور المعلم بـ Select2
@@ -529,23 +548,24 @@
             );
         };
 
-        // تفعيل Select2 لمودال الإضافة
-        $('.select2-teacher-create').select2({
-            placeholder: "ابحث عن معلم أو باسم المسار...",
-            templateResult: formatTeacher,
-            templateSelection: formatTeacher,
-            dropdownParent: $('#createSessionModal'),
-            width: '100%'
-        });
-
-        // تفعيل Select2 لمودالات التعديل
-        $('.select2-teacher-edit').each(function() {
-            $(this).select2({
+        // تفعيل Select2 لمودال الإضافة مع تحديد الـ dropdownParent لكي لا تختفي القائمة
+        $('#createSessionModal').on('shown.bs.modal', function () {
+            $('.select2-teacher-create').select2({
                 placeholder: "ابحث عن معلم أو باسم المسار...",
                 templateResult: formatTeacher,
                 templateSelection: formatTeacher,
-                dropdownParent: $(this).closest('.modal'),
-                width: '100%'
+                dropdownParent: $('#createSessionModal')
+            });
+        });
+
+        // تفعيل Select2 لمودالات التعديل عند فتحها
+        $('[id^=editSessionModal_]').on('shown.bs.modal', function () {
+            var modalId = $(this).attr('id');
+            $(this).find('.select2-teacher-edit').select2({
+                placeholder: "ابحث عن معلم أو باسم المسار...",
+                templateResult: formatTeacher,
+                templateSelection: formatTeacher,
+                dropdownParent: $('#' + modalId)
             });
         });
 
@@ -559,7 +579,6 @@
             let visibleCount = 0;
 
             $('.session-row').each(function() {
-                // الاعتماد على .attr() بدلاً من .data() يمنع انهيار السكربت عند وجود أرقام صرفة
                 let rowStatus = String($(this).attr('data-status') || '').toLowerCase();
                 let rowText = String($(this).attr('data-search') || '').toLowerCase();
 

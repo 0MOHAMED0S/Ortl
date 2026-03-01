@@ -42,5 +42,14 @@ return [
     'app_id' => env('AGORA_APP_ID'),
     'app_certificate' => env('AGORA_APP_CERTIFICATE'),
 ],
-
+'pusher' => [
+    'driver' => 'pusher',
+    'key' => env('PUSHER_APP_KEY'),
+    'secret' => env('PUSHER_APP_SECRET'),
+    'app_id' => env('PUSHER_APP_ID'),
+    'options' => [
+        'cluster' => env('PUSHER_APP_CLUSTER'),
+        'use_tls' => true, // ✅ تأكد من أن هذه true
+    ],
+],
 ];

@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Api\Student;
 use App\Http\Controllers\Controller;
 use App\Models\CallSession;
 use App\Models\Teacher;
-use App\Models\UserPackage; // تم استدعاء مودل الباقات
+use App\Models\UserPackage;
 use App\Services\AgoraService;
+use App\Events\IncomingPrivateCall; // ✅ استدعاء حدث الرنين
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -31,10 +32,10 @@ class PrivateCallController extends Controller
 
         $user = auth()->user();
 
-        // 1️⃣ حساب إجمالي الدقائق المتوفرة للطالب من جميع الباقات النشطة والصالحة
+        // حساب الدقائق المتاحة من الباقات
         $totalAvailableMinutes = UserPackage::where('user_id', $user->id)
             ->where('status', 'active')
-            ->where('expires_at', '>', now()) // التأكد أن الباقة لم تنتهِ صلاحيتها
+            ->where('expires_at', '>', now())
             ->sum('remaining_minutes');
 
         if ($totalAvailableMinutes <= 0) {
@@ -47,7 +48,6 @@ class PrivateCallController extends Controller
         $teacher = Teacher::findOrFail($request->teacher_id);
         $channelName = 'private_call_' . $user->id . '_' . $teacher->id . '_' . time();
 
-        // 2️⃣ إنشاء جلسة المكالمة
         $call = CallSession::create([
             'student_id'   => $user->id,
             'teacher_id'   => $teacher->id,
@@ -56,18 +56,26 @@ class PrivateCallController extends Controller
             'started_at'   => now(),
         ]);
 
-        // 3️⃣ توليد توكن Agora
         $token = $this->agoraService->generateToken($channelName, $user->id, 'publisher');
+
+        // ==========================================
+        // 🚀 إرسال إشارة الرنين إلى هاتف المعلم (Pusher)
+        // ==========================================
+        $callData = [
+            'call_id'      => $call->id,
+            'channel_name' => $channelName,
+            'student_name' => $user->name,
+        ];
+        broadcast(new IncomingPrivateCall($teacher->id, $callData));
 
         return response()->json([
             'status' => true,
-            'message' => 'تم بدء المكالمة.',
+            'message' => 'تم بدء المكالمة وجاري الاتصال بالمعلم.',
             'data' => [
-                'call_id'      => $call->id,
-                'channel_name' => $channelName,
-                'agora_token'  => $token,
-                'uid'          => $user->id,
-                // ✅ نرسل الحد الأقصى للدقائق للموبايل لكي يقوم بإنهاء المكالمة إجبارياً إذا انتهى الرصيد
+                'call_id'             => $call->id,
+                'channel_name'        => $channelName,
+                'agora_token'         => $token,
+                'uid'                 => $user->id,
                 'max_minutes_allowed' => (int) $totalAvailableMinutes
             ]
         ]);
@@ -113,12 +121,9 @@ class PrivateCallController extends Controller
         }
 
         $now = now();
-
-        // 1️⃣ حساب مدة المكالمة وتقريبها لأقرب دقيقة أعلى (ceil)
         $durationSeconds = $call->started_at->diffInSeconds($now);
         $durationMinutes = (int) ceil($durationSeconds / 60);
 
-        // 2️⃣ جلب باقات الطالب النشطة مرتبة حسب تاريخ الانتهاء (الأقرب انتهاءً تُستهلك أولاً)
         $activePackages = UserPackage::where('user_id', $call->student_id)
             ->where('status', 'active')
             ->where('expires_at', '>', $now)
@@ -127,55 +132,41 @@ class PrivateCallController extends Controller
             ->get();
 
         $totalAvailableMinutes = $activePackages->sum('remaining_minutes');
-
-        // أقصى ما يمكن خصمه هو ما يملكه الطالب فعلياً (حماية)
         $actualDeduction = min($durationMinutes, $totalAvailableMinutes);
 
         DB::beginTransaction();
         try {
-            // تحديث حالة المكالمة
             $call->update([
                 'ended_at'         => $now,
                 'duration_minutes' => $actualDeduction,
                 'status'           => 'ended'
             ]);
 
-            // 3️⃣ الخصم المتدرج من الباقات
             if ($actualDeduction > 0) {
                 $minutesLeftToDeduct = $actualDeduction;
 
                 foreach ($activePackages as $package) {
-                    // إذا انتهينا من الخصم، نخرج من الحلقة
-                    if ($minutesLeftToDeduct <= 0) {
-                        break;
-                    }
+                    if ($minutesLeftToDeduct <= 0) break;
 
-                    // نخصم المتاح في هذه الباقة أو ما تبقى من وقت المكالمة (أيهما أقل)
                     $deductFromThisPackage = min($package->remaining_minutes, $minutesLeftToDeduct);
-
                     $package->remaining_minutes -= $deductFromThisPackage;
 
-                    // إذا نفدت الباقة بالكامل نغير حالتها
                     if ($package->remaining_minutes == 0) {
-                        $package->status = 'expired'; // أو 'consumed' حسب ما تفضله في مشروعك
+                        $package->status = 'expired';
                     }
 
                     $package->save();
-
-                    // تقليل المطلوب خصمه للفة القادمة
                     $minutesLeftToDeduct -= $deductFromThisPackage;
                 }
 
-                // 4️⃣ إضافة الدقائق لمحفظة المعلم
                 $teacher = Teacher::find($call->teacher_id);
-                if($teacher) {
+                if ($teacher) {
                     $teacher->increment('minutes', $actualDeduction);
                 }
             }
 
             DB::commit();
 
-            // حساب الرصيد المتبقي الإجمالي للطالب لردّه للموبايل
             $studentRemainingMinutes = UserPackage::where('user_id', $call->student_id)
                 ->where('status', 'active')
                 ->where('expires_at', '>', now())
@@ -189,7 +180,6 @@ class PrivateCallController extends Controller
                     'student_remaining_minutes' => (int) $studentRemainingMinutes
                 ]
             ]);
-
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('End Call Error: ' . $e->getMessage());

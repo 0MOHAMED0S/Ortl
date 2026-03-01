@@ -11,4 +11,14 @@ class CallSession extends Model
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
     ];
+    public function teacher()
+    {
+        return $this->belongsTo(Teacher::class, 'teacher_id');
+    }
+
+    // ✅ يجب إضافة علاقة الطالب أيضاً لأنك ستحتاجها
+    public function student()
+    {
+        return $this->belongsTo(User::class, 'student_id');
+    }
 }

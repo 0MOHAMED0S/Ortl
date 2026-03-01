@@ -105,4 +105,8 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    public function callSessions()
+    {
+        return $this->hasMany(CallSession::class, 'student_id');
+    }
 }
