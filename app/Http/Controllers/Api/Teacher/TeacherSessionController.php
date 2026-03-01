@@ -284,41 +284,51 @@ public function getAllSessionsForStudent(Request $request)
         try {
             $perPage = $request->query('per_page', 10);
 
+            // 1️⃣ جلب الجلسات المباشرة والقادمة (المجدولة) التي لم ينتهِ وقتها بعد
             $sessions = RecitationSession::with(['teacher.user'])
-                ->whereIn('status', ['live', 'upcoming', 'scheduled']) // تم إضافة scheduled
-                ->where('end_at', '>', now())
-                ->orderBy('start_at', 'asc')
+                ->whereIn('status', ['live', 'upcoming', 'scheduled'])
+                ->where('end_at', '>', now()) // استبعاد الجلسات التي انتهى وقتها الزمني
+                ->orderBy('start_at', 'asc') // الترتيب تصاعدياً (الأقرب أولاً)
                 ->paginate($perPage);
 
+            // 2️⃣ تعديل شكل البيانات لتكون جاهزة لتطبيق الموبايل
             $sessions->getCollection()->transform(function ($session) {
 
+                // الطالب يقدر ينضم إذا كانت الحصة "لايف"
+                // أو إذا اقترب وقتها (قبل 10 دقائق من البداية وحتى النهاية)
                 $isJoinable = $session->status === 'live' ||
                     (now()->between(
-                        $session->start_at->subMinutes(10),
+                        $session->start_at->copy()->subMinutes(10), // استخدام copy() ضروري لمنع تغيير الوقت الأصلي للحصة
                         $session->end_at
                     ));
 
+                $teacherName = $session->teacher->user->name ?? 'معلم';
+
                 return [
-                    'id' => $session->id,
-                    'title' => $session->title,
-                    'teacher_name' => $session->teacher->user->name ?? 'N/A',
-                    'status' => $session->status,
-                    'start_at' => $session->start_at,
-                    'end_at' => $session->end_at,
-                    'is_joinable' => $isJoinable,
+                    'id'               => $session->id,
+                    'title'            => $session->title,
+                    'teacher_name'     => $teacherName,
+                    // إضافة صورة المعلم لتطبيق الموبايل
+                    'teacher_avatar'   => 'https://ui-avatars.com/api/?name='.urlencode($teacherName).'&background=0d9488&color=fff',
+                    'status'           => $session->status,
+                    'start_at'         => $session->start_at->format('Y-m-d H:i:s'),
+                    'end_at'           => $session->end_at->format('Y-m-d H:i:s'),
+                    'duration_minutes' => $session->duration_minutes ?? $session->start_at->diffInMinutes($session->end_at),
+                    'is_joinable'      => $isJoinable, // true or false (تستخدم لفتح/إغلاق زر الانضمام في الموبايل)
                 ];
             });
 
             return response()->json([
-                'status' => true,
-                'message' => 'تم جلب الحصص بنجاح.',
-                'data' => $sessions
+                'status'  => true,
+                'message' => 'تم جلب الحصص المباشرة والقادمة بنجاح.',
+                'data'    => $sessions
             ]);
+
         } catch (\Throwable $e) {
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'فشل جلب الحصص.',
-                'error' => config('app.debug') ? $e->getMessage() : null
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
