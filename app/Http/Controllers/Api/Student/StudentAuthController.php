@@ -100,7 +100,7 @@ class StudentAuthController extends Controller
     }
 
 
-public function completeRegistration(CompleteRegistrationRequest $request)
+    public function completeRegistration(CompleteRegistrationRequest $request)
     {
         DB::beginTransaction();
 
@@ -189,7 +189,7 @@ public function completeRegistration(CompleteRegistrationRequest $request)
     }
 
 
-public function login(LoginRequest $request)
+    public function login(LoginRequest $request)
     {
         try {
             $user = User::where('email', $request->email)->first();
