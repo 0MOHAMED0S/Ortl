@@ -30,7 +30,7 @@ class CompleteRegistrationRequest extends FormRequest
             'gender' => ['required', 'in:male,female'],
 
             // New Profile Photo Field
-            'profile_photo_path' => ['required', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'profile_photo_path' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ];
     }
 

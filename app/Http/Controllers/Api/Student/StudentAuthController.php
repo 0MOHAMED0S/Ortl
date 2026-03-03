@@ -100,7 +100,7 @@ class StudentAuthController extends Controller
     }
 
 
-    public function completeRegistration(CompleteRegistrationRequest $request)
+public function completeRegistration(CompleteRegistrationRequest $request)
     {
         DB::beginTransaction();
 
@@ -147,6 +147,9 @@ class StudentAuthController extends Controller
                 'profile_photo_path'  => $photoPath,
             ]);
 
+            // 🌟 إضافة الرابط الكامل للصورة للاستجابة
+            $student->profile_photo_url = $photoPath ? asset('storage/' . $photoPath) : null;
+
             // 3️⃣ حذف OTP لمنع إعادة الاستخدام
             $otpRecord->delete();
 
@@ -186,7 +189,7 @@ class StudentAuthController extends Controller
     }
 
 
-    public function login(LoginRequest $request)
+public function login(LoginRequest $request)
     {
         try {
             $user = User::where('email', $request->email)->first();
@@ -210,12 +213,20 @@ class StudentAuthController extends Controller
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
+            // 🌟 Prepare the profile and add the full photo URL
+            $profile = $user->studentProfile;
+            if ($profile) {
+                $profile->profile_photo_url = $profile->profile_photo_path
+                    ? asset('storage/' . $profile->profile_photo_path)
+                    : null;
+            }
+
             return response()->json([
                 'status'  => true,
                 'message' => 'تم تسجيل الدخول بنجاح.',
                 'data' => [
                     'user'    => $user,
-                    'profile' => $user->studentProfile,
+                    'profile' => $profile,
                     'token'   => $token,
                 ]
             ], 200);
@@ -321,7 +332,7 @@ class StudentAuthController extends Controller
         }
     }
 
-public function getProfile(Request $request)
+    public function getProfile(Request $request)
     {
         try {
             $user = $request->user()->load(['student.country']);
@@ -379,7 +390,6 @@ public function getProfile(Request $request)
                 'status' => true,
                 'data'   => $user
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Get Student Profile Error: ' . $e->getMessage());
             return response()->json([
