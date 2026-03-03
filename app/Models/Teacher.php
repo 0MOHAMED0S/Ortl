@@ -37,4 +37,17 @@ class Teacher extends Model
     {
         return $this->hasMany(CallSession::class, 'teacher_id');
     }
+    public function ratings()
+{
+    return $this->hasMany(Rating::class);
+}
+
+public function getAverageRatingAttribute()
+{
+    return round($this->ratings()->avg('rating'), 1) ?: 0;
+}
+
+// Add this to your $appends array to include it in API responses automatically
+protected $appends = ['average_rating'];
+
 }

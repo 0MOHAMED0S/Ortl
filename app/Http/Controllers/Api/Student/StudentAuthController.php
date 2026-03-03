@@ -100,7 +100,7 @@ class StudentAuthController extends Controller
     }
 
 
-public function completeRegistration(CompleteRegistrationRequest $request)
+    public function completeRegistration(CompleteRegistrationRequest $request)
     {
         DB::beginTransaction();
 
@@ -164,7 +164,6 @@ public function completeRegistration(CompleteRegistrationRequest $request)
                     'token'   => $token,
                 ]
             ], 201);
-
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -256,17 +255,30 @@ public function completeRegistration(CompleteRegistrationRequest $request)
                 $user->update(['name' => $request->name]);
             }
 
-            // 🔹 تجهيز بيانات الطالب للتحديث
+            // 🔹 تجهيز بيانات الطالب للتحديث (بما في ذلك التفضيلات الجديدة)
             $studentData = $request->only([
+                // البيانات الأساسية
                 'phone',
                 'address',
                 'qualification',
                 'professional_status',
                 'country_id',
-                'gender'
+                'gender',
+
+                // 📖 تفضيلاتي التعليمية
+                'age_group',
+                'reading_level',
+                'preferred_teacher_language',
+                'reading_track',
+                'memorized_amount',
+
+                // ⏱️ تفضيلات الجلسة
+                'plan_name',
+                'reading_type',
+                'teacher_response_speed'
             ]);
 
-            // 🔹 معالجة الصورة الشخصية (باستخدام الاسم الجديد profile_photo_path)
+            // 🔹 معالجة الصورة الشخصية (باستخدام الاسم profile_photo_path)
             if ($request->hasFile('profile_photo_path')) {
                 // حذف الصورة القديمة من السيرفر لتوفير المساحة
                 if ($student->profile_photo_path) {
@@ -309,24 +321,67 @@ public function completeRegistration(CompleteRegistrationRequest $request)
         }
     }
 
-    public function getProfile(Request $request)
+public function getProfile(Request $request)
     {
         try {
-            // تحميل الطالب مع الدولة المرتبطة به في استعلام واحد
             $user = $request->user()->load(['student.country']);
-
+            $userId = $user->id;
             if ($user->student) {
-                // إضافة رابط الصورة كاملًا
                 $user->student->profile_photo_url = $user->student->profile_photo_path
                     ? asset('storage/' . $user->student->profile_photo_path)
                     : null;
             }
+            $callsData = DB::table('call_sessions')
+                ->where('student_id', $userId)
+                ->where('status', 'ended')
+                ->selectRaw('COUNT(id) as total_calls, SUM(duration_minutes) as total_minutes')
+                ->first();
+
+            $callsCount = $callsData->total_calls ?? 0;
+            $totalMinutes = (int) ($callsData->total_minutes ?? 0);
+
+            // حساب الساعات والدقائق
+            $learningHours = floor($totalMinutes / 60);
+            $remainingMinutes = $totalMinutes % 60;
+
+            // ب. جلب عدد الحجوزات (المواعيد)
+            $slotsCount = DB::table('slot_bookings')
+                ->where('user_id', $userId)
+                ->where('status', '!=', 'cancelled')
+                ->count();
+
+            // ج. جلب عدد الجلسات (محمية بـ try-catch في حال لم تنشئ الجدول بعد)
+            $sessionsCount = 0;
+            try {
+                $sessionsCount = DB::table('sessions')
+                    ->where('student_id', $userId)
+                    ->count();
+            } catch (\Exception $e) {
+                $sessionsCount = 0;
+            }
+
+            // ==========================================
+            // إرفاق الإحصائيات مع بيانات المستخدم
+            // ==========================================
+            $user->statistics = [
+                'calls_count'    => $callsCount,
+                'slots_count'    => $slotsCount,
+                'sessions_count' => $sessionsCount,
+                'learning_stats' => [
+                    'total_minutes' => $totalMinutes,
+                    'hours'         => $learningHours,
+                    'minutes'       => $remainingMinutes,
+                    'formatted'     => "{$learningHours} ساعة و {$remainingMinutes} دقيقة"
+                ]
+            ];
 
             return response()->json([
                 'status' => true,
                 'data'   => $user
             ], 200);
+
         } catch (\Throwable $e) {
+            Log::error('Get Student Profile Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء جلب البيانات.',

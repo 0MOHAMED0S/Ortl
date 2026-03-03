@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('package_id')->constrained();
-            $table->integer('remaining_minutes');
-            $table->timestamp('expires_at');
+            $table->decimal('remaining_minutes', 8, 2);
+            $table->timestamp('expires_at')->nullable();
             $table->enum('status', ['active', 'expired', 'exhausted'])->default('active');
             $table->boolean('is_gift')->default(false);
             $table->timestamps();

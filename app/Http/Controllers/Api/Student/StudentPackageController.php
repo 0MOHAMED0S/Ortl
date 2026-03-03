@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 
 class StudentPackageController extends Controller
 {
-    public function index(Request $request): JsonResponse
+public function index(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -32,33 +32,62 @@ class StudentPackageController extends Controller
             $packages = Package::where('status', 'active')->paginate($perPage);
 
             $packages->getCollection()->transform(function ($package) use ($country, $rate) {
-                $localPrice = $package->price * $rate;
+                // 1️⃣ استخراج السعر الأصلي ونسبة الخصم
+                $discountPercent = (float) ($package->discount ?? 0);
+                $originalPriceUsd = (float) $package->price;
+
+                // 2️⃣ حساب السعر النهائي بالدولار (بعد الخصم)
+                $finalPriceUsd = $discountPercent > 0
+                    ? $originalPriceUsd - ($originalPriceUsd * ($discountPercent / 100))
+                    : $originalPriceUsd;
+
+                // 3️⃣ تحويل الأسعار للعملة المحلية
+                $localOriginalPrice = $originalPriceUsd * $rate;
+                $localFinalPrice = $finalPriceUsd * $rate;
 
                 return [
-                    'id' => $package->id,
-                    'name' => $package->name,
-                    'description' => $package->description,
-                    'base_minutes' => $package->base_minutes,
+                    'id'            => $package->id,
+                    'name'          => $package->name,
+                    'description'   => $package->description,
+                    'base_minutes'  => $package->base_minutes,
                     'bonus_minutes' => $package->bonus_minutes,
                     'validity_days' => $package->validity_days,
-                    'price_usd' => (int) $package->price,
-                    'local_price' => (int) round($localPrice),
-                    'currency_code' => $country->currency_code,
+
+                    // 🌟 بيانات الخصم (Discount Info)
+                    'discount_percent'     => $discountPercent,
+                    'has_discount'         => $discountPercent > 0, // لتسهيل إظهار/إخفاء السعر القديم في الموبايل
+
+                    // 💵 الأسعار بالعملة المحلية (كأرقام للاستخدام البرمجي)
+                    'local_original_price' => (int) round($localOriginalPrice),
+                    'local_final_price'    => (int) round($localFinalPrice),
+
+                    // 💵 الأسعار بالدولار (للاحتياط)
+                    'original_price_usd'   => round($originalPriceUsd, 2),
+                    'final_price_usd'      => round($finalPriceUsd, 2),
+
+                    'currency_code'   => $country->currency_code,
                     'currency_symbol' => $country->currency_symbol,
-                    'display_price' => sprintf(
+
+                    // 🎨 الأسعار المنسقة الجاهزة للعرض في الموبايل
+                    'display_original_price' => sprintf(
                         '%s %s',
                         $country->currency_symbol,
-                        number_format($localPrice, 0)
+                        number_format($localOriginalPrice, 0)
+                    ),
+                    'display_final_price' => sprintf(
+                        '%s %s',
+                        $country->currency_symbol,
+                        number_format($localFinalPrice, 0)
                     ),
                 ];
             });
 
             return response()->json([
-                'status' => true,
+                'status'  => true,
                 'message' => 'تم استرجاع الباقات بنجاح.',
                 'user_country' => [
-                    'name' => $country->name,
-                    'currency' => $country->currency_code,
+                    'name'        => $country->name,
+                    'currency'    => $country->currency_code,
                     'rate_to_usd' => $rate,
                 ],
                 'packages' => $packages
@@ -66,28 +95,29 @@ class StudentPackageController extends Controller
         } catch (\Throwable $e) {
             Log::error('Get Packages Pagination Error', [
                 'user_id' => optional($request->user())->id,
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage()
             ]);
 
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'فشل في تحميل الباقات.'
             ], 500);
         }
     }
-    public function userPackages(Request $request): JsonResponse
+public function userPackages(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
             $user->load('country');
             $country = $user->country;
+            $rate = $country?->rate_to_usd ?? 1;
 
             $query = $user->packages()->with('package')->latest();
             $allUserPackages = $query->get();
 
             $totalRemainingMinutes = $allUserPackages->sum('remaining_minutes');
             $totalOriginalMinutes = $allUserPackages->sum(function ($up) {
-                return $up->package->base_minutes + $up->package->bonus_minutes;
+                return ($up->package->base_minutes ?? 0) + ($up->package->bonus_minutes ?? 0);
             });
             $totalActiveRemainingMinutes = $allUserPackages
                 ->where('status', 'active')
@@ -96,49 +126,84 @@ class StudentPackageController extends Controller
             $perPage = $request->query('per_page', 10);
             $paginatedPackages = $query->paginate($perPage);
 
-            $paginatedPackages->getCollection()->transform(function ($userPackage) use ($country) {
+            $paginatedPackages->getCollection()->transform(function ($userPackage) use ($country, $rate) {
                 $package = $userPackage->package;
-                $localPrice = $country ? $package->price * $country->rate_to_usd : $package->price;
+
+                // 1️⃣ حساب الخصم والأسعار بالدولار
+                $discountPercent = (float) ($package->discount ?? 0);
+                $originalPriceUsd = (float) $package->price;
+                $finalPriceUsd = $discountPercent > 0
+                    ? $originalPriceUsd - ($originalPriceUsd * ($discountPercent / 100))
+                    : $originalPriceUsd;
+
+                // 2️⃣ تحويل الأسعار للعملة المحلية
+                $localOriginalPrice = $originalPriceUsd * $rate;
+                $localFinalPrice = $finalPriceUsd * $rate;
+                $currencySymbol = $country?->currency_symbol ?? '$';
+
+                // 3️⃣ تنسيق تاريخ الشراء
+                $purchaseDate = $userPackage->created_at ? \Carbon\Carbon::parse($userPackage->created_at) : null;
 
                 return [
-                    'id' => $userPackage->id,
+                    'id'                => $userPackage->id,
                     'remaining_minutes' => $userPackage->remaining_minutes,
-                    'expires_at' => $userPackage->expires_at,
-                    'status' => $userPackage->status,
+                    'expires_at'        => $userPackage->expires_at,
+                    'status'            => $userPackage->status,
+
+                    // 📅 تواريخ الشراء الجاهزة للموبايل
+                    'purchase_date'     => $purchaseDate ? $purchaseDate->format('Y-m-d') : null,
+                    'purchase_time'     => $purchaseDate ? $purchaseDate->format('h:i A') : null,
+                    'purchase_datetime' => $purchaseDate ? $purchaseDate->format('Y-m-d h:i A') : null,
+
                     'package' => [
-                        'id' => $package->id,
-                        'name' => $package->name,
-                        'price_usd' => $package->price,
-                        'price_local' => round($localPrice, 2),
-                        'currency' => $country?->currency_code ?? 'USD',
-                        'currency_symbol' => $country?->currency_symbol ?? '$',
-                        'base_minutes' => $package->base_minutes,
+                        'id'            => $package->id,
+                        'name'          => $package->name,
+                        'base_minutes'  => $package->base_minutes,
                         'bonus_minutes' => $package->bonus_minutes,
                         'validity_days' => $package->validity_days,
-                        'description' => $package->description,
+                        'description'   => $package->description,
+
+                        // 🌟 بيانات الخصم
+                        'discount_percent'     => $discountPercent,
+                        'has_discount'         => $discountPercent > 0,
+
+                        // 💵 الأسعار بالعملة المحلية
+                        'local_original_price' => (int) round($localOriginalPrice),
+                        'local_final_price'    => (int) round($localFinalPrice),
+
+                        // 💵 الأسعار بالدولار (للاحتياط)
+                        'original_price_usd'   => round($originalPriceUsd, 2),
+                        'final_price_usd'      => round($finalPriceUsd, 2),
+
+                        'currency'        => $country?->currency_code ?? 'USD',
+                        'currency_symbol' => $currencySymbol,
+
+                        // 🎨 الأسعار المنسقة الجاهزة للعرض
+                        'display_original_price' => sprintf('%s %s', $currencySymbol, number_format($localOriginalPrice, 0)),
+                        'display_final_price'    => sprintf('%s %s', $currencySymbol, number_format($localFinalPrice, 0)),
                     ]
                 ];
             });
 
             return response()->json([
-                'status' => true,
+                'status'  => true,
                 'message' => 'تم استرجاع باقات المستخدم بنجاح.',
                 'country' => $country?->name ?? 'Default (USD)',
                 'summary' => [
-                    'total_original_minutes' => $totalOriginalMinutes,
-                    'total_remaining_minutes' => $totalRemainingMinutes,
+                    'total_original_minutes'         => $totalOriginalMinutes,
+                    'total_remaining_minutes'        => $totalRemainingMinutes,
                     'total_active_remaining_minutes' => $totalActiveRemainingMinutes,
                 ],
                 'packages' => $paginatedPackages
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('User Packages Pagination Error', [
+            \Illuminate\Support\Facades\Log::error('User Packages Pagination Error', [
                 'user_id' => auth()->id(),
                 'message' => $e->getMessage(),
             ]);
 
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'حدث خطأ أثناء جلب باقات المستخدم.'
             ], 500);
         }

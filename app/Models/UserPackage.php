@@ -24,9 +24,4 @@ class UserPackage extends Model
     {
         return $this->belongsTo(Package::class);
     }
-    // In UserPackage.php
-// public function package()
-// {
-//     return $this->belongsTo(Package::class, 'package_id');
-// }
 }

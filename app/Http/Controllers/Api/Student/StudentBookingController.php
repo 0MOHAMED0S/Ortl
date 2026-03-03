@@ -14,17 +14,11 @@ class StudentBookingController extends Controller
 {
     protected $agoraService;
 
-    // حقن خدمة Agora لتوليد التوكن
     public function __construct(AgoraService $agoraService)
     {
         $this->agoraService = $agoraService;
     }
 
-    /**
-     * ==========================================
-     * 📅 1. جلب جميع المواعيد المحجوزة للطالب
-     * ==========================================
-     */
     public function getStudentBookings(Request $request)
     {
         try {
@@ -97,7 +91,6 @@ class StudentBookingController extends Controller
                 'message' => 'تم استرجاع الحجوزات بنجاح.',
                 'data'    => $bookings
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Get Student Bookings Error: ' . $e->getMessage());
 
@@ -110,11 +103,7 @@ class StudentBookingController extends Controller
         }
     }
 
-    /**
-     * ==========================================
-     * 🚀 2. انضمام الطالب لجلسة الموعد المحجوز
-     * ==========================================
-     */
+
     public function joinBookedSession(Request $request)
     {
         $request->validate([
@@ -173,7 +162,6 @@ class StudentBookingController extends Controller
                     'uid'             => $user->id,
                 ]
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Join Booked Session Error (Student): ' . $e->getMessage());
 

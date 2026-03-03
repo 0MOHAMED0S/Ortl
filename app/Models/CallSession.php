@@ -21,4 +21,8 @@ class CallSession extends Model
     {
         return $this->belongsTo(User::class, 'student_id');
     }
+    public function ratings()
+    {
+        return $this->morphMany(Rating::class, 'rateable');
+    }
 }

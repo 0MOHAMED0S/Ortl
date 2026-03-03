@@ -22,9 +22,13 @@ class Session_student extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+    public function ratings()
+    {
+        return $this->morphMany(Rating::class, 'rateable');
+    }
 
-protected $casts = [
-    'joined_at' => 'datetime',
-    'left_at'   => 'datetime',
-];
+    protected $casts = [
+        'joined_at' => 'datetime',
+        'left_at'   => 'datetime',
+    ];
 }

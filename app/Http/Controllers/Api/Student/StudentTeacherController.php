@@ -8,169 +8,222 @@ use App\Models\Teacher_application;
 use App\Models\TeacherSlot;
 use App\Models\UserPackage;
 use App\Models\CallSession;
+use App\Models\SlotBooking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use App\Models\SlotBooking;
+use Exception;
+
 class StudentTeacherController extends Controller
 {
-public function index(Request $request)
+    private function getTeacherStats($teacherId)
+    {
+        $stats = [
+            'students_count' => 0,
+            'calls_count'    => 0,
+            'slots_count'    => 0,
+            'sessions_count' => 0,
+        ];
+
+        if (!$teacherId) return $stats;
+
+        try {
+            // 1. حساب المكالمات والطلاب منها
+            $callStudents = DB::table('call_sessions')
+                ->where('teacher_id', $teacherId)
+                ->where('status', 'ended')
+                ->pluck('student_id')
+                ->toArray();
+
+            $stats['calls_count'] = count($callStudents);
+
+            // 2. حساب المواعيد والطلاب منها
+            $slotStudents = DB::table('slot_bookings')
+                ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
+                ->where('teacher_slots.teacher_id', $teacherId)
+                ->where('slot_bookings.status', '!=', 'cancelled') // تجاهل الملغاة
+                ->pluck('slot_bookings.user_id')
+                ->toArray();
+
+            $stats['slots_count'] = count($slotStudents);
+
+            // 3. حساب الجلسات (محمية بـ try-catch داخلي في حال اختلف اسم الجدول)
+            $sessionStudents = [];
+            try {
+                $sessionStudents = DB::table('sessions') // قم بتغيير اسم الجدول إذا كان مختلفاً
+                    ->where('teacher_id', $teacherId)
+                    ->pluck('student_id')
+                    ->toArray();
+
+                $stats['sessions_count'] = count($sessionStudents);
+            } catch (\Exception $e) {
+                $stats['sessions_count'] = 0;
+            }
+
+            // 4. حساب عدد الطلاب الفعليين (بدون تكرار)
+            $allUniqueStudents = array_unique(array_merge($callStudents, $slotStudents, $sessionStudents));
+            $stats['students_count'] = count($allUniqueStudents);
+        } catch (\Exception $e) {
+            Log::error("Stats Error for Teacher {$teacherId}: " . $e->getMessage());
+        }
+
+        return $stats;
+    }
+
+    /**
+     * ==========================================
+     * 1. قائمة المعلمين (Index)
+     * ==========================================
+     */
+    public function index(Request $request)
     {
         try {
-            // 1️⃣ تحديد عدد المعلمين في كل صفحة (افتراضياً 10)
             $perPage = $request->get('per_page', 10);
 
-            // 2️⃣ جلب طلبات المعلمين الموافق عليها مع جميع العلاقات
             $teachersPaginator = Teacher_application::where('status', 'approved')
-                ->with(['profile.user', 'tracks']) // جلب الملف، المستخدم، والمسارات
+                ->with([
+                    'profile' => function ($query) {
+                        $query->withAvg('ratings', 'rating')
+                            ->withCount('ratings');
+                    },
+                    'profile.user',
+                    'tracks'
+                ])
                 ->latest()
                 ->paginate($perPage);
 
-            // 3️⃣ تنسيق البيانات
             $teachersPaginator->getCollection()->transform(function ($application) {
-
                 $profile = $application->profile;
                 $user = optional($profile)->user;
+                $teacherId = $profile->id ?? null;
 
-                // الاسم والصورة
-                $name = optional($user)->name ?? $application->full_name;
+                $name = $user->name ?? $application->full_name;
                 $photoPath = optional($profile)->profile_photo_path ?? $application->profile_photo_path;
+
                 $photoUrl = $photoPath
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
+                // 🚀 استدعاء الإحصائيات بسطر واحد فقط
+                $stats = $this->getTeacherStats($teacherId);
+
                 return [
-                    // ==========================================
-                    // 🌟 1. الحقول الأساسية (نفس الهيكل القديم للموبايل)
-                    // ==========================================
-                    'id'               => optional($profile)->id, // 👈 تم التعديل: هذا هو ID المعلم الحقيقي (وليس الطلب) للحجوزات
+                    'id'               => $teacherId,
                     'application_id'   => $application->id,
                     'name'             => $name,
                     'photo_url'        => $photoUrl,
-                    'is_online'        => (bool) optional($profile)->is_online,
+                    'is_online'        => (bool) ($profile->is_online ?? false),
+
+                    'rating'           => (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                    'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
+
+                    // ✅ إضافة جميع الإحصائيات هنا
+                    'students_count'   => $stats['students_count'],
+                    'calls_count'      => $stats['calls_count'],
+                    'slots_count'      => $stats['slots_count'],
+                    'sessions_count'   => $stats['sessions_count'],
+
                     'qualification'    => $application->qualification,
                     'country'          => $application->origin_country,
                     'languages'        => $application->languages,
-                    'specialties'      => $application->tracks->map(function ($track) {
-                        return [
-                            'id'   => $track->id,
-                            'name' => $track->name,
-                        ];
-                    }), // 👈 تم الإصلاح: لن تعود null بعد الآن!
                     'experience_years' => $application->experience_years,
+                    'specialties'      => $application->tracks->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
                     'about'            => $application->ijazas_text,
-
-                    // ==========================================
-                    // 📦 2. كل شيء آخر (إرجاع الكائنات بالكامل كما طلبت)
-                    // ==========================================
                     'user_data'        => $user,
                     'profile_data'     => $profile,
-                    'application_data' => $application,
                 ];
             });
 
-            // 4️⃣ إرجاع الاستجابة
             return response()->json([
                 'status'  => true,
-                'message' => 'تم استرجاع المعلمين بنجاح.',
+                'message' => 'Teachers retrieved successfully.',
                 'data'    => [
                     'teachers'   => $teachersPaginator->items(),
                     'pagination' => [
-                        'total'         => $teachersPaginator->total(),
-                        'count'         => $teachersPaginator->count(),
-                        'per_page'      => (int) $teachersPaginator->perPage(),
-                        'current_page'  => $teachersPaginator->currentPage(),
-                        'total_pages'   => $teachersPaginator->lastPage(),
-                        'next_page_url' => $teachersPaginator->nextPageUrl(),
-                        'prev_page_url' => $teachersPaginator->previousPageUrl(),
+                        'total'        => $teachersPaginator->total(),
+                        'per_page'     => (int) $teachersPaginator->perPage(),
+                        'current_page' => $teachersPaginator->currentPage(),
+                        'total_pages'  => $teachersPaginator->lastPage(),
                     ]
                 ]
-            ], 200);
-
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('فشل في جلب المعلمين مع التصفح', [
-                'error' => $e->getMessage(),
             ]);
-
-            return response()->json([
-                'status'  => false,
-                'message' => 'حدث خطأ أثناء استرجاع المعلمين.',
-                'error'   => config('app.debug') ? $e->getMessage() : null
-            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Index Teachers Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
 
+    /**
+     * ==========================================
+     * 2. عرض تفاصيل المعلم (Show)
+     * ==========================================
+     */
     public function show($id)
     {
         try {
-            // 1️⃣ جلب المعلم الموافق عليه مع حسابه وتطبيقه ومساراته
-            $teacher = Teacher::with(['user', 'application.tracks'])->find($id);
+            $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
+                ->withAvg('ratings', 'rating')
+                ->withCount('ratings')
+                ->find($id);
 
             if (!$teacher) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'المعلم غير موجود.'
-                ], 404);
+                return response()->json(['status' => false, 'message' => 'Teacher not found.'], 404);
             }
 
-            // 2️⃣ تنسيق البيانات
-            $name = $teacher->user->name ?? optional($teacher->application)->full_name;
+            $application = $teacher->application;
+            $name = $teacher->user->name ?? $application->full_name;
 
-            $photoUrl = $teacher->profile_photo_path
-                ? asset('storage/' . $teacher->profile_photo_path)
-                : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=200';
-
-            $profile = [
-                'id'               => $teacher->id,
-                'user_id'          => $teacher->user_id,
-                'name'             => $name,
-                'photo_url'        => $photoUrl,
-                'is_online'        => (bool) $teacher->is_online,
-                'qualification'    => optional($teacher->application)->qualification,
-                'country'          => optional($teacher->application)->origin_country,
-                'languages'        => optional($teacher->application)->languages,
-                'experience_years' => optional($teacher->application)->experience_years,
-                'about'            => optional($teacher->application)->ijazas_text,
-                'minutes_balance'  => $teacher->minutes,
-                'specialties'      => optional(optional($teacher->application)->tracks)->map(function ($track) {
-                    return [
-                        'id'   => $track->id,
-                        'name' => $track->name,
-                    ];
-                }) ?? [],
-            ];
+            // 🚀 استدعاء الإحصائيات بسطر واحد أيضاً!
+            $stats = $this->getTeacherStats($teacher->id);
 
             return response()->json([
                 'status'  => true,
-                'message' => 'تم استرجاع ملف المعلم بنجاح.',
-                'data'    => $profile
-            ], 200);
-        } catch (\Throwable $e) {
-            Log::error("حدث خطأ أثناء جلب ملف المعلم ($id): " . $e->getMessage());
+                'data'    => [
+                    'id'               => $teacher->id,
+                    'name'             => $name,
+                    'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
+                    'is_online'        => (bool) $teacher->is_online,
 
-            return response()->json([
-                'status'  => false,
-                'message' => 'حدث خطأ أثناء جلب الملف الشخصي للمعلم.'
-            ], 500);
+                    'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                    'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
+
+                    // ✅ إضافة جميع الإحصائيات لصفحة التفاصيل أيضاً
+                    'students_count'   => $stats['students_count'],
+                    'calls_count'      => $stats['calls_count'],
+                    'slots_count'      => $stats['slots_count'],
+                    'sessions_count'   => $stats['sessions_count'],
+
+                    'about'            => $application->ijazas_text ?? null,
+                    'country'          => $application->origin_country ?? null,
+                    'languages'        => $application->languages ?? [],
+                    'qualification'    => $application->qualification ?? null,
+                    'experience_years' => $application->experience_years ?? 0,
+                    'minutes_balance'  => $teacher->minutes,
+                    'specialties'      => collect($application->tracks ?? [])->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
+
+                    'reviews_details'  => $teacher->ratings->map(function ($rate) {
+                        return [
+                            'id'           => $rate->id,
+                            'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
+                            'rating'       => (float) $rate->rating,
+                            'comment'      => $rate->comment,
+                            'date'         => $rate->created_at->format('Y-m-d'),
+                        ];
+                    })->sortByDesc('id')->values(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Show Teacher Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
         }
     }
-
     public function getTeacherAvailableSlots(Request $request, $teacherId)
     {
         try {
-            // 1️⃣ التأكد من وجود المعلم
-            $teacherExists = Teacher::where('id', $teacherId)->exists();
+            $perPage = $request->get('per_page', 20);
 
-            if (!$teacherExists) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'عذراً، المعلم المطلوب غير موجود.'
-                ], 404);
-            }
-
-            // 2️⃣ بناء الاستعلام للمواعيد المتاحة (في المستقبل فقط)
-            $query = TeacherSlot::where('teacher_id', $teacherId)
+            $paginator = TeacherSlot::where('teacher_id', $teacherId)
                 ->where('is_booked', false)
                 ->where(function ($query) {
                     $query->where('date', '>', now()->toDateString())
@@ -180,182 +233,269 @@ public function index(Request $request)
                         });
                 })
                 ->orderBy('date', 'asc')
-                ->orderBy('start_time', 'asc');
-
-            // 3️⃣ تطبيق التصفح
-            $perPage = $request->get('per_page', 20);
-            $paginator = $query->paginate($perPage);
-
-            // 4️⃣ تحويل السجلات الحالية لمجموعة وتجميعها حسب التاريخ
-            $groupedSlots = $paginator->getCollection()->groupBy('date');
-
-            if ($paginator->isEmpty()) {
-                return response()->json([
-                    'status' => true,
-                    'message' => 'لا توجد مواعيد متاحة حالياً.',
-                    'data' => [
-                        'calendar' => [],
-                    ],
-                    'pagination' => null
-                ], 200);
-            }
+                ->orderBy('start_time', 'asc')
+                ->paginate($perPage);
 
             return response()->json([
-                'status' => true,
-                'message' => 'تم جلب المواعيد بنجاح.',
-                'data' => [
-                    'calendar' => $groupedSlots,
+                'status'  => true,
+                'data'    => [
+                    'calendar'   => $paginator->getCollection()->groupBy('date'),
                     'pagination' => [
                         'total'        => $paginator->total(),
-                        'count'        => $paginator->count(),
-                        'per_page'     => $paginator->perPage(),
                         'current_page' => $paginator->currentPage(),
-                        'total_pages'  => $paginator->lastPage(),
-                        'next_page'    => $paginator->nextPageUrl(),
-                        'prev_page'    => $paginator->previousPageUrl(),
                     ]
                 ]
-            ], 200);
-        } catch (\Throwable $e) {
-            Log::error('Get Available Slots Error: ' . $e->getMessage());
-
-            return response()->json([
-                'status' => false,
-                'message' => 'حدث خطأ أثناء جلب المواعيد.',
-                'error' => config('app.debug') ? $e->getMessage() : null
-            ], 500);
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['status' => false, 'message' => 'Error fetching slots.'], 500);
         }
     }
-
-    /**
-     * ==========================================
-     * 🚀 دالة حجز موعد مع المعلم
-     * ==========================================
-     */
-
-
     public function bookSlot(Request $request)
     {
-        $request->validate([
-            'slot_id' => 'required|exists:teacher_slots,id'
-        ]);
-
+        $request->validate(['slot_id' => 'required|exists:teacher_slots,id']);
         $user = auth()->user();
 
         DB::beginTransaction();
         try {
-            // 1️⃣ جلب الموعد مع قفل الصف لمنع الحجز المزدوج
-            $slot = TeacherSlot::where('id', $request->slot_id)
-                ->lockForUpdate()
-                ->first();
+            // 1. Lock slot to prevent race conditions
+            $slot = TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
 
-            // التحقق مما إذا كان محجوزاً
             if ($slot->is_booked) {
-                DB::rollBack();
-                return response()->json(['status' => false, 'message' => 'عذراً، هذا الموعد تم حجزه للتو بواسطة طالب آخر.'], 400);
+                return response()->json(['status' => false, 'message' => 'Slot already booked.'], 400);
             }
 
-            // التحقق من وقت الموعد
-            $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
-            $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
+            $slotStart = Carbon::parse($slot->date . ' ' . $slot->start_time);
+            $slotEnd   = Carbon::parse($slot->date . ' ' . $slot->end_time);
 
-            if ($slotStartDateTime->isPast()) {
-                DB::rollBack();
-                return response()->json(['status' => false, 'message' => 'لا يمكنك حجز موعد في الماضي.'], 400);
+            if ($slotStart->isPast()) {
+                return response()->json(['status' => false, 'message' => 'Cannot book past slots.'], 400);
             }
 
-            // 2️⃣ حساب مدة الموعد بالدقائق
-            $slotDurationMinutes = $slotStartDateTime->diffInMinutes($slotEndDateTime);
+            $duration = $slotStart->diffInMinutes($slotEnd);
 
-            // 3️⃣ التحقق من رصيد الطالب وجلب الباقات مع قفلها مالياً
+            // 2. Financial Lock: Get and lock active packages
             $activePackages = UserPackage::where('user_id', $user->id)
                 ->whereIn('status', ['active', 'Active'])
                 ->where('remaining_minutes', '>', 0)
-                ->where(function ($q) {
-                    $q->where('expires_at', '>', now())
-                      ->orWhereNull('expires_at');
-                })
-                ->orderByRaw('expires_at IS NULL, expires_at ASC') // الباقات الأقرب انتهاءً أولاً
-                ->lockForUpdate() // قفل مالي
+                ->where(fn($q) => $q->where('expires_at', '>', now())->orWhereNull('expires_at'))
+                ->orderByRaw('expires_at IS NULL ASC, expires_at ASC')
+                ->lockForUpdate()
                 ->get();
 
-            $totalAvailableMinutes = $activePackages->sum('remaining_minutes');
-
-            // هل يمتلك دقائق تكفي لتغطية مدة الموعد بالكامل؟
-            if ($totalAvailableMinutes < $slotDurationMinutes) {
-                DB::rollBack();
-                return response()->json([
-                    'status'  => false,
-                    'message' => "رصيدك غير كافٍ. الموعد يتطلب {$slotDurationMinutes} دقيقة، ورصيدك الحالي {$totalAvailableMinutes} دقيقة."
-                ], 400);
+            if ($activePackages->sum('remaining_minutes') < $duration) {
+                return response()->json(['status' => false, 'message' => 'Insufficient balance.'], 400);
             }
 
-            // 4️⃣ خصم الدقائق من الباقات تدريجياً (الدفع المسبق)
-            $minutesLeftToDeduct = $slotDurationMinutes;
-
+            // 3. Deduct Minutes
+            $remainingToDeduct = $duration;
             foreach ($activePackages as $package) {
-                if ($minutesLeftToDeduct <= 0) break;
+                if ($remainingToDeduct <= 0) break;
 
-                $deductFromThisPackage = min($package->remaining_minutes, $minutesLeftToDeduct);
-
-                $package->remaining_minutes -= $deductFromThisPackage;
-                $minutesLeftToDeduct -= $deductFromThisPackage;
+                $deduction = min($package->remaining_minutes, $remainingToDeduct);
+                $package->remaining_minutes -= $deduction;
+                $remainingToDeduct -= $deduction;
 
                 if ($package->remaining_minutes <= 0) {
-                    $package->remaining_minutes = 0;
-                    $package->status = 'expired';
+                    $package->status = 'exhausted';
                 }
-
                 $package->save();
             }
 
-            // 5️⃣ تحديث الموعد الأساسي
+            // 4. Finalize Booking
             $slot->update(['is_booked' => true]);
 
-            // 6️⃣ تسجيل الحجز في جدول الـ Pivot
             $booking = SlotBooking::create([
                 'user_id'          => $user->id,
                 'teacher_slot_id'  => $slot->id,
-                'deducted_minutes' => $slotDurationMinutes, // حفظ ما تم خصمه
+                'deducted_minutes' => $duration,
                 'status'           => 'scheduled'
             ]);
 
-            // 7️⃣ إنشاء جلسة المكالمة المجدولة لكي تظهر في التطبيق
-            $channelName = 'scheduled_call_' . $user->id . '_' . $slot->teacher_id . '_' . time();
-           $callSession = CallSession::create([
+            // Create future call session
+            $call = CallSession::create([
                 'student_id'   => $user->id,
                 'teacher_id'   => $slot->teacher_id,
-                'channel_name' => $channelName,
-                // 👇 تم تغيير الكلمة هنا لكي تقبلها قاعدة البيانات
+                'channel_name' => 'scheduled_' . $user->id . '_' . time(),
                 'status'       => 'initiated',
-                'started_at'   => $slotStartDateTime,
+                'started_at'   => $slotStart, // Scheduled start
             ]);
 
             DB::commit();
 
             return response()->json([
                 'status'  => true,
-                'message' => "تم حجز الموعد بنجاح وخصم {$slotDurationMinutes} دقيقة من رصيدك.",
-                'data'    => [
-                    'slot'         => $slot,
-                    'booking'      => $booking,
-                    'call_session' => $callSession
-                ]
-            ], 200);
+                'message' => "Booking successful. $duration minutes deducted.",
+                'data'    => ['booking' => $booking, 'call' => $call]
+            ]);
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Booking Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'Booking failed.'], 500);
+        }
+    }
+    public function cancelBookingByStudent(Request $request)
+    {
+        $request->validate([
+            'slot_id' => 'required|exists:teacher_slots,id'
+        ]);
 
+        $studentId = auth()->id();
+        $now = Carbon::now();
+
+        DB::beginTransaction();
+        try {
+            // 1️⃣ جلب الموعد والتأكد أنه محجوز لهذا الطالب تحديداً
+            // ملاحظة: نستخدم SlotBooking للتأكد من ملكية الحجز
+            $booking = SlotBooking::where('teacher_slot_id', $request->slot_id)
+                ->where('user_id', $studentId)
+                ->where('status', 'scheduled')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$booking) {
+                return response()->json(['status' => false, 'message' => 'الحجز غير موجود أو تم إلغاؤه مسبقاً.'], 404);
+            }
+
+            $slot = TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
+
+            // 2️⃣ التحقق من الشرط الزمني (90 دقيقة)
+            $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
+            $diffInMinutes = $now->diffInMinutes($slotStartDateTime, false); // false تعني الحصول على قيمة سالبة إذا مر الوقت
+
+            if ($diffInMinutes < 90) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'عذراً، لا يمكن إلغاء الموعد قبل بدايته بأقل من ساعة ونصف.'
+                ], 400);
+            }
+
+            // 3️⃣ عملية الاسترجاع المالي (Refund)
+            $refundMinutes = $booking->deducted_minutes;
+            if ($refundMinutes > 0) {
+                // نفضل إعادة الدقائق لأحدث باقة نشطة أو باقة غير منتهية
+                $packageToRefund = UserPackage::where('user_id', $studentId)
+                    ->where('status', 'active')
+                    ->orderBy('expires_at', 'desc')
+                    ->first();
+
+                if ($packageToRefund) {
+                    $packageToRefund->increment('remaining_minutes', $refundMinutes);
+                } else {
+                    // إذا لم يملك باقة نشطة (مثلاً انتهت بعد الحجز)، نفتح له باقة جديدة أو نعدل حالته
+                    $lastPackage = UserPackage::where('user_id', $studentId)->latest()->first();
+                    if ($lastPackage) {
+                        $lastPackage->update([
+                            'remaining_minutes' => $lastPackage->remaining_minutes + $refundMinutes,
+                            'status' => 'active'
+                        ]);
+                    }
+                }
+            }
+
+            // 4️⃣ تحديث الحالات (الطلبات، الموعد، الجلسة)
+            $booking->update(['status' => 'cancelled']);
+
+            $slot->update(['is_booked' => false]);
+
+            // حذف جلسة المكالمة المرتبطة لكي لا تظهر في قائمة "المكالمات القادمة"
+            CallSession::where('student_id', $studentId)
+                ->where('teacher_id', $slot->teacher_id)
+                ->where('started_at', $slotStartDateTime)
+                ->whereIn('status', ['initiated', 'scheduled'])
+                ->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم إلغاء الموعد بنجاح وإعادة الدقائق لرصيدك.'
+            ], 200);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Book Slot Error: ' . $e->getMessage());
+            Log::error('Student Cancel Booking Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء إلغاء الحجز.'], 500);
+        }
+    }
+    public function featuredTeachers()
+    {
+        try {
+            // 1️⃣ جلب المعلمين الموافق عليهم والذين لديهم ملف نشط
+            $teachers = Teacher_application::where('status', 'approved')
+                ->whereHas('profile')
+                ->with([
+                    // 🚀 حساب التقييمات ديناميكياً لضمان الدقة في الفرز
+                    'profile' => function ($query) {
+                        $query->withAvg('ratings', 'rating')
+                            ->withCount('ratings');
+                    },
+                    'profile.user',
+                    'tracks'
+                ])
+                ->get()
+                // 🌟 الفرز الذكي: بمتوسط التقييم (الحقيقي) أولاً، وإن لم يوجد فبسنوات الخبرة
+                ->sortByDesc(function ($application) {
+                    return optional($application->profile)->ratings_avg_rating ?? $application->experience_years ?? 0;
+                })
+                ->take(5) // نأخذ أفضل 5 فقط
+                ->values(); // إعادة ترتيب الـ Keys لتناسب الـ JSON
 
-            // 🚀 التعديل هنا: كشف الخطأ الحقيقي للمطور
+            // 2️⃣ تنسيق البيانات لتطابق تماماً دالة index
+            $formattedTeachers = $teachers->map(function ($application) {
+                $profile = $application->profile;
+                $user = optional($profile)->user;
+                $teacherId = optional($profile)->id;
+
+                $name = optional($user)->name ?? $application->full_name;
+                $photoPath = optional($profile)->profile_photo_path ?? $application->profile_photo_path;
+                $photoUrl = $photoPath
+                    ? asset('storage/' . $photoPath)
+                    : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
+
+                // 🚀 استدعاء الإحصائيات للمعلم باستخدام الدالة المساعدة
+                $stats = $this->getTeacherStats($teacherId);
+
+                return [
+                    'id'               => $teacherId, // ID المعلم للحجوزات
+                    'application_id'   => $application->id,
+                    'name'             => $name,
+                    'photo_url'        => $photoUrl,
+                    'is_online'        => (bool) optional($profile)->is_online,
+
+                    // التقييمات المحسوبة
+                    'rating'           => (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                    'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
+
+                    // إحصائيات المعلم
+                    'students_count'   => $stats['students_count'],
+                    'calls_count'      => $stats['calls_count'],
+                    'slots_count'      => $stats['slots_count'],
+                    'sessions_count'   => $stats['sessions_count'],
+
+                    'qualification'    => $application->qualification,
+                    'country'          => $application->origin_country,
+                    'languages'        => $application->languages,
+                    'experience_years' => $application->experience_years,
+                    'specialties'      => $application->tracks->map(function ($track) {
+                        return [
+                            'id'   => $track->id,
+                            'name' => $track->name,
+                        ];
+                    }),
+                    'about'            => $application->ijazas_text,
+                ];
+            });
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم جلب المعلمين المتميزين بنجاح.',
+                'data'    => $formattedTeachers
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Featured Teachers Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
-                'message' => $e->getMessage(),
-                'line'    => $e->getLine(),
-                'file'    => $e->getFile()
+                'message' => 'حدث خطأ أثناء استرجاع المعلمين المتميزين.'
             ], 500);
         }
     }
-
-
 }

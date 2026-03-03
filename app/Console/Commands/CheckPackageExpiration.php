@@ -42,3 +42,4 @@ class CheckPackageExpiration extends Command
         $this->info("Successfully processed: $expired expired packages and $exhausted exhausted packages.");
     }
 }
+//php artisan packages:check-expired

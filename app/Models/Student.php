@@ -17,7 +17,16 @@ class Student extends Model
         'qualification',
         'professional_status',
         'gender',
-        'profile_photo_path'
+        'profile_photo_path',
+        
+        'age_group',
+        'reading_level',
+        'preferred_teacher_language',
+        'reading_track',
+        'memorized_amount',
+        'plan_name',
+        'reading_type',
+        'teacher_response_speed',
     ];
 
     public function user()

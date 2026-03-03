@@ -4,11 +4,64 @@ namespace App\Http\Controllers\Api\Student;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class FavoriteController extends Controller
 {
+    private function getTeacherStats($teacherId)
+    {
+        $stats = [
+            'students_count' => 0,
+            'calls_count'    => 0,
+            'slots_count'    => 0,
+            'sessions_count' => 0,
+        ];
+
+        if (!$teacherId) return $stats;
+
+        try {
+            // 1. حساب المكالمات
+            $callStudents = DB::table('call_sessions')
+                ->where('teacher_id', $teacherId)
+                ->where('status', 'ended')
+                ->pluck('student_id')
+                ->toArray();
+
+            $stats['calls_count'] = count($callStudents);
+
+            // 2. حساب المواعيد
+            $slotStudents = DB::table('slot_bookings')
+                ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
+                ->where('teacher_slots.teacher_id', $teacherId)
+                ->where('slot_bookings.status', '!=', 'cancelled')
+                ->pluck('slot_bookings.user_id')
+                ->toArray();
+
+            $stats['slots_count'] = count($slotStudents);
+
+            // 3. حساب الجلسات
+            $sessionStudents = [];
+            try {
+                $sessionStudents = DB::table('sessions')
+                    ->where('teacher_id', $teacherId)
+                    ->pluck('student_id')
+                    ->toArray();
+                $stats['sessions_count'] = count($sessionStudents);
+            } catch (\Exception $e) {
+                $stats['sessions_count'] = 0;
+            }
+
+            // 4. حساب عدد الطلاب الفعليين
+            $allUniqueStudents = array_unique(array_merge($callStudents, $slotStudents, $sessionStudents));
+            $stats['students_count'] = count($allUniqueStudents);
+        } catch (\Exception $e) {
+            Log::error("Stats Error for Teacher {$teacherId} in Favorites: " . $e->getMessage());
+        }
+
+        return $stats;
+    }
     public function toggle(Request $request)
     {
         try {
@@ -64,7 +117,6 @@ class FavoriteController extends Controller
             ], 500);
         }
     }
-
     public function index(Request $request)
     {
         try {
@@ -78,26 +130,61 @@ class FavoriteController extends Controller
             }
 
             $perPage = $request->query('per_page', 10);
+
+            // جلب المفضلة مع العلاقات والتقييمات المحسوبة
             $favorites = $student->favorites()
                 ->where('status', 'approved')
-                ->with('profile.user')
+                ->with([
+                    'profile' => function ($query) {
+                        $query->withAvg('ratings', 'rating')
+                            ->withCount('ratings');
+                    },
+                    'profile.user',
+                    'tracks' // إضافة المسارات (التخصصات) لتوحيد شكل الكارد
+                ])
                 ->paginate($perPage);
 
-            $favorites->getCollection()->transform(function ($teacher) {
-                $name = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
-                $photoPath = optional($teacher->profile)->profile_photo_path ?? null;
+            $favorites->getCollection()->transform(function ($application) {
+                $profile = $application->profile;
+                $user = optional($profile)->user;
+                $teacherId = optional($profile)->id;
+
+                $name = optional($user)->name ?? $application->full_name;
+                $photoPath = optional($profile)->profile_photo_path ?? $application->profile_photo_path;
 
                 $photoUrl = $photoPath
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
+                // 🚀 استدعاء الإحصائيات للمعلم
+                $stats = $this->getTeacherStats($teacherId);
+
                 return [
-                    'id' => $teacher->id,
-                    'name' => $name,
-                    'photo_url' => $photoUrl,
-                    'qualification' => $teacher->qualification,
-                    'country' => $teacher->origin_country,
-                    'experience_years' => $teacher->experience_years,
+                    'id'               => $teacherId, // مهم جداً أن يكون هذا ID المعلم وليس الـ Application
+                    'application_id'   => $application->id,
+                    'name'             => $name,
+                    'photo_url'        => $photoUrl,
+                    'is_online'        => (bool) optional($profile)->is_online,
+
+                    // التقييمات المحسوبة
+                    'rating'           => (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                    'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
+
+                    // إحصائيات المعلم
+                    'students_count'   => $stats['students_count'],
+                    'calls_count'      => $stats['calls_count'],
+                    'slots_count'      => $stats['slots_count'],
+                    'sessions_count'   => $stats['sessions_count'],
+
+                    'qualification'    => $application->qualification,
+                    'country'          => $application->origin_country,
+                    'experience_years' => $application->experience_years,
+                    'specialties'      => $application->tracks->map(function ($track) {
+                        return [
+                            'id'   => $track->id,
+                            'name' => $track->name,
+                        ];
+                    }),
                 ];
             });
 

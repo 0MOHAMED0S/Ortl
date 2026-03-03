@@ -4,14 +4,20 @@ use App\Http\Controllers\Api\Ads\AdsController;
 use App\Http\Controllers\Api\Country\CountryController;
 use App\Http\Controllers\Api\Student\favoriteController;
 use App\Http\Controllers\Api\Student\PrivateCallController;
+use App\Http\Controllers\Api\Student\RatingController;
 use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\Api\Student\StudentBookingController;
 use App\Http\Controllers\Api\Student\StudentBuyPackageController;
+use App\Http\Controllers\Api\Student\StudentCallHistoryController;
 use App\Http\Controllers\Api\Student\StudentPackageController;
 use App\Http\Controllers\Api\Student\StudentTeacherController;
 use App\Http\Controllers\Api\Student\StudentTracksController;
+use App\Http\Controllers\Api\Student\StudentWalletController;
+use App\Http\Controllers\Api\Teacher\ContactSettingController;
 use App\Http\Controllers\Api\Teacher\TeacherAuthController;
 use App\Http\Controllers\Api\Teacher\TeacherBookingController;
+use App\Http\Controllers\Api\Teacher\TeacherCallHistoryController;
+use App\Http\Controllers\Api\Teacher\TeacherRatingController;
 use App\Http\Controllers\Api\Teacher\TeacherSessionController;
 use App\Http\Controllers\Api\Teacher\TeacherSlotController;
 use App\Http\Controllers\Api\Teacher\TeacherWalletController;
@@ -47,6 +53,7 @@ Route::prefix('teacher')->group(function () {
         Route::delete('/slots/{id}', [TeacherSlotController::class, 'deleteSlot']);
         Route::post('/slots-by-day', [TeacherSlotController::class, 'deleteDaySlots']);
         Route::post('/slots/cancel', [TeacherSlotController::class, 'cancelSlotByTeacher']);
+        Route::get('/soon', [TeacherBookingController::class, 'getSoonestBooking']);
 
         // إدارة الحجوزات
         Route::get('/bookings', [TeacherBookingController::class, 'getTeacherBookings']);
@@ -63,6 +70,8 @@ Route::prefix('teacher')->group(function () {
         // المعلم ينضم للمكالمة
         Route::post('/call/{callId}/join', [PrivateCallController::class, 'joinCall']);
         Route::post('/call/{callId}/end', [PrivateCallController::class, 'endCall']);
+        Route::get('/calls', [TeacherCallHistoryController::class, 'index']);
+        Route::get('/calls/{id}', [TeacherCallHistoryController::class, 'show']);
 
 
         // محفظة المعلم
@@ -73,6 +82,11 @@ Route::prefix('teacher')->group(function () {
             Route::delete('/requests/{id}/cancel', [TeacherWalletController::class, 'cancelRequest']);
         });
 
+        //contact us
+        Route::get('/contact-settings', [ContactSettingController::class, 'index']);
+
+        // تقييمات المعلم
+        Route::get('/ratings', [TeacherRatingController::class, 'index']);
     });
 });
 
@@ -105,7 +119,7 @@ Route::prefix('student')->group(function () {
 
     Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
 
-    // جلسات التلاوة
+        // جلسات التلاوة
         Route::get('/sessions/available-sessions', [TeacherSessionController::class, 'getAllSessionsForStudent']);
         Route::post('/sessions/{sessionId}/join', [TeacherSessionController::class, 'joinSession']);
         Route::post('/sessions/{sessionId}/leave', [TeacherSessionController::class, 'leaveSession']);
@@ -138,12 +152,28 @@ Route::prefix('student')->group(function () {
         //المكالمات الخاصة
         Route::post('/call/start', [PrivateCallController::class, 'startCall']);
         Route::post('/call/{callId}/end', [PrivateCallController::class, 'endCall']);
+        Route::get('/calls', [StudentCallHistoryController::class, 'index']);
+        Route::get('/calls/{id}', [StudentCallHistoryController::class, 'show']);
 
         // الحجز المباشر مع المعلم
         Route::post('/book-slot', [StudentTeacherController::class, 'bookSlot']);
         Route::get('/my-bookings', [StudentBookingController::class, 'getStudentBookings']);
         Route::post('/bookings/join', [StudentBookingController::class, 'joinBookedSession']);
+        Route::post('/cancel-booking', [StudentTeacherController::class, 'cancelBookingByStudent']);
 
+        // تقييم المعلم بعد الجلسة
+        Route::post('/rate-teacher', [RatingController::class, 'store']);
+        Route::get('/featured', [StudentTeacherController::class, 'featuredTeachers']);
+
+
+        //contact us
+        Route::get('/contact-settings', [ContactSettingController::class, 'index']);
+
+        //wallet
+        Route::get('/wallet', [StudentWalletController::class, 'getWalletSummary']);
+        Route::get('/wallet/transactions', [StudentWalletController::class, 'getTransactions']);
     });
 });
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);
+
+
