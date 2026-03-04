@@ -17,7 +17,6 @@ class TeacherSessionController extends Controller
     {
         $this->agoraService = $agoraService;
     }
-
     public function startSession(Request $request, $sessionId)
     {
         try {
@@ -27,49 +26,89 @@ class TeacherSessionController extends Controller
 
             if ($userId !== $session->teacher->user_id) {
                 return response()->json([
-                    'status' => false,
+                    'status'  => false,
                     'message' => 'غير مصرح لك ببدء هذه الحصة.'
                 ], 403);
             }
 
             if ($session->status === 'ended') {
                 return response()->json([
-                    'status' => false,
+                    'status'  => false,
                     'message' => 'هذه الحصة منتهية بالفعل.'
                 ], 400);
             }
 
+            // 1. توليد توكن للمعلم لكي يدخل الغرفة
             $token = $this->agoraService->generateToken(
                 $session->channel_name,
                 $userId,
                 'host'
             );
 
+            // ==========================================
+            // 🔴 بدء التسجيل السحابي من Agora (Cloud Recording)
+            // ==========================================
+            $resourceId = null;
+            $sid = null;
+
+            // نتحقق إذا كانت الجلسة مطلوب تسجيلها ولم يبدأ تسجيلها مسبقاً
+            if ($session->is_recorded && empty($session->agora_sid)) {
+
+                $recorderUid = 999999; // رقم تعريفي مميز لروبوت التسجيل
+
+                // توليد توكن خاص بروبوت التسجيل لكي يُسمح له بدخول الغرفة
+                $recorderToken = $this->agoraService->generateToken(
+                    $session->channel_name,
+                    $recorderUid,
+                    'publisher' // أو host
+                );
+
+                // أ. طلب الإذن من خوادم أجورا (Acquire)
+                $resourceId = $this->agoraService->acquire($session->channel_name, $recorderUid);
+
+                if ($resourceId) {
+                    // ب. بدء التصوير (Start)
+                    $sid = $this->agoraService->start($resourceId, $session->channel_name, $recorderToken, $recorderUid);
+
+                    if (!$sid) {
+                        \Illuminate\Support\Facades\Log::error("Agora Recording Start Failed for Session ID: {$sessionId}");
+                    }
+                } else {
+                    \Illuminate\Support\Facades\Log::error("Agora Recording Acquire Failed for Session ID: {$sessionId}");
+                }
+            }
+            // ==========================================
+
+            // 2. تحديث حالة الجلسة وحفظ معرفات التسجيل
             $session->update([
-                'status' => 'live',
-                'actual_started_at' => now()
+                'status'            => 'live',
+                'actual_started_at' => now(),
+                'agora_resource_id' => $resourceId ?? $session->agora_resource_id,
+                'agora_sid'         => $sid ?? $session->agora_sid,
             ]);
 
             return response()->json([
-                'status' => true,
+                'status'  => true,
                 'message' => 'تم بدء الحصة بنجاح.',
-                'data' => [
+                'data'    => [
                     'agora_token'  => $token,
                     'channel_name' => $session->channel_name,
                     'app_id'       => config('services.agora.app_id'),
                     'uid'          => $userId,
-                    'role'         => 'host'
+                    'role'         => 'host',
+                    // إرسال حالة التسجيل للموبايل ليعرض علامة "🔴 Rec" في الشاشة
+                    'is_recording' => !empty($sid)
                 ]
             ]);
         } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Start Session Error: " . $e->getMessage());
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'فشل بدء الحصة.',
-                'error' => config('app.debug') ? $e->getMessage() : null
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
-
     public function joinSession(Request $request, $sessionId)
     {
         try {
@@ -129,8 +168,6 @@ class TeacherSessionController extends Controller
             ], 500);
         }
     }
-
-
     public function leaveSession(Request $request, $sessionId)
     {
         try {
@@ -171,7 +208,6 @@ class TeacherSessionController extends Controller
             ], 500);
         }
     }
-
     public function endSession(Request $request, $sessionId)
     {
         try {
@@ -181,42 +217,80 @@ class TeacherSessionController extends Controller
 
             if ($userId !== $session->teacher->user_id) {
                 return response()->json([
-                    'status' => false,
+                    'status'  => false,
                     'message' => 'غير مصرح لك بإنهاء هذه الحصة.'
                 ], 403);
             }
 
             if ($session->status === 'ended') {
                 return response()->json([
-                    'status' => false,
+                    'status'  => false,
                     'message' => 'الحصة مغلقة مسبقاً.'
-                ]);
+                ], 400);
             }
 
-            return DB::transaction(function () use ($session, $sessionId) {
+            // ==========================================
+            // 🛑 إيقاف التسجيل السحابي من Agora
+            // ==========================================
+            $recordingUrl = $session->recording_url; // نحتفظ بالرابط القديم للاحتياط
+
+            // نتحقق إذا كانت الجلسة مسجلة وهناك تسجيل قيد التشغيل بالفعل
+            if ($session->is_recorded && !empty($session->agora_sid) && !empty($session->agora_resource_id)) {
+
+                $recorderUid = 999999; // نفس الرقم التعريفي لروبوت التسجيل
+
+                // طلب إيقاف التسجيل
+                $fileName = $this->agoraService->stop(
+                    $session->agora_resource_id,
+                    $session->agora_sid,
+                    $session->channel_name,
+                    $recorderUid
+                );
+
+                if ($fileName) {
+                    // 🌟 بناء الرابط ليتوافق مع Cloudflare R2
+                    $endpoint = env('AGORA_STORAGE_ENDPOINT'); // الرابط الأساسي
+                    $bucket   = env('AGORA_STORAGE_BUCKET');   // اسم البكيت (wartil-recordings)
+
+                    // الرابط النهائي للفيديو: https://endpoint/bucket/filename
+                    $recordingUrl = "https://{$endpoint}/{$bucket}/{$fileName}";
+                } else {
+                    \Illuminate\Support\Facades\Log::error("Failed to stop Agora recording for session: {$sessionId}");
+                }
+            }
+            // ==========================================
+
+            // الآن نقوم بتحديث قاعدة البيانات بأمان
+            return DB::transaction(function () use ($session, $sessionId, $recordingUrl) {
 
                 $now = now();
 
-                $session->update(['status' => 'ended']);
+                // 🌟 تحديث حالة الجلسة وحفظ رابط الفيديو
+                $session->update([
+                    'status'        => 'ended',
+                    'recording_url' => $recordingUrl
+                ]);
 
                 $affected = Session_student::where('recitation_session_id', $sessionId)
                     ->whereNull('left_at')
                     ->update(['left_at' => $now]);
 
                 return response()->json([
-                    'status' => true,
+                    'status'  => true,
                     'message' => 'تم إنهاء الحصة بنجاح.',
                     'summary' => [
                         'force_logged_out' => $affected,
-                        'ended_at' => $now->format('H:i:s')
+                        'ended_at'         => $now->format('H:i:s'),
+                        'recording_url'    => $recordingUrl // إرسال الرابط للموبايل
                     ]
                 ]);
             });
         } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("End Session Error: " . $e->getMessage());
             return response()->json([
-                'status' => false,
+                'status'  => false,
                 'message' => 'فشل إنهاء الحصة.',
-                'error' => config('app.debug') ? $e->getMessage() : null
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -278,8 +352,7 @@ class TeacherSessionController extends Controller
             ], 500);
         }
     }
-
-public function getAllSessionsForStudent(Request $request)
+    public function getAllSessionsForStudent(Request $request)
     {
         try {
             $perPage = $request->query('per_page', 10);
@@ -309,7 +382,7 @@ public function getAllSessionsForStudent(Request $request)
                     'title'            => $session->title,
                     'teacher_name'     => $teacherName,
                     // إضافة صورة المعلم لتطبيق الموبايل
-                    'teacher_avatar'   => 'https://ui-avatars.com/api/?name='.urlencode($teacherName).'&background=0d9488&color=fff',
+                    'teacher_avatar'   => 'https://ui-avatars.com/api/?name=' . urlencode($teacherName) . '&background=0d9488&color=fff',
                     'status'           => $session->status,
                     'start_at'         => $session->start_at->format('Y-m-d H:i:s'),
                     'end_at'           => $session->end_at->format('Y-m-d H:i:s'),
@@ -323,7 +396,6 @@ public function getAllSessionsForStudent(Request $request)
                 'message' => 'تم جلب الحصص المباشرة والقادمة بنجاح.',
                 'data'    => $sessions
             ]);
-
         } catch (\Throwable $e) {
             return response()->json([
                 'status'  => false,
@@ -332,7 +404,6 @@ public function getAllSessionsForStudent(Request $request)
             ], 500);
         }
     }
-
     public function getTeacherSessions(Request $request)
     {
         try {
