@@ -39,9 +39,11 @@ return [
             'api_key'  => env('PAYMOB_API_KEY'),
         ],
 'agora' => [
-    'app_id' => env('AGORA_APP_ID'),
-    'app_certificate' => env('AGORA_APP_CERTIFICATE'),
-],
+        'app_id'               => env('AGORA_APP_ID'),
+        'app_certificate'      => env('AGORA_APP_CERTIFICATE'),
+        'customer_id'          => env('AGORA_CUSTOMER_ID'),
+        'customer_certificate' => env('AGORA_CUSTOMER_CERTIFICATE'),
+    ],
 'pusher' => [
     'driver' => 'pusher',
     'key' => env('PUSHER_APP_KEY'),
@@ -52,4 +54,8 @@ return [
         'use_tls' => true, // ✅ تأكد من أن هذه true
     ],
 ],
+'onesignal' => [
+        'app_id' => env('ONESIGNAL_APP_ID'),
+        'rest_api_key' => env('ONESIGNAL_REST_API_KEY'),
+    ],
 ];

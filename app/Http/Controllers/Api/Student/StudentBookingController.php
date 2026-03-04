@@ -18,7 +18,6 @@ class StudentBookingController extends Controller
     {
         $this->agoraService = $agoraService;
     }
-
     public function getStudentBookings(Request $request)
     {
         try {
@@ -102,8 +101,6 @@ class StudentBookingController extends Controller
             ], 500);
         }
     }
-
-
     public function joinBookedSession(Request $request)
     {
         $request->validate([

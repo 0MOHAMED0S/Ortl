@@ -70,12 +70,6 @@ class StudentTeacherController extends Controller
 
         return $stats;
     }
-
-    /**
-     * ==========================================
-     * 1. قائمة المعلمين (Index)
-     * ==========================================
-     */
     public function index(Request $request)
     {
         try {
@@ -118,7 +112,6 @@ class StudentTeacherController extends Controller
                     'rating'           => (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', ''),
                     'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
 
-                    // ✅ إضافة جميع الإحصائيات هنا
                     'students_count'   => $stats['students_count'],
                     'calls_count'      => $stats['calls_count'],
                     'slots_count'      => $stats['slots_count'],
@@ -148,17 +141,12 @@ class StudentTeacherController extends Controller
                     ]
                 ]
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Index Teachers Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
 
-    /**
-     * ==========================================
-     * 2. عرض تفاصيل المعلم (Show)
-     * ==========================================
-     */
     public function show($id)
     {
         try {
@@ -416,14 +404,15 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء إلغاء الحجز.'], 500);
         }
     }
-    public function featuredTeachers()
+    public function featuredTeachers(\Illuminate\Http\Request $request)
     {
         try {
-            // 1️⃣ جلب المعلمين الموافق عليهم والذين لديهم ملف نشط
-            $teachers = Teacher_application::where('status', 'approved')
+            $perPage = $request->query('per_page', 5);
+            $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
+
+            $teachersQuery = Teacher_application::where('status', 'approved')
                 ->whereHas('profile')
                 ->with([
-                    // 🚀 حساب التقييمات ديناميكياً لضمان الدقة في الفرز
                     'profile' => function ($query) {
                         $query->withAvg('ratings', 'rating')
                             ->withCount('ratings');
@@ -432,15 +421,15 @@ class StudentTeacherController extends Controller
                     'tracks'
                 ])
                 ->get()
-                // 🌟 الفرز الذكي: بمتوسط التقييم (الحقيقي) أولاً، وإن لم يوجد فبسنوات الخبرة
                 ->sortByDesc(function ($application) {
                     return optional($application->profile)->ratings_avg_rating ?? $application->experience_years ?? 0;
                 })
-                ->take(5) // نأخذ أفضل 5 فقط
-                ->values(); // إعادة ترتيب الـ Keys لتناسب الـ JSON
+                ->values();
 
-            // 2️⃣ تنسيق البيانات لتطابق تماماً دالة index
-            $formattedTeachers = $teachers->map(function ($application) {
+            $total = $teachersQuery->count();
+            $paginatedItems = $teachersQuery->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+            $formattedTeachers = $paginatedItems->map(function ($application) {
                 $profile = $application->profile;
                 $user = optional($profile)->user;
                 $teacherId = optional($profile)->id;
@@ -451,21 +440,20 @@ class StudentTeacherController extends Controller
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
-                // 🚀 استدعاء الإحصائيات للمعلم باستخدام الدالة المساعدة
                 $stats = $this->getTeacherStats($teacherId);
 
+                $rating = (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', '');
+
                 return [
-                    'id'               => $teacherId, // ID المعلم للحجوزات
+                    'id'               => $teacherId,
                     'application_id'   => $application->id,
                     'name'             => $name,
                     'photo_url'        => $photoUrl,
                     'is_online'        => (bool) optional($profile)->is_online,
 
-                    // التقييمات المحسوبة
-                    'rating'           => (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                    'rating'           => $rating,
                     'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
 
-                    // إحصائيات المعلم
                     'students_count'   => $stats['students_count'],
                     'calls_count'      => $stats['calls_count'],
                     'slots_count'      => $stats['slots_count'],
@@ -482,13 +470,26 @@ class StudentTeacherController extends Controller
                         ];
                     }),
                     'about'            => $application->ijazas_text,
+
+                    'user_data'        => $user,
+                    'profile_data'     => $profile ? array_merge($profile->toArray(), [
+                        'average_rating' => $rating
+                    ]) : null,
                 ];
             });
 
             return response()->json([
                 'status'  => true,
-                'message' => 'تم جلب المعلمين المتميزين بنجاح.',
-                'data'    => $formattedTeachers
+                'message' => 'Teachers retrieved successfully.',
+                'data'    => [
+                    'teachers'   => $formattedTeachers,
+                    'pagination' => [
+                        'total'        => $total,
+                        'per_page'     => (int) $perPage,
+                        'current_page' => $currentPage,
+                        'total_pages'  => (int) ceil($total / $perPage) ?: 1
+                    ]
+                ]
             ], 200);
         } catch (\Throwable $e) {
             Log::error('Featured Teachers Error: ' . $e->getMessage());

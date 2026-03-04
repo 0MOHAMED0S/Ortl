@@ -109,4 +109,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(CallSession::class, 'student_id');
     }
+    public function routeNotificationForOneSignal()
+    {
+        return ['include_external_user_ids' => [(string) $this->id]];
+    }
 }

@@ -7,24 +7,29 @@ use Illuminate\Database\Eloquent\Model;
 class RecitationSession extends Model
 {
     protected $fillable = [
-    'title',
-    'description',
-    'teacher_id',
-    'start_at',
-    'end_at',
-    'duration_minutes',
-    'max_participants',
-    'created_by',
-    'channel_name',
-    'status' // لا تنسَ هذا إذا كنت ستستخدمه لاحقاً
-];
+        'title',
+        'description',
+        'teacher_id',
+        'start_at',
+        'end_at',
+        'duration_minutes',
+        'max_participants',
+        'created_by',
+        'channel_name',
+        'status',
+        'is_recorded',
+        'agora_resource_id',
+        'agora_sid',
+        'recording_url'
+
+    ];
     protected $guarded = [];
 
     protected $casts = [
         'start_at' => 'datetime',
         'end_at' => 'datetime',
     ];
-const STATUS_SCHEDULED = 'scheduled';
+    const STATUS_SCHEDULED = 'scheduled';
     const STATUS_LIVE = 'live';
     const STATUS_ENDED = 'ended';
     public function teacher()

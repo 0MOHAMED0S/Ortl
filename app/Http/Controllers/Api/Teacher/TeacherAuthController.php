@@ -10,37 +10,30 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use App\Events\TeacherStatusChanged;
+use App\Http\Requests\Teacher\UpdateTeacherProfileRequest;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class TeacherAuthController extends Controller
 {
     public function login(LoginRequest $request)
     {
         try {
-            // ✅ التحقق من البيانات باستخدام الـ FormRequest
             $validated = $request->validated();
-
-            // 🔹 البحث عن المستخدم
             $user = User::where('email', $validated['email'])->first();
-
-            // 🔹 التحقق من كلمة المرور
             if (!$user || !Hash::check($validated['password'], $user->password)) {
                 return response()->json([
                     'status' => false,
                     'message' => 'بيانات الاعتماد غير صحيحة'
                 ], 401);
             }
-
-            // 🔹 التحقق من الدور
             if ($user->role !== 'teacher') {
                 return response()->json([
                     'status' => false,
                     'message' => 'غير مصرح لك بالدخول من هنا. هذا التطبيق للمعلمين فقط.'
                 ], 403);
             }
-
-            // 🔹 إنشاء توكن جديد
             $token = $user->createToken('teacher_auth_token')->plainTextToken;
-
             return response()->json([
                 'status' => true,
                 'message' => 'تم تسجيل الدخول بنجاح',
@@ -95,8 +88,6 @@ class TeacherAuthController extends Controller
     {
         try {
             $user = $request->user();
-
-            // نقوم بجلب الملف الشخصي، ومن داخله نجلب الطلب (application) ومساراته (tracks)
             $user->load([
                 'teacherProfile.application.tracks',
             ]);
@@ -118,7 +109,6 @@ class TeacherAuthController extends Controller
                         'email' => $user->email,
                     ],
                     'profile' => $user->teacherProfile,
-                    // سحب المسارات من داخل الـ application لتجنب خطأ الـ SQL
                     'tracks'  => $user->teacherProfile->application?->tracks ?? [],
                 ]
             ], 200);
@@ -130,39 +120,26 @@ class TeacherAuthController extends Controller
             ], 500);
         }
     }
-
     public function toggleOnlineStatus(Request $request)
     {
         try {
             $user = $request->user();
-
-            // 1. التحقق من وجود ملف للمعلم
             $profile = $user->teacherProfile;
-
             if (!$profile) {
                 return response()->json([
                     'status' => false,
                     'message' => 'الملف الشخصي غير موجود.'
                 ], 404);
             }
-
-            // 2. قلب الحالة الحالية (Toggle)
             $newStatus = !$profile->is_online;
-
             $profile->update([
                 'is_online' => $newStatus
             ]);
-
-            // ==========================================
-            // 🚀 3. بث الحالة الجديدة عبر Pusher في الوقت الفعلي
-            // ==========================================
             try {
                 broadcast(new TeacherStatusChanged($profile->id, (bool) $newStatus));
             } catch (\Exception $e) {
                 Log::error('Pusher Broadcast Error in Status Toggle: ' . $e->getMessage());
             }
-
-            // 4. إرجاع رسالة نجاح
             return response()->json([
                 'status' => true,
                 'message' => $newStatus ? 'أنت الآن متصل ومتاح لاستقبال الطلاب' : 'أنت الآن غير متصل',
@@ -170,7 +147,6 @@ class TeacherAuthController extends Controller
                     'is_online' => $profile->is_online
                 ]
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Teacher Toggle Online Status Error', [
                 'user_id' => optional($request->user())->id,
@@ -180,6 +156,93 @@ class TeacherAuthController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'حدث خطأ أثناء تحديث حالة الاتصال.'
+            ], 500);
+        }
+    }
+    public function updateProfile(UpdateTeacherProfileRequest $request)
+    {
+        $user = $request->user();
+        $teacher = $user->teacher;
+
+        if (!$teacher || !$teacher->application) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'بيانات المعلم غير موجودة.'
+            ], 404);
+        }
+
+        $application = $teacher->application;
+
+        DB::beginTransaction();
+
+        try {
+            if ($request->filled('name')) {
+                $user->update(['name' => $request->name]);
+            }
+            $photoPath = $teacher->profile_photo_path;
+            if ($request->hasFile('profile_photo_path')) {
+                if ($photoPath) {
+                    Storage::disk('public')->delete($photoPath);
+                }
+                $photoPath = $request->file('profile_photo_path')->store('teachers/photos', 'public');
+
+                // تحديث الصورة في جدول المعلمين
+                $teacher->update(['profile_photo_path' => $photoPath]);
+            }
+
+            $cvPath = $application->cv_pdf_path;
+            if ($request->hasFile('cv_pdf_path')) {
+                if ($cvPath) {
+                    Storage::disk('public')->delete($cvPath);
+                }
+                $cvPath = $request->file('cv_pdf_path')->store('teachers/cvs', 'public');
+            }
+
+            // 3. تحديث جدول بيانات طلب المعلم (Teacher Application)
+            $applicationData = $request->only([
+                'phone',
+                'residence_location',
+                'qualification',
+                'experience_years',
+                'work_hours',
+                'online_experience',
+                'internet_quality',
+                'tech_skills',
+                'ijazas_text'
+            ]);
+
+            // ربط الاسم والصورة والـ CV بالطلب أيضاً (حسب هيكل قاعدة بياناتك)
+            if ($request->filled('name')) {
+                $applicationData['full_name'] = $request->name;
+            }
+            if ($request->has('languages')) {
+                $applicationData['languages'] = $request->languages;
+            }
+
+            $applicationData['profile_photo_path'] = $photoPath;
+            $applicationData['cv_pdf_path'] = $cvPath;
+
+            $application->update($applicationData);
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم تحديث الملف الشخصي بنجاح.',
+                'data'    => [
+                    'user'    => $user->fresh(),
+                    'teacher' => $teacher->fresh()->load('application'),
+                    'photo_url' => $photoPath ? asset('storage/' . $photoPath) : null,
+                ]
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Teacher Profile Update Error: ' . $e->getMessage());
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء تحديث البيانات.',
             ], 500);
         }
     }

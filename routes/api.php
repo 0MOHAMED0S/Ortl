@@ -46,7 +46,7 @@ Route::prefix('teacher')->group(function () {
         Route::get('/ads', [AdsController::class, 'index']);
         Route::get('/profile', [TeacherAuthController::class, 'profile']);
         Route::post('/toggle-online', [TeacherAuthController::class, 'toggleOnlineStatus']);
-
+        Route::post('/profile/update', [TeacherAuthController::class, 'updateProfile']);
         // إدارة الأوقات المتاحة
         Route::post('/slots', [TeacherSlotController::class, 'setAvailability']);
         Route::get('/my-slots', [TeacherSlotController::class, 'getMySlots']);

@@ -8,9 +8,11 @@ use App\Models\Teacher;
 use App\Models\UserPackage;
 use App\Services\AgoraService;
 use App\Events\IncomingPrivateCall;
+use App\Models\RecitationSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Notifications\DynamicNotification;
 
 class PrivateCallController extends Controller
 {
@@ -52,11 +54,6 @@ class PrivateCallController extends Controller
             ->sum('remaining_minutes');
     }
 
-    /**
-     * ==========================================
-     * 1. الطالب يبدأ المكالمة (مرحلة الرنين)
-     * ==========================================
-     */
     public function startCall(Request $request)
     {
         $request->validate([
@@ -73,7 +70,8 @@ class PrivateCallController extends Controller
             ], 400);
         }
 
-        $teacher = Teacher::findOrFail($request->teacher_id);
+        // 🌟 جلب المعلم مع حساب المستخدم الخاص به
+        $teacher = Teacher::with('user')->findOrFail($request->teacher_id);
 
         if (!$teacher->is_online) {
             return response()->json([
@@ -82,15 +80,49 @@ class PrivateCallController extends Controller
             ], 400);
         }
 
+        // ==========================================
+        // 🔴 خوارزمية فحص انشغال المعلم (النسخة الدقيقة)
+        // ==========================================
+
+        // 1. في مكالمة أخرى (جارية، أو ترن الآن ولم يمر عليها أكثر من دقيقتين)
+        $isBusyInCall = CallSession::where('teacher_id', $teacher->id)
+            ->where(function ($query) {
+                $query->where('status', 'live')
+                      ->orWhere(function ($q) {
+                          $q->where('status', 'initiated')
+                            ->where('created_at', '>=', now()->subMinutes(2)); // حماية المعلم من التعليق للأبد
+                      });
+            })
+            ->exists();
+
+        // 2. في حصة تلاوة (جارية حالياً Live)
+        $isBusyInLiveSession = RecitationSession::where('teacher_id', $teacher->id)
+            ->where('status', 'live')
+            ->exists();
+
+        // 3. يجب أن ينضم لحصة (حصة مجدولة ستبدأ خلال 15 دقيقة مثلاً)
+        $mustJoinSession = RecitationSession::where('teacher_id', $teacher->id)
+            ->whereIn('status', ['scheduled', 'upcoming'])
+            ->where('start_at', '<=', now()->addMinutes(15)) // يمكنك تغيير الـ 15 دقيقة حسب رغبتك
+            ->where('end_at', '>', now())
+            ->exists();
+
+        if ($isBusyInCall || $isBusyInLiveSession || $mustJoinSession) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'عذراً، المعلم مشغول حالياً (في حصة، مكالمة، أو لديه حصة ستبدأ فوراً). يرجى المحاولة لاحقاً.'
+            ], 400);
+        }
+        // ==========================================
+
         $channelName = 'private_call_' . $user->id . '_' . $teacher->id . '_' . time();
 
-        // 🚀 التعديل هنا: الحالة initiated ووقت البداية null
         $call = CallSession::create([
             'student_id'   => $user->id,
             'teacher_id'   => $teacher->id,
             'channel_name' => $channelName,
             'status'       => 'initiated',
-            'started_at'   => null, // لم تبدأ فعلياً بعد
+            'started_at'   => null,
         ]);
 
         $token = $this->agoraService->generateToken($channelName, $user->id, 'publisher');
@@ -102,9 +134,21 @@ class PrivateCallController extends Controller
         ];
 
         try {
+            // 1. الإرسال عبر الـ Event (Pusher)
             broadcast(new IncomingPrivateCall($teacher->id, $callData));
+
+            // 2. 🚀 إطلاق الإشعار الشامل
+            if ($teacher->user) {
+                $teacher->user->notify(new DynamicNotification(
+                    'مكالمة واردة 📞',
+                    'الطالب ' . $user->name . ' يتصل بك الآن.',
+                    'incoming_call',
+                    $callData
+                ));
+            }
+
         } catch (\Exception $e) {
-            Log::error('Pusher Broadcast Error: ' . $e->getMessage());
+            Log::error('Notification/Broadcast Error: ' . $e->getMessage());
         }
 
         return response()->json([
@@ -120,11 +164,6 @@ class PrivateCallController extends Controller
         ]);
     }
 
-    /**
-     * ==========================================
-     * 2. المعلم يرد على المكالمة (هنا يبدأ الخصم)
-     * ==========================================
-     */
     public function joinCall(Request $request, $callId)
     {
         $teacherUserId = auth()->id();
@@ -138,11 +177,10 @@ class PrivateCallController extends Controller
             return response()->json(['status' => false, 'message' => 'المكالمة منتهية.'], 400);
         }
 
-        // 🚀 التعديل هنا: تحديث حالة المكالمة لتبدأ فعلياً ويبدأ حساب الوقت
         if ($call->status === 'initiated') {
             $call->update([
                 'status'     => 'ongoing',
-                'started_at' => now(), // الآن فقط يبدأ العداد!
+                'started_at' => now(),
             ]);
         }
 
@@ -159,11 +197,6 @@ class PrivateCallController extends Controller
         ]);
     }
 
-    /**
-     * ==========================================
-     * 3. إنهاء المكالمة وخصم الرصيد
-     * ==========================================
-     */
     public function endCall(Request $request, $callId)
     {
         $call = CallSession::findOrFail($callId);
@@ -175,7 +208,6 @@ class PrivateCallController extends Controller
         $now = now();
         $durationMinutes = 0;
 
-        // 🚀 التعديل هنا: نحسب المدة "فقط" إذا كانت المكالمة قد تم الرد عليها
         if ($call->status === 'ongoing' && $call->started_at) {
             $durationSeconds = $call->started_at->diffInSeconds($now);
             $durationMinutes = (int) ceil($durationSeconds / 60);
@@ -190,7 +222,6 @@ class PrivateCallController extends Controller
                 $totalAvailableMinutes = $activePackages->sum('remaining_minutes');
                 $actualDeduction = min($durationMinutes, $totalAvailableMinutes);
 
-                // الخصم التدريجي
                 $minutesLeftToDeduct = $actualDeduction;
                 foreach ($activePackages as $package) {
                     if ($minutesLeftToDeduct <= 0) break;
@@ -206,14 +237,12 @@ class PrivateCallController extends Controller
                     $package->save();
                 }
 
-                // إضافة الرصيد للمعلم
                 $teacher = Teacher::find($call->teacher_id);
                 if ($teacher) {
                     $teacher->increment('minutes', $actualDeduction);
                 }
             }
 
-            // تحديث حالة المكالمة
             $call->update([
                 'ended_at'         => $now,
                 'duration_minutes' => $actualDeduction,

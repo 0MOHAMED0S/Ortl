@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class RecitationSessionController extends Controller
 {
-public function create() // يفضل تسميتها index لأنها تعرض الجدول
+    public function create() // يفضل تسميتها index لأنها تعرض الجدول
     {
         // 1. جلب جميع المعلمين مع بياناتهم لتعبئة الـ Select2 في المودال
         $teachers = Teacher::with(['user', 'tracks'])->get();
