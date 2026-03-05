@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Gifts\GiftController;
 use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\web\Admin\AdsController;
 use App\Http\Controllers\web\Admin\AuthController;
@@ -93,3 +94,9 @@ Route::put('/withdrawals/{id}/status', [WithdrawalController::class, 'updateStat
 Route::post('/teacher-apply', [TeacherApplicationController::class, 'store'])
     ->name('teacher.apply');
 Route::post('/contact-us', [ContactController::class, 'sendEmail'])->name('contact.send');
+
+
+Route::match(['get', 'post'], '/gifts/payment/response', [GiftController::class, 'handleResponse'])
+    ->name('web.gifts.payment.response');
+Route::get('/gifts/card/{code}', [GiftController::class, 'showGiftCard'])
+    ->name('web.gifts.card.show');

@@ -22,6 +22,10 @@ $middleware->validateCsrfTokens(except: [
         'api/student/paytabs/*',
         'api/student/paytabs/response',
         'api/student/paytabs/callback',
+
+        'api/gifts/payment/callback', // مسار الـ Webhook (إن كان يطبق عليه الـ CSRF)
+            'gifts/payment/response',     // 🚨 أهم مسار لأنه في web.php وسيستقبل POST من المتصفح
+            'gifts/payment/*',
     ]);
 })
     ->withExceptions(function (Exceptions $exceptions): void {

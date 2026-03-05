@@ -18,6 +18,8 @@ class Order extends Model
         'transaction_id',
         'status',
         'coupon_id',
+        'is_gift',
+        'gift_card_id',
     ];
 
     public function user()
@@ -37,5 +39,9 @@ class Order extends Model
     public function coupon()
     {
         return $this->belongsTo(Coupon::class);
+    }
+    public function giftCard()
+    {
+        return $this->belongsTo(\App\Models\GiftCard::class, 'gift_card_id');
     }
 }

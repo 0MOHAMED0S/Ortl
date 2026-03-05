@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Ads\AdsController;
 use App\Http\Controllers\Api\Country\CountryController;
+use App\Http\Controllers\Api\Gifts\GiftController;
 use App\Http\Controllers\Api\Student\favoriteController;
 use App\Http\Controllers\Api\Student\PrivateCallController;
 use App\Http\Controllers\Api\Student\RatingController;
@@ -177,3 +178,18 @@ Route::prefix('student')->group(function () {
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);
 
 
+
+// Gift Routes
+Route::post('/gifts/payment/callback', [GiftController::class, 'handleCallback'])
+    ->name('api.gifts.payment.callback');
+
+Route::match(['get', 'post'], '/gifts/payment/response', [GiftController::class, 'handleResponse'])
+    ->name('api.gifts.payment.response');
+
+
+Route::middleware(['auth:sanctum'])->group(function () {
+
+    Route::post('/gifts/buy', [GiftController::class, 'buyGift']);
+    Route::post('/gifts/claim', [GiftController::class, 'claimGift']);
+    Route::get('/gifts/history', [GiftController::class, 'myGifts']);
+});

@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 
 class StudentPackageController extends Controller
 {
-public function index(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
@@ -104,7 +104,7 @@ public function index(Request $request): JsonResponse
             ], 500);
         }
     }
-public function userPackages(Request $request): JsonResponse
+    public function userPackages(Request $request): JsonResponse
     {
         try {
             $user = $request->user();

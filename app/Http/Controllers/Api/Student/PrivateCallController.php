@@ -88,10 +88,10 @@ class PrivateCallController extends Controller
         $isBusyInCall = CallSession::where('teacher_id', $teacher->id)
             ->where(function ($query) {
                 $query->where('status', 'live')
-                      ->orWhere(function ($q) {
-                          $q->where('status', 'initiated')
+                    ->orWhere(function ($q) {
+                        $q->where('status', 'initiated')
                             ->where('created_at', '>=', now()->subMinutes(2)); // حماية المعلم من التعليق للأبد
-                      });
+                    });
             })
             ->exists();
 
@@ -146,7 +146,6 @@ class PrivateCallController extends Controller
                     $callData
                 ));
             }
-
         } catch (\Exception $e) {
             Log::error('Notification/Broadcast Error: ' . $e->getMessage());
         }
