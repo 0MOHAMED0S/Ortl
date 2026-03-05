@@ -22,8 +22,6 @@ class PrivateCallController extends Controller
     {
         $this->agoraService = $agoraService;
     }
-
-    // ... (دوال getActivePackages و calculateTotalMinutes تبقى كما هي بدون تغيير) ...
     private function getActivePackages($userId, $lockForUpdate = false)
     {
         $query = UserPackage::where('user_id', $userId)
@@ -41,7 +39,6 @@ class PrivateCallController extends Controller
 
         return $query->get();
     }
-
     private function calculateTotalMinutes($userId)
     {
         return UserPackage::where('user_id', $userId)
@@ -53,7 +50,6 @@ class PrivateCallController extends Controller
             })
             ->sum('remaining_minutes');
     }
-
     public function startCall(Request $request)
     {
         $request->validate([
@@ -70,7 +66,6 @@ class PrivateCallController extends Controller
             ], 400);
         }
 
-        // 🌟 جلب المعلم مع حساب المستخدم الخاص به
         $teacher = Teacher::with('user')->findOrFail($request->teacher_id);
 
         if (!$teacher->is_online) {
@@ -79,12 +74,6 @@ class PrivateCallController extends Controller
                 'message' => 'عذراً، المعلم غير متصل حالياً ولا يمكنه استقبال المكالمات الفورية.'
             ], 400);
         }
-
-        // ==========================================
-        // 🔴 خوارزمية فحص انشغال المعلم (النسخة الدقيقة)
-        // ==========================================
-
-        // 1. في مكالمة أخرى (جارية، أو ترن الآن ولم يمر عليها أكثر من دقيقتين)
         $isBusyInCall = CallSession::where('teacher_id', $teacher->id)
             ->where(function ($query) {
                 $query->where('status', 'live')
@@ -95,12 +84,10 @@ class PrivateCallController extends Controller
             })
             ->exists();
 
-        // 2. في حصة تلاوة (جارية حالياً Live)
         $isBusyInLiveSession = RecitationSession::where('teacher_id', $teacher->id)
             ->where('status', 'live')
             ->exists();
 
-        // 3. يجب أن ينضم لحصة (حصة مجدولة ستبدأ خلال 15 دقيقة مثلاً)
         $mustJoinSession = RecitationSession::where('teacher_id', $teacher->id)
             ->whereIn('status', ['scheduled', 'upcoming'])
             ->where('start_at', '<=', now()->addMinutes(15)) // يمكنك تغيير الـ 15 دقيقة حسب رغبتك
@@ -113,7 +100,6 @@ class PrivateCallController extends Controller
                 'message' => 'عذراً، المعلم مشغول حالياً (في حصة، مكالمة، أو لديه حصة ستبدأ فوراً). يرجى المحاولة لاحقاً.'
             ], 400);
         }
-        // ==========================================
 
         $channelName = 'private_call_' . $user->id . '_' . $teacher->id . '_' . time();
 
@@ -134,10 +120,8 @@ class PrivateCallController extends Controller
         ];
 
         try {
-            // 1. الإرسال عبر الـ Event (Pusher)
             broadcast(new IncomingPrivateCall($teacher->id, $callData));
 
-            // 2. 🚀 إطلاق الإشعار الشامل
             if ($teacher->user) {
                 $teacher->user->notify(new DynamicNotification(
                     'مكالمة واردة 📞',
@@ -162,7 +146,6 @@ class PrivateCallController extends Controller
             ]
         ]);
     }
-
     public function joinCall(Request $request, $callId)
     {
         $teacherUserId = auth()->id();
@@ -195,7 +178,6 @@ class PrivateCallController extends Controller
             ]
         ]);
     }
-
     public function endCall(Request $request, $callId)
     {
         $call = CallSession::findOrFail($callId);

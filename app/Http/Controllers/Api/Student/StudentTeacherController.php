@@ -79,7 +79,9 @@ class StudentTeacherController extends Controller
                 ->with([
                     'profile' => function ($query) {
                         $query->withAvg('ratings', 'rating')
-                            ->withCount('ratings');
+                            ->withCount('ratings')
+                            // 🚀 جلب التقييمات مع بيانات الطالب لتجنب بطء الاستعلامات
+                            ->with('ratings.user');
                     },
                     'profile.user',
                     'tracks'
@@ -123,6 +125,18 @@ class StudentTeacherController extends Controller
                     'experience_years' => $application->experience_years,
                     'specialties'      => $application->tracks->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
                     'about'            => $application->ijazas_text,
+
+                    // 🌟 إضافة تفاصيل التقييمات هنا تماماً كما في دالة show
+                    'reviews_details'  => optional($profile)->ratings ? $profile->ratings->map(function ($rate) {
+                        return [
+                            'id'           => $rate->id,
+                            'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
+                            'rating'       => (float) $rate->rating,
+                            'comment'      => $rate->comment,
+                            'date'         => $rate->created_at ? $rate->created_at->format('Y-m-d') : null,
+                        ];
+                    })->sortByDesc('id')->values() : [],
+
                     'user_data'        => $user,
                     'profile_data'     => $profile,
                 ];
@@ -146,7 +160,6 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
-
     public function show($id)
     {
         try {
@@ -404,7 +417,7 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء إلغاء الحجز.'], 500);
         }
     }
-    public function featuredTeachers(\Illuminate\Http\Request $request)
+    public function featuredTeachers(Request $request)
     {
         try {
             $perPage = $request->query('per_page', 5);
@@ -415,7 +428,9 @@ class StudentTeacherController extends Controller
                 ->with([
                     'profile' => function ($query) {
                         $query->withAvg('ratings', 'rating')
-                            ->withCount('ratings');
+                            ->withCount('ratings')
+                            // 🚀 1. جلب التقييمات مع بيانات الطالب مسبقاً (Eager Loading)
+                            ->with('ratings.user');
                     },
                     'profile.user',
                     'tracks'
@@ -470,6 +485,17 @@ class StudentTeacherController extends Controller
                         ];
                     }),
                     'about'            => $application->ijazas_text,
+
+                    // 🌟 2. إضافة تفاصيل التقييمات (مع أخذ أحدث 3 تقييمات كمثال للمعلمين المتميزين)
+                    'reviews_details'  => optional($profile)->ratings ? $profile->ratings->map(function ($rate) {
+                        return [
+                            'id'           => $rate->id,
+                            'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
+                            'rating'       => (float) $rate->rating,
+                            'comment'      => $rate->comment,
+                            'date'         => $rate->created_at ? $rate->created_at->format('Y-m-d') : null,
+                        ];
+                    })->sortByDesc('id')->take(3)->values() : [], // وضعنا take(3) لأنها قائمة مصغرة
 
                     'user_data'        => $user,
                     'profile_data'     => $profile ? array_merge($profile->toArray(), [
