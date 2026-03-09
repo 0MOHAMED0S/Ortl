@@ -22,8 +22,7 @@ class TeacherController extends Controller
         $teachers = Teacher_application::with(['tracks', 'profile.user'])->latest()->get();
         return view('dashboard.teachers', compact('teachers'));
     }
-
-public function approve(ApproveTeacherRequest $request, $id)
+    public function approve(ApproveTeacherRequest $request, $id)
     {
         $application = Teacher_application::findOrFail($id);
 
@@ -32,7 +31,7 @@ public function approve(ApproveTeacherRequest $request, $id)
             return back()->with('error', 'هذا الطلب تم قبوله مسبقاً.');
         }
 
-        DB::beginTransaction(); // استخدام الترانزاكشن لضمان سلامة البيانات
+        \Illuminate\Support\Facades\DB::beginTransaction(); // استخدام الترانزاكشن لضمان سلامة البيانات
 
         try {
             // 1. معالجة الصورة الشخصية (التحقق من وجودها)
@@ -49,13 +48,13 @@ public function approve(ApproveTeacherRequest $request, $id)
             $user = User::create([
                 'name'              => $application->full_name,
                 'email'             => $request->email,
-                'password'          => Hash::make($request->password),
+                'password'          => \Illuminate\Support\Facades\Hash::make($request->password),
                 'role'              => 'teacher',
                 'email_verified_at' => now(), // ✅ تم إضافة توثيق البريد هنا
             ]);
 
             // 3. إنشاء بروفايل المعلم
-            Teacher::create([
+            $teacher = \App\Models\Teacher::create([
                 'user_id'                => $user->id,
                 'teacher_application_id' => $application->id,
                 'salary'                 => $request->salary,
@@ -68,43 +67,73 @@ public function approve(ApproveTeacherRequest $request, $id)
                 'status' => 'approved'
             ]);
 
-            DB::commit(); // اعتماد التغييرات في قاعدة البيانات
+            \Illuminate\Support\Facades\DB::commit(); // اعتماد التغييرات في قاعدة البيانات
 
-            // 5. إرسال الإيميل (خارج الترانزاكشن لتجنب تأخير الاستجابة في حال بطء السيرفر)
+            // 5. إرسال الإيميل والإشعارات (خارج الترانزاكشن لتجنب تأخير الاستجابة في حال بطء السيرفر)
             try {
-                Mail::to($user->email)->send(new TeacherApprovedMail($user, $request->password, $request->salary));
+                // إرسال الإيميل
+                \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\TeacherApprovedMail($user, $request->password, $request->salary));
+
+                // ==========================================
+                // 🔔 إرسال إشعار ترحيبي للمعلم (يراه فور تسجيل دخوله)
+                // ==========================================
+                $notificationData = [
+                    'teacher_id' => $teacher->id,
+                    'salary'     => $request->salary
+                ];
+
+                // 1. الحفظ في الداتابيز (أساسي جداً هنا)
+                $user->notify(new \App\Notifications\DynamicNotification(
+                    'تم قبول طلبك! 🎉',
+                    'مرحباً بك في فريق المعلمين الخاص بنا. يمكنك الآن إعداد جدولك والبدء في تقديم الجلسات.',
+                    'application_approved',
+                    $notificationData
+                ));
+
+                // 2. إرسال البث اللحظي (في حال كان يمتلك حساب طالب مثلاً وتمت ترقيته ومسجل دخوله حالياً)
+                broadcast(new \App\Events\TeacherAccountApproved($user->id, $notificationData));
+                // ==========================================
+
             } catch (\Exception $e) {
-                Log::error('فشل إرسال إيميل قبول المعلم: ' . $e->getMessage());
+                \Illuminate\Support\Facades\Log::error('فشل إرسال إيميل أو إشعار قبول المعلم: ' . $e->getMessage());
                 // لا نوقف العملية هنا لأن الحساب تم إنشاؤه بالفعل
             }
 
             return back()->with('success', 'تم قبول المعلم بنجاح، إنشاء الحساب، وإرسال تفاصيل الدخول للبريد الإلكتروني');
         } catch (\Throwable $e) {
-            DB::rollBack(); // تراجع عن كل العمليات في حال حدوث أي خطأ
+            \Illuminate\Support\Facades\DB::rollBack(); // تراجع عن كل العمليات في حال حدوث أي خطأ
 
             // حذف الصورة المرفوعة إذا فشلت العملية
-            if ($photoPath && Storage::disk('public')->exists($photoPath)) {
-                Storage::disk('public')->delete($photoPath);
+            if ($photoPath && \Illuminate\Support\Facades\Storage::disk('public')->exists($photoPath) && $photoPath !== $application->profile_photo_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($photoPath);
             }
 
-            Log::error('خطأ في اعتماد المعلم: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('خطأ في اعتماد المعلم: ' . $e->getMessage());
             return back()->with('error', 'حدث خطأ تقني: ' . $e->getMessage());
         }
     }
-
     public function reject($id)
     {
         $application = Teacher_application::findOrFail($id);
 
-        // تحديث الحالة إلى "مرفوض"
+        if ($application->status === 'rejected') {
+            return back()->with('error', 'هذا الطلب تم رفضه مسبقاً.');
+        }
         $application->update([
             'status' => 'rejected'
         ]);
 
-        return redirect()->back()->with('success', 'تم رفض طلب المعلم.');
+        try {
+            Mail::to($application->email)
+                ->send(new \App\Mail\TeacherRejectedMail($application));
+
+            return redirect()->back()->with('success', 'تم رفض طلب المعلم وإرسال بريد إلكتروني بالاعتذار.');
+        } catch (\Exception $e) {
+            Log::error('فشل إرسال إيميل رفض المعلم: ' . $e->getMessage());
+
+            return redirect()->back()->with('success', 'تم رفض طلب المعلم، ولكن تعذر إرسال الإيميل التنبيهي.');
+        }
     }
-
-
     public function updateDetails(Request $request, $id)
     {
         $application = Teacher_application::findOrFail($id);
@@ -150,5 +179,4 @@ public function approve(ApproveTeacherRequest $request, $id)
 
         return redirect()->back()->with('success', 'تم تحديث بيانات المعلم بنجاح');
     }
-
 }

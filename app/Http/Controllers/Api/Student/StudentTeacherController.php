@@ -287,7 +287,6 @@ class StudentTeacherController extends Controller
                 return response()->json(['status' => false, 'message' => 'Insufficient balance.'], 400);
             }
 
-            // 3. Deduct Minutes
             $remainingToDeduct = $duration;
             foreach ($activePackages as $package) {
                 if ($remainingToDeduct <= 0) break;
@@ -323,6 +322,32 @@ class StudentTeacherController extends Controller
 
             DB::commit();
 
+            // ==========================================
+            // 🔔 إرسال إشعار لحظي للمعلم (حجز جديد)
+            // ==========================================
+            try {
+                $teacher = $slot->teacher;
+                if ($teacher && $teacher->user) {
+                    $notificationData = [
+                        'booking_id'   => $booking->id,
+                        'student_name' => $user->name,
+                        'date'         => $slot->date,
+                        'start_time'   => $slot->start_time,
+                        'duration'     => $duration
+                    ];
+
+                    broadcast(new \App\Events\NewSlotBooked($teacher->id, $notificationData));
+                    $teacher->user->notify(new \App\Notifications\DynamicNotification(
+                        'حجز موعد جديد 📅',
+                        "قام الطالب {$user->name} بحجز موعد يوم {$slot->date} الساعة " . \Carbon\Carbon::parse($slot->start_time)->format('h:i A') . ".",
+                        'new_booking',
+                        $notificationData
+                    ));
+                }
+            } catch (Exception $e) {
+                Log::error('Teacher Booking Notification Error: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'status'  => true,
                 'message' => "Booking successful. $duration minutes deducted.",
@@ -334,6 +359,7 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'Booking failed.'], 500);
         }
     }
+
     public function cancelBookingByStudent(Request $request)
     {
         $request->validate([
@@ -341,12 +367,11 @@ class StudentTeacherController extends Controller
         ]);
 
         $studentId = auth()->id();
+        $studentName = auth()->user()->name;
         $now = Carbon::now();
 
         DB::beginTransaction();
         try {
-            // 1️⃣ جلب الموعد والتأكد أنه محجوز لهذا الطالب تحديداً
-            // ملاحظة: نستخدم SlotBooking للتأكد من ملكية الحجز
             $booking = SlotBooking::where('teacher_slot_id', $request->slot_id)
                 ->where('user_id', $studentId)
                 ->where('status', 'scheduled')
@@ -358,10 +383,8 @@ class StudentTeacherController extends Controller
             }
 
             $slot = TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
-
-            // 2️⃣ التحقق من الشرط الزمني (90 دقيقة)
             $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
-            $diffInMinutes = $now->diffInMinutes($slotStartDateTime, false); // false تعني الحصول على قيمة سالبة إذا مر الوقت
+            $diffInMinutes = $now->diffInMinutes($slotStartDateTime, false);
 
             if ($diffInMinutes < 90) {
                 return response()->json([
@@ -369,11 +392,8 @@ class StudentTeacherController extends Controller
                     'message' => 'عذراً، لا يمكن إلغاء الموعد قبل بدايته بأقل من ساعة ونصف.'
                 ], 400);
             }
-
-            // 3️⃣ عملية الاسترجاع المالي (Refund)
             $refundMinutes = $booking->deducted_minutes;
             if ($refundMinutes > 0) {
-                // نفضل إعادة الدقائق لأحدث باقة نشطة أو باقة غير منتهية
                 $packageToRefund = UserPackage::where('user_id', $studentId)
                     ->where('status', 'active')
                     ->orderBy('expires_at', 'desc')
@@ -382,7 +402,6 @@ class StudentTeacherController extends Controller
                 if ($packageToRefund) {
                     $packageToRefund->increment('remaining_minutes', $refundMinutes);
                 } else {
-                    // إذا لم يملك باقة نشطة (مثلاً انتهت بعد الحجز)، نفتح له باقة جديدة أو نعدل حالته
                     $lastPackage = UserPackage::where('user_id', $studentId)->latest()->first();
                     if ($lastPackage) {
                         $lastPackage->update([
@@ -393,12 +412,10 @@ class StudentTeacherController extends Controller
                 }
             }
 
-            // 4️⃣ تحديث الحالات (الطلبات، الموعد، الجلسة)
+            // 4️⃣ تحديث الحالات
             $booking->update(['status' => 'cancelled']);
-
             $slot->update(['is_booked' => false]);
 
-            // حذف جلسة المكالمة المرتبطة لكي لا تظهر في قائمة "المكالمات القادمة"
             CallSession::where('student_id', $studentId)
                 ->where('teacher_id', $slot->teacher_id)
                 ->where('started_at', $slotStartDateTime)
@@ -407,6 +424,26 @@ class StudentTeacherController extends Controller
 
             DB::commit();
 
+            try {
+                $teacher = $slot->teacher;
+                if ($teacher && $teacher->user) {
+                    $notificationData = [
+                        'slot_id'      => $slot->id,
+                        'student_name' => $studentName,
+                        'date'         => $slot->date,
+                        'start_time'   => $slot->start_time,
+                    ];
+                    broadcast(new \App\Events\SlotBookingCancelled($teacher->id, $notificationData));
+                    $teacher->user->notify(new \App\Notifications\DynamicNotification(
+                        'إلغاء حجز ❌',
+                        "قام الطالب {$studentName} بإلغاء حجزه ليوم {$slot->date} الساعة " . \Carbon\Carbon::parse($slot->start_time)->format('h:i A') . ".",
+                        'booking_cancelled',
+                        $notificationData
+                    ));
+                }
+            } catch (Exception $e) {
+                Log::error('Teacher Cancel Booking Notification Error: ' . $e->getMessage());
+            }
             return response()->json([
                 'status'  => true,
                 'message' => 'تم إلغاء الموعد بنجاح وإعادة الدقائق لرصيدك.'

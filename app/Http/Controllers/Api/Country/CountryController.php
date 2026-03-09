@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\Log;
 
 class CountryController extends Controller
 {
-    /**
-     * عرض قائمة الدول مع إمكانية البحث و Pagination
-     */
     public function index(Request $request)
     {
         try {

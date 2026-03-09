@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Models\RecitationSession;
-use App\Models\Session_student; // استخدام الموديل الجديد
+use App\Models\Session_student;
 use App\Services\AgoraService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\DB;
 class TeacherSessionController extends Controller
 {
     protected $agoraService;
-
     public function __construct(AgoraService $agoraService)
     {
         $this->agoraService = $agoraService;
@@ -45,29 +44,21 @@ class TeacherSessionController extends Controller
                 'host'
             );
 
-            // ==========================================
-            // 🔴 بدء التسجيل السحابي من Agora (Cloud Recording)
-            // ==========================================
             $resourceId = null;
             $sid = null;
 
-            // نتحقق إذا كانت الجلسة مطلوب تسجيلها ولم يبدأ تسجيلها مسبقاً
             if ($session->is_recorded && empty($session->agora_sid)) {
 
-                $recorderUid = 999999; // رقم تعريفي مميز لروبوت التسجيل
-
-                // توليد توكن خاص بروبوت التسجيل لكي يُسمح له بدخول الغرفة
+                $recorderUid = 999999;
                 $recorderToken = $this->agoraService->generateToken(
                     $session->channel_name,
                     $recorderUid,
-                    'publisher' // أو host
+                    'publisher'
                 );
 
-                // أ. طلب الإذن من خوادم أجورا (Acquire)
                 $resourceId = $this->agoraService->acquire($session->channel_name, $recorderUid);
 
                 if ($resourceId) {
-                    // ب. بدء التصوير (Start)
                     $sid = $this->agoraService->start($resourceId, $session->channel_name, $recorderToken, $recorderUid);
 
                     if (!$sid) {
@@ -77,16 +68,13 @@ class TeacherSessionController extends Controller
                     \Illuminate\Support\Facades\Log::error("Agora Recording Acquire Failed for Session ID: {$sessionId}");
                 }
             }
-            // ==========================================
 
-            // 2. تحديث حالة الجلسة وحفظ معرفات التسجيل
             $session->update([
                 'status'            => 'live',
                 'actual_started_at' => now(),
                 'agora_resource_id' => $resourceId ?? $session->agora_resource_id,
                 'agora_sid'         => $sid ?? $session->agora_sid,
             ]);
-
             return response()->json([
                 'status'  => true,
                 'message' => 'تم بدء الحصة بنجاح.',
@@ -96,7 +84,6 @@ class TeacherSessionController extends Controller
                     'app_id'       => config('services.agora.app_id'),
                     'uid'          => $userId,
                     'role'         => 'host',
-                    // إرسال حالة التسجيل للموبايل ليعرض علامة "🔴 Rec" في الشاشة
                     'is_recording' => !empty($sid)
                 ]
             ]);
@@ -229,17 +216,11 @@ class TeacherSessionController extends Controller
                 ], 400);
             }
 
-            // ==========================================
-            // 🛑 إيقاف التسجيل السحابي من Agora
-            // ==========================================
-            $recordingUrl = $session->recording_url; // نحتفظ بالرابط القديم للاحتياط
+            $recordingUrl = $session->recording_url;
 
-            // نتحقق إذا كانت الجلسة مسجلة وهناك تسجيل قيد التشغيل بالفعل
             if ($session->is_recorded && !empty($session->agora_sid) && !empty($session->agora_resource_id)) {
 
-                $recorderUid = 999999; // نفس الرقم التعريفي لروبوت التسجيل
-
-                // طلب إيقاف التسجيل
+                $recorderUid = 999999;
                 $fileName = $this->agoraService->stop(
                     $session->agora_resource_id,
                     $session->agora_sid,
@@ -248,24 +229,26 @@ class TeacherSessionController extends Controller
                 );
 
                 if ($fileName) {
-                    // 🌟 بناء الرابط ليتوافق مع Cloudflare R2
-                    $endpoint = env('AGORA_STORAGE_ENDPOINT'); // الرابط الأساسي
-                    $bucket   = env('AGORA_STORAGE_BUCKET');   // اسم البكيت (wartil-recordings)
+                    // 🚀 الإصلاح هنا: استخدام الرابط العام لكي يعمل الفيديو في المتصفح والموبايل فوراً
+                    $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL');
 
-                    // الرابط النهائي للفيديو: https://endpoint/bucket/filename
-                    $recordingUrl = "https://{$endpoint}/{$bucket}/{$fileName}";
+                    if ($publicUrl) {
+                        // دمج الرابط العام مع مسار الملف
+                        $recordingUrl = rtrim($publicUrl, '/') . '/' . ltrim($fileName, '/');
+                    } else {
+                        // في حالة نسيان وضع الرابط العام في الـ env
+                        $endpoint = env('AGORA_STORAGE_ENDPOINT');
+                        $bucket   = env('AGORA_STORAGE_BUCKET');
+                        $recordingUrl = "https://{$endpoint}/{$bucket}/{$fileName}";
+                    }
                 } else {
                     \Illuminate\Support\Facades\Log::error("Failed to stop Agora recording for session: {$sessionId}");
                 }
             }
-            // ==========================================
 
-            // الآن نقوم بتحديث قاعدة البيانات بأمان
             return DB::transaction(function () use ($session, $sessionId, $recordingUrl) {
 
                 $now = now();
-
-                // 🌟 تحديث حالة الجلسة وحفظ رابط الفيديو
                 $session->update([
                     'status'        => 'ended',
                     'recording_url' => $recordingUrl
@@ -275,13 +258,14 @@ class TeacherSessionController extends Controller
                     ->whereNull('left_at')
                     ->update(['left_at' => $now]);
 
+                // الاستجابة لم تتغير كما طلبت
                 return response()->json([
                     'status'  => true,
                     'message' => 'تم إنهاء الحصة بنجاح.',
                     'summary' => [
                         'force_logged_out' => $affected,
                         'ended_at'         => $now->format('H:i:s'),
-                        'recording_url'    => $recordingUrl // إرسال الرابط للموبايل
+                        'recording_url'    => $recordingUrl // 🚀 سيرجع الآن الرابط العام الجاهز للتشغيل
                     ]
                 ]);
             });

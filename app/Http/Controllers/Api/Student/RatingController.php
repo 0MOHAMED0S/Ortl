@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Api\Student;
 
+use App\Events\NewRatingReceived;
 use App\Http\Controllers\Controller;
 use App\Models\CallSession;
 use App\Models\Rating;
 use App\Models\Session_student;
 use App\Models\SlotBooking;
+use App\Models\Teacher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class RatingController extends Controller
 {
@@ -21,9 +24,9 @@ class RatingController extends Controller
             'target_type'  => 'required|in:call,slot,session',
         ]);
 
-        $userId = auth()->id();
+        $user = auth()->user();
+        $userId = $user->id;
 
-        // 1. Map type to Model
         $map = [
             'call'    => CallSession::class,
             'slot'    => SlotBooking::class,
@@ -31,11 +34,8 @@ class RatingController extends Controller
         ];
 
         $modelClass = $map[$request->target_type];
-
-        // 2. Fetch target and verify ownership/participation
         $target = $modelClass::findOrFail($request->target_id);
 
-        // Security Check: Ensure the student actually belongs to this record
         $isAuthorized = false;
         if ($request->target_type === 'call' && $target->student_id == $userId) $isAuthorized = true;
         if ($request->target_type === 'slot' && $target->user_id == $userId) $isAuthorized = true;
@@ -45,7 +45,6 @@ class RatingController extends Controller
             return response()->json(['message' => 'غير مسموح لك بتقييم هذا النشاط.'], 403);
         }
 
-        // 3. Prevent Duplicate Ratings
         $exists = Rating::where([
             'user_id'       => $userId,
             'rateable_id'   => $request->target_id,
@@ -56,7 +55,6 @@ class RatingController extends Controller
             return response()->json(['message' => 'لقد قمت بتقييم هذه الجلسة مسبقاً.'], 400);
         }
 
-        // 4. Create Rating
         $rating = Rating::create([
             'user_id'       => $userId,
             'teacher_id'    => $request->teacher_id,
@@ -66,8 +64,36 @@ class RatingController extends Controller
             'rateable_type' => $modelClass,
         ]);
 
-        // 5. Update Teacher Average (Optional but recommended)
-        // $this->updateTeacherRating($request->teacher_id);
+        // ==========================================
+        // 🔔 إرسال الإشعار اللحظي للمعلم (Pusher & Database)
+        // ==========================================
+        $teacher = Teacher::with('user')->find($request->teacher_id);
+
+        if ($teacher && $teacher->user) {
+            $notificationData = [
+                'rating_id'    => $rating->id,
+                'stars'        => $rating->rating,
+                'student_name' => $user->name,
+                'target_type'  => $request->target_type,
+                'comment'      => $rating->comment
+            ];
+
+            try {
+                // 1. إرسال عبر Pusher (مباشر للموبايل)
+                broadcast(new NewRatingReceived($teacher->id, $notificationData));
+
+                // 2. الحفظ في الداتابيز وإرسال Firebase/OneSignal عبر نظام لارافيل
+                $teacher->user->notify(new \App\Notifications\DynamicNotification(
+                    'تقييم جديد ⭐',
+                    "قام الطالب {$user->name} بتقييم جلستك بـ {$rating->rating} نجوم.",
+                    'new_rating',
+                    $notificationData
+                ));
+            } catch (\Exception $e) {
+                Log::error('Rating Notification/Broadcast Error: ' . $e->getMessage());
+            }
+        }
+        // ==========================================
 
         return response()->json([
             'status'  => true,

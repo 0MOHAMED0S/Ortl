@@ -15,26 +15,17 @@ class TeacherStatusChanged implements ShouldBroadcastNow
     public $teacherId;
     public $isOnline;
 
-    /**
-     * تمرير بيانات المعلم للحدث
-     */
     public function __construct($teacherId, $isOnline)
     {
         $this->teacherId = $teacherId;
         $this->isOnline = $isOnline;
     }
 
-    /**
-     * تحديد القناة التي سيتم البث عليها (قناة عامة لأن كل الطلاب يحتاجون رؤيتها)
-     */
     public function broadcastOn()
     {
         return new Channel('teachers-status');
     }
 
-    /**
-     * اسم الحدث الذي سيستمع له تطبيق الفلاتر
-     */
     public function broadcastAs()
     {
         return 'status.changed';

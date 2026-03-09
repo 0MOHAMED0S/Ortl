@@ -133,7 +133,7 @@
         }
 
         .navbar-brand img {
-            height: 75px;
+            height: 50px;
         }
 
         .back-link {
@@ -486,7 +486,7 @@
 
     <nav class="navbar fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="#"><img width="70px" height="70px" src="{{ asset('images/mainlogo.png') }}"
+            <a class="navbar-brand" href="#"><img width="45px" height="50px" src="{{ asset('images/mainlogo.png') }}"
                     alt="ورتل"></a>
             <a href="{{ route('welcome') }}" class="back-link">
                 العودة للرئيسية <i class="fa-solid fa-arrow-left"></i>

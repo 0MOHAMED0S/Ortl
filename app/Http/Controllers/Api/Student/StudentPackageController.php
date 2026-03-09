@@ -28,18 +28,29 @@ class StudentPackageController extends Controller
             $country = $studentProfile->country;
             $rate = $country->rate_to_usd ?? 1;
 
+            // 🌟 1️⃣ حساب الباقة الأكثر مبيعاً ديناميكياً
+            $bestSellerPackageId = \Illuminate\Support\Facades\DB::table('orders')
+                ->where('status', 'paid')
+                ->select('package_id', \Illuminate\Support\Facades\DB::raw('count(*) as total'))
+                ->groupBy('package_id')
+                ->orderByDesc('total')
+                ->value('package_id');
+
             $perPage = $request->query('per_page', 10);
             $packages = Package::where('status', 'active')->paginate($perPage);
 
-            $packages->getCollection()->transform(function ($package) use ($country, $rate) {
-                // 1️⃣ استخراج السعر الأصلي ونسبة الخصم
-                $discountPercent = (float) ($package->discount ?? 0);
-                $originalPriceUsd = (float) $package->price;
+            $packages->getCollection()->transform(function ($package) use ($country, $rate, $bestSellerPackageId) {
 
-                // 2️⃣ حساب السعر النهائي بالدولار (بعد الخصم)
-                $finalPriceUsd = $discountPercent > 0
-                    ? $originalPriceUsd - ($originalPriceUsd * ($discountPercent / 100))
-                    : $originalPriceUsd;
+                // 🚀 التصحيح الأهم بناءً على الصورة:
+                // 1️⃣ استخراج السعر النهائي (المخزن في قاعدة البيانات) ونسبة الخصم
+                $finalPriceUsd = (float) $package->price;
+                $discountPercent = (float) ($package->discount ?? 0);
+
+                // 2️⃣ حساب السعر الأصلي الوهمي بالدولار (قبل الخصم) لعرضه مشطوباً
+                // تفادي القسمة على صفر في حال كان الخصم 100%
+                $originalPriceUsd = ($discountPercent > 0 && $discountPercent < 100)
+                    ? $finalPriceUsd / (1 - ($discountPercent / 100))
+                    : $finalPriceUsd;
 
                 // 3️⃣ تحويل الأسعار للعملة المحلية
                 $localOriginalPrice = $originalPriceUsd * $rate;
@@ -49,36 +60,32 @@ class StudentPackageController extends Controller
                     'id'            => $package->id,
                     'name'          => $package->name,
                     'description'   => $package->description,
+
+                    // الدقائق كما في الصورة تماماً
                     'base_minutes'  => $package->base_minutes,
                     'bonus_minutes' => $package->bonus_minutes,
                     'validity_days' => $package->validity_days,
 
-                    // 🌟 بيانات الخصم (Discount Info)
+                    'is_best_seller' => $package->id === $bestSellerPackageId,
+
+                    // 🌟 بيانات الخصم
                     'discount_percent'     => $discountPercent,
-                    'has_discount'         => $discountPercent > 0, // لتسهيل إظهار/إخفاء السعر القديم في الموبايل
+                    'has_discount'         => $discountPercent > 0,
 
-                    // 💵 الأسعار بالعملة المحلية (كأرقام للاستخدام البرمجي)
-                    'local_original_price' => (int) round($localOriginalPrice),
-                    'local_final_price'    => (int) round($localFinalPrice),
+                    // 💵 الأسعار بالعملة المحلية
+                    'local_original_price' => (int) round($localOriginalPrice), // السعر المشطوب
+                    'local_final_price'    => (int) round($localFinalPrice),    // السعر الفعلي
 
-                    // 💵 الأسعار بالدولار (للاحتياط)
+                    // 💵 الأسعار بالدولار
                     'original_price_usd'   => round($originalPriceUsd, 2),
                     'final_price_usd'      => round($finalPriceUsd, 2),
 
                     'currency_code'   => $country->currency_code,
                     'currency_symbol' => $country->currency_symbol,
 
-                    // 🎨 الأسعار المنسقة الجاهزة للعرض في الموبايل
-                    'display_original_price' => sprintf(
-                        '%s %s',
-                        $country->currency_symbol,
-                        number_format($localOriginalPrice, 0)
-                    ),
-                    'display_final_price' => sprintf(
-                        '%s %s',
-                        $country->currency_symbol,
-                        number_format($localFinalPrice, 0)
-                    ),
+                    // 🎨 الأسعار المنسقة الجاهزة للعرض
+                    'display_original_price' => sprintf('%s %s', $country->currency_symbol, number_format($localOriginalPrice, 0)),
+                    'display_final_price'    => sprintf('%s %s', $country->currency_symbol, number_format($localFinalPrice, 0)),
                 ];
             });
 
@@ -93,7 +100,7 @@ class StudentPackageController extends Controller
                 'packages' => $packages
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Get Packages Pagination Error', [
+            \Illuminate\Support\Facades\Log::error('Get Packages Pagination Error', [
                 'user_id' => optional($request->user())->id,
                 'error'   => $e->getMessage()
             ]);
@@ -104,6 +111,7 @@ class StudentPackageController extends Controller
             ], 500);
         }
     }
+
     public function userPackages(Request $request): JsonResponse
     {
         try {
@@ -129,19 +137,18 @@ class StudentPackageController extends Controller
             $paginatedPackages->getCollection()->transform(function ($userPackage) use ($country, $rate) {
                 $package = $userPackage->package;
 
-                // 1️⃣ حساب الخصم والأسعار بالدولار
+                // 🚀 تطبيق نفس التصحيح الرياضي هنا أيضاً
+                $finalPriceUsd = (float) $package->price;
                 $discountPercent = (float) ($package->discount ?? 0);
-                $originalPriceUsd = (float) $package->price;
-                $finalPriceUsd = $discountPercent > 0
-                    ? $originalPriceUsd - ($originalPriceUsd * ($discountPercent / 100))
-                    : $originalPriceUsd;
 
-                // 2️⃣ تحويل الأسعار للعملة المحلية
+                $originalPriceUsd = ($discountPercent > 0 && $discountPercent < 100)
+                    ? $finalPriceUsd / (1 - ($discountPercent / 100))
+                    : $finalPriceUsd;
+
                 $localOriginalPrice = $originalPriceUsd * $rate;
                 $localFinalPrice = $finalPriceUsd * $rate;
                 $currencySymbol = $country?->currency_symbol ?? '$';
 
-                // 3️⃣ تنسيق تاريخ الشراء
                 $purchaseDate = $userPackage->created_at ? \Carbon\Carbon::parse($userPackage->created_at) : null;
 
                 return [
@@ -150,7 +157,6 @@ class StudentPackageController extends Controller
                     'expires_at'        => $userPackage->expires_at,
                     'status'            => $userPackage->status,
 
-                    // 📅 تواريخ الشراء الجاهزة للموبايل
                     'purchase_date'     => $purchaseDate ? $purchaseDate->format('Y-m-d') : null,
                     'purchase_time'     => $purchaseDate ? $purchaseDate->format('h:i A') : null,
                     'purchase_datetime' => $purchaseDate ? $purchaseDate->format('Y-m-d h:i A') : null,
@@ -163,22 +169,18 @@ class StudentPackageController extends Controller
                         'validity_days' => $package->validity_days,
                         'description'   => $package->description,
 
-                        // 🌟 بيانات الخصم
                         'discount_percent'     => $discountPercent,
                         'has_discount'         => $discountPercent > 0,
 
-                        // 💵 الأسعار بالعملة المحلية
                         'local_original_price' => (int) round($localOriginalPrice),
                         'local_final_price'    => (int) round($localFinalPrice),
 
-                        // 💵 الأسعار بالدولار (للاحتياط)
                         'original_price_usd'   => round($originalPriceUsd, 2),
                         'final_price_usd'      => round($finalPriceUsd, 2),
 
                         'currency'        => $country?->currency_code ?? 'USD',
                         'currency_symbol' => $currencySymbol,
 
-                        // 🎨 الأسعار المنسقة الجاهزة للعرض
                         'display_original_price' => sprintf('%s %s', $currencySymbol, number_format($localOriginalPrice, 0)),
                         'display_final_price'    => sprintf('%s %s', $currencySymbol, number_format($localFinalPrice, 0)),
                     ]
@@ -208,12 +210,12 @@ class StudentPackageController extends Controller
             ], 500);
         }
     }
+
     public function getPrice(PackagePriceRequest $request, $id): JsonResponse
     {
         try {
             $user = $request->user();
 
-            // 1️⃣ التحقق من وجود الباقة
             $package = Package::find($id);
             if (!$package) {
                 return response()->json([
@@ -222,46 +224,39 @@ class StudentPackageController extends Controller
                 ], 404);
             }
 
-            // 2️⃣ تحويل العملة حسب دولة المستخدم
-            $basePrice = $package->price;
+            // سعر الباقة النهائي (قبل الكوبون)
+            $packageFinalPriceUsd = $package->price;
+
+            // تحويل السعر للعملة المحلية لكي يتم الخصم منها
             $rate = $user->country?->rate_to_usd ?? 1;
-            $convertedPrice = $basePrice * $rate;
+            $convertedPrice = $packageFinalPriceUsd * $rate;
 
             $discountAmount = 0;
-            $discountPercentage = 0; // القيمة الافتراضية لنسبة الخصم
+            $discountPercentage = 0;
             $couponCode = $request->input('coupon');
 
-            // 3️⃣ منطق كود الخصم
+            // 3️⃣ تطبيق كود الخصم الإضافي (يطبق على السعر النهائي للباقة)
             if ($couponCode) {
                 $coupon = Coupon::where('code', $couponCode)->first();
 
                 if (!$coupon || $coupon->status !== 'active') {
-                    return response()->json([
-                        'status' => false,
-                        'message' => 'كود الخصم غير صحيح أو غير مفعل.'
-                    ], 422);
+                    return response()->json(['status' => false, 'message' => 'كود الخصم غير صحيح أو غير مفعل.'], 422);
                 }
 
                 if ($coupon->used >= $coupon->limit) {
-                    return response()->json([
-                        'status' => false,
-                        'message' => 'تم تجاوز الحد الأقصى لاستخدام هذا الكود.'
-                    ], 422);
+                    return response()->json(['status' => false, 'message' => 'تم تجاوز الحد الأقصى لاستخدام هذا الكود.'], 422);
                 }
 
                 if ($coupon->expiry_date && $coupon->expiry_date->isPast()) {
-                    return response()->json([
-                        'status' => false,
-                        'message' => 'كود الخصم منتهي الصلاحية.'
-                    ], 422);
+                    return response()->json(['status' => false, 'message' => 'كود الخصم منتهي الصلاحية.'], 422);
                 }
 
-                // جلب نسبة الخصم وحساب القيمة
                 $discountPercentage = $coupon->percent;
                 $discountAmount = ($convertedPrice * $discountPercentage) / 100;
             }
 
-            $finalPrice = max($convertedPrice - $discountAmount, 0);
+            // السعر النهائي الذي سيدفعه فعلياً بعد الكوبون
+            $finalPriceAfterCoupon = max($convertedPrice - $discountAmount, 0);
 
             return response()->json([
                 'status'   => true,
@@ -269,17 +264,17 @@ class StudentPackageController extends Controller
                 'data'     => [
                     'package_id'       => $package->id,
                     'package_name'     => $package->name,
-                    'original_price'   => round($basePrice, 2),
+                    'original_price'   => round($packageFinalPriceUsd, 2), // سعر الباقة الأساسي بالدولار
                     'country_currency' => $user->country?->currency_code ?? 'USD',
-                    'converted_price'  => round($convertedPrice, 2),
-                    'discount_percent' => $discountPercentage, // النسبة المئوية (مثلاً: 20)
-                    'discount_amount'  => round($discountAmount, 2),
-                    'final_price'      => round($finalPrice, 2),
+                    'converted_price'  => round($convertedPrice, 2),       // سعر الباقة بالعملة المحلية
+                    'discount_percent' => $discountPercentage,             // نسبة خصم الكوبون
+                    'discount_amount'  => round($discountAmount, 2),       // قيمة التخفيض من الكوبون
+                    'final_price'      => round($finalPriceAfterCoupon, 2), // إجمالي الدفع النهائي
                     'coupon_used'      => $couponCode,
                 ]
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Package Price Error', [
+            \Illuminate\Support\Facades\Log::error('Package Price Error', [
                 'user_id' => optional($request->user())->id,
                 'package_id' => $id,
                 'error' => $e->getMessage(),

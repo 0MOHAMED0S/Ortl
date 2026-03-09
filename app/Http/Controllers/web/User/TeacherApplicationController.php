@@ -28,68 +28,95 @@ class TeacherApplicationController extends Controller
     }
 
 public function store(StoreTeacherApplicationRequest $request)
-{
-    // جلب البيانات التي تمت المصادقة عليها
-    $data = $request->validated();
+    {
+        // جلب البيانات التي تمت المصادقة عليها
+        $data = $request->validated();
 
-    DB::beginTransaction();
+        \Illuminate\Support\Facades\DB::beginTransaction();
 
-    try {
-        /* 1. معالجة رفع الصورة الشخصية */
-        // لاحظ هنا: نستخدم 'profile_photo' وهو اسم الحقل القادم من الفورم (Request)
-        if ($request->hasFile('profile_photo')) {
-            $data['profile_photo_path'] = $request
-                ->file('profile_photo')
-                ->store('teacher-applications/photos', 'public');
+        try {
+            /* 1. معالجة رفع الصورة الشخصية */
+            if ($request->hasFile('profile_photo')) {
+                $data['profile_photo_path'] = $request
+                    ->file('profile_photo')
+                    ->store('teacher-applications/photos', 'public');
+            }
+
+            /* 2. معالجة رفع ملف السيرة الذاتية */
+            if ($request->hasFile('cv_pdf')) {
+                $data['cv_pdf_path'] = $request
+                    ->file('cv_pdf')
+                    ->store('teacher-applications/cvs', 'public');
+            }
+
+            /* 3. تنظيف البيانات قبل الإرسال للموديل */
+            $tracks = $request->tracks ?? [];
+
+            unset($data['tracks']);
+            unset($data['profile_photo']);
+            unset($data['cv_pdf']);
+
+            /* 4. إنشاء الطلب */
+            $teacherApplication = \App\Models\Teacher_application::create($data);
+
+            /* 5. ربط المسارات */
+            if (!empty($tracks)) {
+                $teacherApplication->tracks()->attach($tracks);
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            // ==========================================
+            // 🔔 إرسال إشعار لحظي لمديري النظام (Admins) بطلب المعلم الجديد
+            // ==========================================
+            try {
+                $admins = \App\Models\User::where('role', 'admin')->get();
+
+                if ($admins->count() > 0) {
+                    $notificationData = [
+                        'application_id' => $teacherApplication->id,
+                        'full_name'      => $teacherApplication->full_name,
+                        'email'          => $teacherApplication->email,
+                    ];
+
+                    // 1. الحفظ في الداتابيز لكل المديرين
+                    \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
+                        'طلب انضمام معلم 📝',
+                        "قدم/ت {$teacherApplication->full_name} طلب انضمام كمعلم للتو. يرجى مراجعة السيرة الذاتية.",
+                        'new_teacher_application',
+                        $notificationData
+                    ));
+
+                    // 2. إرسال البث اللحظي (Pusher) لكل مدير
+                    foreach ($admins as $admin) {
+                        broadcast(new \App\Events\NewTeacherApplication($admin->id, $notificationData));
+                    }
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Admin Teacher App Notification Error: ' . $e->getMessage());
+            }
+            // ==========================================
+
+            return view('main.success', [
+                'success' => 'تم إرسال طلبك بنجاح، وسيتم التواصل معك بعد المراجعة'
+            ]);
+
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+
+            // تنظيف الملفات إذا رفعت وفشلت العملية
+            if (isset($data['profile_photo_path'])) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($data['profile_photo_path']);
+            }
+            if (isset($data['cv_pdf_path'])) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($data['cv_pdf_path']);
+            }
+
+            \Illuminate\Support\Facades\Log::error('خطأ أثناء إرسال طلب المعلم: ' . $e->getMessage());
+
+            return back()->withErrors([
+                'error' => 'حدث خطأ تقني: ' . $e->getMessage()
+            ])->withInput();
         }
-
-        /* 2. معالجة رفع ملف السيرة الذاتية */
-        if ($request->hasFile('cv_pdf')) {
-            $data['cv_pdf_path'] = $request
-                ->file('cv_pdf')
-                ->store('teacher-applications/cvs', 'public');
-        }
-
-        /* 3. تنظيف البيانات قبل الإرسال للموديل */
-        $tracks = $request->tracks ?? [];
-
-        // الحقول التي يجب حذفها لأنها ليست أعمدة في جدول teacher_applications
-        unset($data['tracks']);
-        unset($data['profile_photo']); // نحذف الملف الأصلي ونبقي على الـ path الذي أنشأناه فوق
-        unset($data['cv_pdf']);        // نحذف الملف الأصلي ونبقي على الـ path الذي أنشأناه فوق
-
-        // الآن $data تحتوي على profile_photo_path و cv_pdf_path بشكل صحيح
-
-        /* 4. إنشاء الطلب */
-        $teacherApplication = Teacher_application::create($data);
-
-        /* 5. ربط المسارات */
-        if (!empty($tracks)) {
-            $teacherApplication->tracks()->attach($tracks);
-        }
-
-        DB::commit();
-
-        return view('main.success', [
-            'success' => 'تم إرسال طلبك بنجاح، وسيتم التواصل معك بعد المراجعة'
-        ]);
-
-    } catch (\Throwable $e) {
-        DB::rollBack();
-
-        // تنظيف الملفات إذا رفعت وفشلت العملية
-        if (isset($data['profile_photo_path'])) {
-            Storage::disk('public')->delete($data['profile_photo_path']);
-        }
-        if (isset($data['cv_pdf_path'])) {
-            Storage::disk('public')->delete($data['cv_pdf_path']);
-        }
-
-        Log::error('خطأ أثناء إرسال طلب المعلم: ' . $e->getMessage());
-
-        return back()->withErrors([
-            'error' => 'حدث خطأ تقني: ' . $e->getMessage()
-        ])->withInput();
     }
-}
 }

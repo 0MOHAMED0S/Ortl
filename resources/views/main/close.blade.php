@@ -513,7 +513,7 @@
 
     <nav class="navbar">
         <div class="container">
-            <a class="navbar-brand" href="#"><img width="50" height="70"
+            <a class="navbar-brand" href="#"><img width="45px" height="45px"
                     src="{{ asset('images/mainlogo.png') }}" alt="ورتل"></a>
             <a href="{{ route('welcome') }}" class="back-link">
                 الرئيسية <i class="fa-solid fa-arrow-left"></i>

@@ -108,7 +108,7 @@ class TeacherWalletController extends Controller
     /**
      * 3. طلب سحب رصيد مالي
      */
-    public function requestWithdrawal(Request $request)
+public function requestWithdrawal(Request $request)
     {
         $validated = $request->validate([
             'amount'         => 'required|numeric|min:1',
@@ -122,7 +122,8 @@ class TeacherWalletController extends Controller
             'account_number.min'      => 'رقم الحساب قصير جداً.',
         ]);
 
-        $teacher = Teacher::where('user_id', auth()->id())->first();
+        $teacherUser = auth()->user();
+        $teacher = \App\Models\Teacher::where('user_id', $teacherUser->id)->first();
 
         if (!$teacher) {
             return response()->json(['status' => false, 'message' => 'بيانات المعلم غير موجودة.'], 404);
@@ -131,7 +132,6 @@ class TeacherWalletController extends Controller
         $totalMinutes   = $teacher->minutes ?? 0;
         $hourlyRate     = $teacher->salary ?? 0;
 
-        // منع القسمة على صفر في حالة لم يتم تحديد راتب للمعلم
         if ($hourlyRate <= 0) {
             return response()->json(['status' => false, 'message' => 'لم يتم تحديد سعر الساعة الخاص بك بعد.'], 400);
         }
@@ -146,25 +146,51 @@ class TeacherWalletController extends Controller
             ], 400);
         }
 
-        DB::beginTransaction();
+        \Illuminate\Support\Facades\DB::beginTransaction();
         try {
-            // تحويل المبلغ المسحوب إلى دقائق لخصمها
             $minutesToDeduct = ($validated['amount'] / $hourlyRate) * 60;
-
-            // خصم الدقائق من رصيد المعلم
             $teacher->decrement('minutes', $minutesToDeduct);
 
-            // إنشاء طلب السحب وحفظ عدد الدقائق المخصومة (سيفيدنا جداً في الإلغاء)
-            $withdrawal = WithdrawalRequest::create([
+            $withdrawal = \App\Models\WithdrawalRequest::create([
                 'teacher_id'     => $teacher->id,
                 'amount'         => $validated['amount'],
                 'account_number' => $validated['account_number'],
                 'notes'          => $validated['notes'] ?? null,
                 'status'         => 'pending',
-                // من الجيد إضافة عمود `deducted_minutes` في الداتابيز مستقبلاً إن أردت دقة 100%
             ]);
 
-            DB::commit();
+            \Illuminate\Support\Facades\DB::commit();
+
+            // ==========================================
+            // 🔔 إرسال إشعار لحظي للإدارة بطلب السحب
+            // ==========================================
+            try {
+                $admins = \App\Models\User::where('role', 'admin')->get();
+                if ($admins->count() > 0) {
+                    $notificationData = [
+                        'withdrawal_id' => $withdrawal->id,
+                        'teacher_name'  => $teacherUser->name,
+                        'amount'        => $withdrawal->amount,
+                        'account'       => $withdrawal->account_number
+                    ];
+
+                    // 1. الداتابيز
+                    \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
+                        'طلب سحب أرباح جديد 💸',
+                        "طلب المعلم {$teacherUser->name} سحب مبلغ {$withdrawal->amount}$.",
+                        'new_withdrawal',
+                        $notificationData
+                    ));
+
+                    // 2. Pusher
+                    foreach ($admins as $admin) {
+                        broadcast(new \App\Events\WithdrawalRequested($admin->id, $notificationData));
+                    }
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Admin Withdrawal Notification Error: ' . $e->getMessage());
+            }
+            // ==========================================
 
             $remainingMinutes = $teacher->fresh()->minutes;
             $remainingBalance = ($remainingMinutes / 60) * $hourlyRate;
@@ -181,25 +207,22 @@ class TeacherWalletController extends Controller
             ], 201);
 
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Withdrawal Request Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Withdrawal Request Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء معالجة الطلب: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * 4. إلغاء طلب السحب (إذا كان معلقاً فقط) وإرجاع الرصيد
-     */
     public function cancelRequest($id)
     {
-        $teacher = Teacher::where('user_id', auth()->id())->first();
+        $teacherUser = auth()->user();
+        $teacher = \App\Models\Teacher::where('user_id', $teacherUser->id)->first();
 
         if (!$teacher) {
             return response()->json(['status' => false, 'message' => 'بيانات المعلم غير موجودة.'], 404);
         }
 
-        // جلب الطلب والتأكد أنه يخص هذا المعلم بالذات
-        $withdrawal = WithdrawalRequest::where('id', $id)
+        $withdrawal = \App\Models\WithdrawalRequest::where('id', $id)
             ->where('teacher_id', $teacher->id)
             ->first();
 
@@ -207,28 +230,52 @@ class TeacherWalletController extends Controller
             return response()->json(['status' => false, 'message' => 'الطلب غير موجود أو لا تملك صلاحية الوصول إليه.'], 404);
         }
 
-        // التأكد من أن حالة الطلب "قيد المراجعة" (Pending)
         if ($withdrawal->status !== 'pending') {
             return response()->json(['status' => false, 'message' => 'لا يمكن إلغاء الطلب لأن حالته الحالية: ' . $withdrawal->status], 400);
         }
 
-        DB::beginTransaction();
+        \Illuminate\Support\Facades\DB::beginTransaction();
         try {
             $hourlyRate = $teacher->salary ?? 0;
-
-            // حساب عدد الدقائق التي يجب إرجاعها للمحفظة
-            // الدقائق = (المبلغ المسحوب / سعر الساعة) * 60
             $minutesToRefund = ($withdrawal->amount / $hourlyRate) * 60;
 
-            // إرجاع الدقائق لرصيد المعلم
-            $teacher->increment('minutes', $minutesToRefund);
+            $withdrawnAmount = $withdrawal->amount; // حفظ القيمة قبل الحذف للإشعار
 
-            // مسح الطلب من قاعدة البيانات (أو يمكنك تغيير حالته إلى 'cancelled' إذا كان لديك هذه الحالة)
+            $teacher->increment('minutes', $minutesToRefund);
             $withdrawal->delete();
 
-            DB::commit();
+            \Illuminate\Support\Facades\DB::commit();
 
-            // حساب الرصيد الجديد بعد الإرجاع
+            // ==========================================
+            // 🔔 إرسال إشعار لحظي للإدارة بإلغاء الطلب
+            // ==========================================
+            try {
+                $admins = \App\Models\User::where('role', 'admin')->get();
+                if ($admins->count() > 0) {
+                    $notificationData = [
+                        'withdrawal_id' => $id,
+                        'teacher_name'  => $teacherUser->name,
+                        'amount'        => $withdrawnAmount,
+                    ];
+
+                    // 1. الداتابيز
+                    \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
+                        'إلغاء طلب سحب 🔄',
+                        "قام المعلم {$teacherUser->name} بالتراجع عن طلب السحب بقيمة {$withdrawnAmount}$.",
+                        'withdrawal_cancelled',
+                        $notificationData
+                    ));
+
+                    // 2. Pusher
+                    foreach ($admins as $admin) {
+                        broadcast(new \App\Events\WithdrawalCancelled($admin->id, $notificationData));
+                    }
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Admin Withdrawal Cancel Notification Error: ' . $e->getMessage());
+            }
+            // ==========================================
+
             $newMinutes = $teacher->fresh()->minutes;
             $newBalance = ($newMinutes / 60) * $hourlyRate;
 
@@ -242,10 +289,10 @@ class TeacherWalletController extends Controller
             ], 200);
 
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Cancel Withdrawal Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Cancel Withdrawal Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء محاولة إلغاء الطلب.'], 500);
         }
     }
-    
+
 }

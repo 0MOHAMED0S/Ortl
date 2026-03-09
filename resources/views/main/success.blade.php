@@ -251,7 +251,7 @@
 
     {{-- <nav class="navbar">
         <div class="container justify-content-center">
-            <a class="navbar-brand" href="#"><img src="{{ asset('images/mainlogo.png') }}" alt="ورتل"></a>
+            <a class="navbar-brand" href="#"><img width="45px" height="45px" src="{{ asset('images/mainlogo.png') }}" alt="ورتل"></a>
         </div>
     </nav> --}}
 

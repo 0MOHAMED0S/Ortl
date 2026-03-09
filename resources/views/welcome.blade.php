@@ -550,112 +550,190 @@
         }
 
         .pricing-section {
-            background-color: #fafafa;
-            padding: 80px 0;
+            background-color: var(--primary-light);
+            padding: 100px 0;
+            position: relative;
+        }
+
+        .pricing-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 100px;
+            background: linear-gradient(to bottom, #ffffff, transparent);
         }
 
         .pkg-card {
-            background: white;
-            border-radius: 28px;
-            padding: 35px 25px;
+            background: #ffffff;
+            border-radius: 30px;
+            padding: 40px 30px;
             text-align: center;
-            border: 1px solid #eee;
-            transition: 0.3s;
+            border: 1px solid rgba(45, 138, 116, 0.1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: relative;
             height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .pkg-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 5px;
+            background: var(--primary-medium);
+            transition: 0.3s;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        .pkg-card:hover {
+            transform: translateY(-12px);
+            box-shadow: 0 25px 50px rgba(45, 138, 116, 0.1);
+            border-color: rgba(45, 138, 116, 0.3);
+        }
+
+        .pkg-card:hover::before {
+            height: 8px;
+            opacity: 1;
         }
 
         .pkg-card.featured {
-            background-color: var(--card-cream);
-            border: 2px solid #fff;
-            box-shadow: 0 20px 50px rgba(228, 178, 86, 0.15);
-            transform: scale(1.05);
+            background: linear-gradient(145deg, #ffffff, #fdfaf5);
+            border: 2px solid var(--gold-main);
+            box-shadow: 0 20px 40px rgba(212, 167, 83, 0.15);
+            transform: scale(1.02);
             z-index: 5;
+        }
+        
+        .pkg-card.featured::before {
+            background: var(--gold-main);
+            height: 8px;
+            opacity: 1;
+        }
+
+        .pkg-card.featured:hover {
+            transform: scale(1.02) translateY(-10px);
+            box-shadow: 0 30px 60px rgba(212, 167, 83, 0.25);
         }
 
         .badge-popular {
             position: absolute;
             top: 25px;
-            left: -30px;
-            background: var(--primary-dark);
-            color: var(--gold-main);
-            padding: 5px 40px;
+            left: -35px;
+            background: linear-gradient(135deg, var(--gold-main), #b3893f);
+            color: #ffffff;
+            padding: 8px 45px;
             font-weight: 800;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
             transform: rotate(-45deg);
-            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 5px 15px rgba(212, 167, 83, 0.4);
+            z-index: 10;
         }
 
         .pkg-name {
-            font-weight: 800;
-            font-size: 1.3rem;
-            color: var(--primary-dark);
-            margin-bottom: 15px;
+            font-weight: 900;
+            font-size: 1.5rem;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 2;
         }
 
         .pkg-gift {
-            background: rgba(255, 255, 255, 0.6);
-            border-radius: 10px;
-            padding: 6px 12px;
+            background: var(--primary-light);
+            border-radius: 12px;
+            padding: 10px 15px;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            font-weight: 700;
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 0.95rem;
+            justify-content: center;
+            gap: 10px;
+            font-weight: 800;
+            color: var(--primary-dark);
+            margin-bottom: 25px;
+            font-size: 1rem;
+            border: 1px dashed rgba(45, 138, 116, 0.3);
+            width: 100%;
+        }
+        
+        .featured .pkg-gift {
+            background: var(--gold-light);
+            color: #b3893f;
+            border-color: rgba(212, 167, 83, 0.3);
+        }
+
+        .pkg-card ul li {
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(0,0,0,0.03);
+        }
+        
+        .pkg-card ul li:last-child {
+            border-bottom: none;
         }
 
         .btn-3d {
             width: 100%;
             border: none;
-            padding: 12px;
-            border-radius: 14px;
+            padding: 14px;
+            border-radius: 16px;
             font-weight: 800;
-            font-size: 1.05rem;
+            font-size: 1.1rem;
             position: relative;
-            transition: 0.1s;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             cursor: pointer;
+            margin-top: 20px;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .btn-3d::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent);
+            z-index: -1;
         }
 
         .btn-3d.orange {
-            background: var(--btn-orange);
-            color: white;
-            box-shadow: 0 5px 0 var(--btn-orange-shadow);
+            background: linear-gradient(to bottom, #dec288, var(--gold-main));
+            color: #ffffff;
+            box-shadow: 0 6px 0 #b3893f, 0 15px 20px rgba(212, 167, 83, 0.4);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
         .btn-3d.green {
-            background: var(--primary-dark);
-            color: white;
-            box-shadow: 0 5px 0 #0f3d22;
+            background: linear-gradient(to bottom, var(--primary-medium), var(--primary-dark));
+            color: #ffffff;
+            box-shadow: 0 6px 0 #185242, 0 15px 20px rgba(45, 138, 116, 0.3);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
         .btn-3d.outline {
-            background: white;
+            background: linear-gradient(to bottom, #ffffff, #f9f9f9);
             color: var(--primary-dark);
-            border: 2px solid var(--primary-dark);
-            box-shadow: 0 5px 0 #e2e8f0;
+            border: 2px solid var(--primary-medium);
+            box-shadow: 0 6px 0 #e2e8f0, 0 10px 15px rgba(0,0,0,0.05);
         }
 
         .btn-3d:active {
-            transform: translateY(5px);
-            box-shadow: none !important;
+            transform: translateY(6px);
+            box-shadow: 0 0 0 transparent !important;
         }
 
         .cursor-icon {
             position: absolute;
-            bottom: -12px;
-            left: 12px;
-            width: 24px;
-            filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.2));
-            animation: floatCursor 2.5s infinite ease-in-out;
+            bottom: -8px;
+            left: 15px;
+            width: 28px;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+            animation: floatCursor 2s infinite ease-in-out alternate;
             pointer-events: none;
         }
 
@@ -693,6 +771,29 @@
             border-radius: 50%;
             object-fit: cover;
             border: 3px solid white;
+        }
+
+        /* Owl Carousel Custom Dots */
+        .owl-theme .owl-dots .owl-dot {
+            outline: none;
+        }
+
+        .owl-theme .owl-dots .owl-dot span {
+            width: 10px;
+            height: 10px;
+            margin: 5px 7px;
+            background: #e0e0e0;
+            display: block;
+            transition: opacity 0.2s ease, width 0.3s ease;
+            border-radius: 30px;
+            opacity: 0.5;
+        }
+
+        .owl-theme .owl-dots .owl-dot.active span,
+        .owl-theme .owl-dots .owl-dot:hover span {
+            background: var(--primary-main);
+            width: 25px;
+            opacity: 1;
         }
 
         /* =========================================
@@ -1202,7 +1303,7 @@
 
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="#"><img width="70px" height="70px"
+            <a class="navbar-brand" href="#"><img width="45px" height="45px"
                     src="{{ asset('images/mainlogo.png') }}" alt="ورتل"></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
                 <i class="fa-solid fa-bars-staggered"></i>
@@ -1282,6 +1383,35 @@
         </div>
     </section>
 
+    <!-- @if (isset($ads) && $ads->count() > 0)
+    <section class="ads-section py-5">
+        <div class="container">
+            <div class="owl-carousel ads-carousel owl-theme">
+                @foreach ($ads as $ad)
+                <div class="item">
+                    <div class="ad-banner" style="background: {{ $ad->bg_color ?? 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-medium) 100%)' }}; border-radius: 20px; overflow: hidden; position: relative; padding: 40px; color: white;">
+                        <div class="row align-items-center position-relative z-1">
+                            <div class="col-md-7">
+                                <h3 class="fw-bold mb-3" style="font-size: 2rem;">{{ $ad->title }}</h3>
+                                @if ($ad->subtitle)
+                                <p class="mb-0 fs-5 opacity-75">{{ $ad->subtitle }}</p>
+                                @endif
+                            </div>
+                            @if ($ad->image)
+                            <div class="col-md-5 text-center mt-4 mt-md-0">
+                                <img src="{{ asset('storage/' . $ad->image) }}" class="img-fluid" style="max-height: 200px; width: auto; display: inline-block; border-radius:15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);" alt="Ad Image">
+                            </div>
+                            @endif
+                        </div>
+                        <div style="position: absolute; top: 0; right: 0; width: 100%; height: 100%; background: radial-gradient(circle at top right, rgba(255,255,255,0.1) 0%, transparent 60%); z-index: 0; pointer-events: none;"></div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif -->
+
     <section id="stats" class="stats-section">
         <div class="stats-bg-pattern"></div>
         <div class="container">
@@ -1356,92 +1486,32 @@
                     متقناً، ستجد المسار الذي يحقق هدفك.</p>
             </div>
 
-            <div class="row g-4">
-                <div class="col-lg-3 col-md-6" data-aos="fade-up" data-aos-delay="100">
+            <div class="owl-carousel tracks-carousel owl-theme py-3">
+                @foreach ($tracks as $index => $track)
+                <div class="item px-2 px-md-3" data-aos="fade-up" data-aos-delay="{{ ($index + 1) * 100 }}">
                     <div class="track-card-pro">
                         <div class="track-header">
-                            <div class="track-icon-lg"><i class="fa-solid fa-book-open"></i></div>
-                            <h4 class="fw-bold mb-2">تحفيظ القرآن</h4>
-                            <span class="badge bg-light text-dark border fw-normal px-3 py-2 rounded-pill">لجميع
-                                المستويات</span>
+                            <div class="track-icon-lg">{!! $track->icon ?? '<i class="fa-solid fa-book-open"></i>' !!}</div>
+                            <h4 class="fw-bold mb-2">{{ $track->name }}</h4>
+                            <span class="badge bg-light text-dark border fw-normal px-3 py-2 rounded-pill">{{ $track->target_group }}</span>
                         </div>
                         <div class="track-body">
                             <p class="text-muted small text-center mb-0">
-                                خطة منهجية لحفظ كتاب الله كاملاً أو أجزاء منه مع المراجعة والتثبيت.
+                                {{ $track->description }}
                             </p>
-                            <ul class="track-features">
+                            @if($track->marketing_value)
+                            <ul class="track-features mt-3 mb-0">
+                                <li><i class="fa-solid fa-circle-check"></i> {{ $track->marketing_value }}</li>
+                            </ul>
+                            @else
+                            <ul class="track-features mt-3 mb-0">
                                 <li><i class="fa-solid fa-circle-check"></i> خطة حفظ فردية مخصصة</li>
-                                <li><i class="fa-solid fa-circle-check"></i> تسميع يومي مع المعلم</li>
-                                <li><i class="fa-solid fa-circle-check"></i> اختبارات مرحلية للتثبيت</li>
                             </ul>
+                            @endif
                         </div>
                     </div>
                 </div>
-
-                <div class="col-lg-3 col-md-6" data-aos="fade-up" data-aos-delay="200">
-                    <div class="track-card-pro">
-                        <div class="track-header">
-                            <div class="track-icon-lg"><i class="fa-solid fa-microphone-lines"></i></div>
-                            <h4 class="fw-bold mb-2">إتقان التلاوة</h4>
-                            <span class="badge bg-light text-dark border fw-normal px-3 py-2 rounded-pill">نظري
-                                وعملي</span>
-                        </div>
-                        <div class="track-body">
-                            <p class="text-muted small text-center mb-0">
-                                تصحيح المخارج والصفات ودراسة أحكام التجويد بشكل نظري وتطبيقي.
-                            </p>
-                            <ul class="track-features">
-                                <li><i class="fa-solid fa-circle-check"></i> شرح مبسط لأحكام التجويد</li>
-                                <li><i class="fa-solid fa-circle-check"></i> تدريب عملي على المخارج</li>
-                                <li><i class="fa-solid fa-circle-check"></i> تصحيح الأخطاء الشائعة</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-3 col-md-6" data-aos="fade-up" data-aos-delay="300">
-                    <div class="track-card-pro">
-                        <div class="track-header">
-                            <div class="track-icon-lg" style="color: var(--gold-main); background: var(--gold-fade);">
-                                <i class="fa-solid fa-certificate"></i>
-                            </div>
-                            <h4 class="fw-bold mb-2">الإجازة والسند</h4>
-                            <span
-                                class="badge bg-warning text-dark border border-warning fw-normal px-3 py-2 rounded-pill">للمتقنين</span>
-                        </div>
-                        <div class="track-body">
-                            <p class="text-muted small text-center mb-0">
-                                للحفاظ المتقنين، قراءة ختمة كاملة للحصول على السند المتصل للنبي ﷺ.
-                            </p>
-                            <ul class="track-features">
-                                <li><i class="fa-solid fa-circle-check"></i> شيوخ مجازون بالقراءات</li>
-                                <li><i class="fa-solid fa-circle-check"></i> إجازة مكتوبة وموثقة</li>
-                                <li><i class="fa-solid fa-circle-check"></i> سجل بالأسانيد المتصلة</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-3 col-md-6" data-aos="fade-up" data-aos-delay="400">
-                    <div class="track-card-pro">
-                        <div class="track-header">
-                            <div class="track-icon-lg"><i class="fa-solid fa-child-reaching"></i></div>
-                            <h4 class="fw-bold mb-2">براعم القرآن</h4>
-                            <span class="badge bg-light text-dark border fw-normal px-3 py-2 rounded-pill">للأطفال
-                                (5-12)</span>
-                        </div>
-                        <div class="track-body">
-                            <p class="text-muted small text-center mb-0">
-                                تأسيس الأطفال في القراءة العربية (نور البيان) وقصار السور بأسلوب ممتع.
-                            </p>
-                            <ul class="track-features">
-                                <li><i class="fa-solid fa-circle-check"></i> منهج نور البيان التأسيسي</li>
-                                <li><i class="fa-solid fa-circle-check"></i> تحفيظ قصار السور</li>
-                                <li><i class="fa-solid fa-circle-check"></i> ألعاب تعليمية وتفاعلية</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                @endforeach
             </div>
         </div>
     </section>
@@ -1488,7 +1558,7 @@
                 <span class="section-tag">الباقات</span>
                 <h2 class="section-title">اختر خطتك التعليمية</h2>
             </div>
-            <div class="row g-4 justify-content-center align-items-center">
+            <div class="owl-carousel packages-carousel owl-theme py-4">
 
                 @foreach ($packages as $package)
                     @php
@@ -1501,7 +1571,7 @@
                             : $originalPrice;
                     @endphp
 
-                    <div class="col-lg-4 col-md-6" data-aos="{{ $hasDiscount ? 'zoom-in' : 'fade-up' }}">
+                    <div class="item px-2 px-md-3" data-aos="{{ $hasDiscount ? 'zoom-in' : 'fade-up' }}">
                         <div class="pkg-card {{ $hasDiscount ? 'featured' : '' }}">
                             @if ($hasDiscount)
                                 <div class="badge-popular">الأكثر طلباً</div>
@@ -1527,17 +1597,16 @@
                                     <p class="small text-muted mb-4 fw-bold">
                                         {{ $package->description ?? 'باقة مثالية للبدء في الحفظ والمراجعة' }}</p>
                                 @else
-                                    <ul class="list-unstyled text-muted text-start mx-auto small"
-                                        style="max-width: 200px;">
-                                        <li class="mb-3"><i class="fa-solid fa-check text-success me-2"></i> صلاحية
-                                            {{ $package->validity_days }} يوم</li>
+                                    <ul class="list-unstyled text-muted text-start mx-auto small w-100 px-3">
+                                        <li class="mb-3 d-flex align-items-center"><i class="fa-solid fa-check text-success me-3 bg-light rounded-circle p-1"></i> <div>صلاحية
+                                            {{ $package->validity_days }} يوم</div></li>
                                         @if ($package->description)
-                                            <li class="mb-3"><i class="fa-solid fa-check text-success me-2"></i>
-                                                {{ Str::limit($package->description, 25) }}</li>
+                                            <li class="mb-3 d-flex align-items-center"><i class="fa-solid fa-check text-success me-3 bg-light rounded-circle p-1"></i>
+                                                <div>{{ Str::limit($package->description, 25) }}</div></li>
                                         @endif
                                         @if ($isVip)
-                                            <li class="mb-3"><i class="fa-solid fa-check text-success me-2"></i>
-                                                معلم خاص</li>
+                                            <li class="mb-3 d-flex align-items-center"><i class="fa-solid fa-check text-success me-3 bg-light rounded-circle p-1"></i>
+                                                <div>معلم خاص</div></li>
                                         @endif
                                     </ul>
                                 @endif
@@ -1576,38 +1645,22 @@
                 </div>
             </div>
             <div class="owl-carousel teachers-carousel owl-theme">
-                <div class="teacher-slide">
-                    <div class="teacher-card">
-                        <div class="teacher-img"><img src="{{ asset('images/a1.jpg.webp') }}" alt="Sheikh"></div>
-                        <h5 class="fw-bold mb-1">الشيخ أحمد</h5>
-                        <p class="text-muted small">القراءات العشر</p>
-                        <div class="text-warning small"><i class="fa-solid fa-star"></i> 4.9</div>
+                @foreach ($teachers as $teacher)
+                <div class="item">
+                    <div class="teacher-slide">
+                        <div class="teacher-card">
+                            <div class="teacher-img">
+                                <img src="{{ $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : asset('images/default-avatar.png') }}"
+                                     alt="{{ $teacher->user->name ?? 'Sheikh' }}"
+                                     onerror="this.src='{{ asset('images/a1.jpg.webp') }}'">
+                            </div>
+                            <h5 class="fw-bold mb-1">{{ $teacher->user->name ?? 'معلم' }}</h5>
+                            <p class="text-muted small">{{ $teacher->tracks->first()->name ?? 'القرآن الكريم' }}</p>
+                            <div class="text-warning small"><i class="fa-solid fa-star"></i> {{ $teacher->average_rating ?? '5.0' }}</div>
+                        </div>
                     </div>
                 </div>
-                <div class="teacher-slide">
-                    <div class="teacher-card">
-                        <div class="teacher-img"><img src="{{ asset('images/a2.webp') }}" alt="Sheikh"></div>
-                        <h5 class="fw-bold mb-1">الشيخ علي </h5>
-                        <p class="text-muted small">أطفال ونساء</p>
-                        <div class="text-warning small"><i class="fa-solid fa-star"></i> 5.0</div>
-                    </div>
-                </div>
-                <div class="teacher-slide">
-                    <div class="teacher-card">
-                        <div class="teacher-img"><img src="{{ asset('images/a3.webp') }}" alt="Sheikh"></div>
-                        <h5 class="fw-bold mb-1">الشيخ محمد</h5>
-                        <p class="text-muted small">إجازة حفص</p>
-                        <div class="text-warning small"><i class="fa-solid fa-star"></i> 4.8</div>
-                    </div>
-                </div>
-                <div class="teacher-slide">
-                    <div class="teacher-card">
-                        <div class="teacher-img"><img src="{{ asset('images/a4.jpg') }}" alt="Sheikh"></div>
-                        <h5 class="fw-bold mb-1">الشيخ يوسف</h5>
-                        <p class="text-muted small">المقامات</p>
-                        <div class="text-warning small"><i class="fa-solid fa-star"></i> 4.9</div>
-                    </div>
-                </div>
+                @endforeach
             </div>
         </div>
     </section>
@@ -1873,7 +1926,7 @@
             // Init Teachers Carousel
             $(".teachers-carousel").owlCarousel({
                 rtl: true,
-                loop: true,
+                loop: false,
                 margin: 0,
                 nav: false,
                 dots: true,
@@ -1894,6 +1947,57 @@
                     1200: {
                         items: 4
                     }
+                }
+            });
+
+            // Init Ads Carousel
+            $(".ads-carousel").owlCarousel({
+                rtl: true,
+                loop: false,
+                margin: 20,
+                nav: false,
+                dots: true,
+                autoplay: true,
+                autoplayTimeout: 4000,
+                autoplayHoverPause: true,
+                smartSpeed: 800,
+                items: 1
+            });
+
+            // Init Tracks Carousel
+            $(".tracks-carousel").owlCarousel({
+                rtl: true,
+                loop: false,
+                margin: 0,
+                nav: false,
+                dots: true,
+                autoplay: true,
+                autoplayTimeout: 3500,
+                autoplayHoverPause: true,
+                smartSpeed: 800,
+                responsive: {
+                    0: { items: 1 },
+                    768: { items: 2 },
+                    992: { items: 3 },
+                    1200: { items: 4 }
+                }
+            });
+
+            // Init Packages Carousel
+            $(".packages-carousel").owlCarousel({
+                rtl: true,
+                loop: false,
+                margin: 0,
+                nav: false,
+                dots: true,
+                autoplay: true,
+                autoplayTimeout: 4500,
+                autoplayHoverPause: true,
+                smartSpeed: 800,
+                responsive: {
+                    0: { items: 1 },
+                    768: { items: 2 },
+                    992: { items: 3 }
                 }
             });
 

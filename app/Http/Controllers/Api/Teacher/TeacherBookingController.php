@@ -16,12 +16,10 @@ use Illuminate\Support\Facades\Log;
 class TeacherBookingController extends Controller
 {
     protected $agoraService;
-
     public function __construct(AgoraService $agoraService)
     {
         $this->agoraService = $agoraService;
     }
-
     public function getSoonestBooking()
     {
         try {
@@ -40,10 +38,10 @@ class TeacherBookingController extends Controller
                 // المواعيد التي لم تنتهِ بعد (تاريخ اليوم وقته أو تاريخ مستقبلي)
                 ->where(function ($query) use ($now) {
                     $query->where('date', '>', $now->toDateString())
-                          ->orWhere(function ($q) use ($now) {
-                              $q->where('date', $now->toDateString())
+                        ->orWhere(function ($q) use ($now) {
+                            $q->where('date', $now->toDateString())
                                 ->where('end_time', '>', $now->toTimeString());
-                          });
+                        });
                 })
                 ->orderBy('date', 'asc')
                 ->orderBy('start_time', 'asc')
@@ -61,52 +59,104 @@ class TeacherBookingController extends Controller
                 'status' => true,
                 'data' => $this->formatSlotData($soonestSlot, $teacher, $now)
             ]);
-
         } catch (\Throwable $e) {
             Log::error('Soonest Booking Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'حدث خطأ في جلب أقرب موعد.'], 500);
         }
     }
-
-    /**
-     * 2. عرض جميع الحجوزات مع التقييمات للمنتهي منها
-     */
     public function getTeacherBookings(Request $request)
     {
         try {
-            $teacher = auth()->user()->teacher;
+            $user = auth()->user();
+            $teacher = $user->teacher;
 
             if (!$teacher) {
                 return response()->json(['status' => false, 'message' => 'حساب المعلم غير موجود.'], 404);
             }
 
-            $slots = TeacherSlot::with(['booking.user'])
-                ->where('teacher_id', $teacher->id)
-                ->where('is_booked', true)
-                ->orderBy('date', 'desc') // عرض الأحدث أولاً في القائمة الكاملة
-                ->paginate($request->get('per_page', 15));
-
             $now = Carbon::now();
 
-            $slots->getCollection()->transform(function ($slot) use ($teacher, $now) {
-                return $this->formatSlotData($slot, $teacher, $now);
-            });
+            // 1️⃣ جلب كافة الحجوزات (غير الملغاة) المرتبطة بهذا المعلم
+            // استخدمنا get() لتمكين التقسيم اليدوي، إذا كانت البيانات ضخمة جداً يفضل استخدام الـ pagination لكل قسم على حدة
+            $allSlots = TeacherSlot::with(['booking.user'])
+                ->where('teacher_id', $teacher->id)
+                ->where('is_booked', true)
+                ->whereHas('booking', function ($query) {
+                    $query->where('status', '!=', 'cancelled');
+                })
+                ->orderBy('date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->get();
+
+            // 2️⃣ معالجة البيانات وتنسيقها
+            $processedSlots = $allSlots->map(function ($slot) use ($teacher, $now) {
+                $booking = $slot->booking;
+                $student = optional($booking)->user;
+
+                if (!$booking || !$student) return null;
+
+                $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
+                $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
+
+                // جلب جلسة المكالمة المرتبطة بالمعد
+                $callSession = CallSession::where('teacher_id', $teacher->id)
+                    ->where('student_id', $student->id)
+                    ->where('started_at', $slotStartDateTime->toDateTimeString())
+                    ->first();
+
+                // المنطق الزمني: هل الجلسة انتهت؟
+                $isPast = $slotEndDateTime->isPast() || optional($callSession)->status === 'ended' || $booking->status === 'completed';
+
+                // هل يمكن للمعلم بدء الجلسة الآن؟ (5 دقائق قبل الموعد)
+                $canStart = !$isPast && $now->copy()->addMinutes(5)->greaterThanOrEqualTo($slotStartDateTime)
+                    && $now->lessThanOrEqualTo($slotEndDateTime);
+
+                return [
+                    'booking_id'      => $booking->id,
+                    'slot_id'         => $slot->id,
+                    'date'            => $slot->date,
+                    'start_time'      => $slot->start_time,
+                    'end_time'        => $slot->end_time,
+                    'status'          => $booking->status,
+                    'is_past'         => $isPast,
+                    'student' => [
+                        'id'    => $student->id,
+                        'name'  => $student->name,
+                        // جلب صورة الطالب إذا كانت مخزنة في بروفايل الطالب
+                        'photo' => optional($student->studentProfile)->profile_photo_path ? asset('storage/' . $student->studentProfile->profile_photo_path) : null,
+                    ],
+                    'call_details' => [
+                        'id'           => optional($callSession)->id,
+                        'channel_name' => optional($callSession)->channel_name,
+                        'status'       => optional($callSession)->status ?? 'not_started',
+                        'can_start'    => $canStart,
+                    ]
+                ];
+            })->filter()->values();
+
+            // 3️⃣ تقسيم البيانات إلى "القادم" و "السابق"
+            // Upcoming: المواعيد التي لم تنتهِ بعد
+            $upcoming = $processedSlots->where('is_past', false)->values();
+
+            // History: المواعيد التي انتهت أو اكتملت
+            $history = $processedSlots->where('is_past', true)->values();
 
             return response()->json([
-                'status' => true,
-                'message' => 'تم استرجاع الحجوزات بنجاح.',
-                'data' => $slots
+                'status'  => true,
+                'message' => 'تم استرجاع حجوزات المعلم بنجاح.',
+                'data'    => [
+                    'upcoming' => $upcoming,
+                    'history'  => $history
+                ]
             ], 200);
-
         } catch (\Throwable $e) {
             Log::error('Get Teacher Bookings Error: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء جلب المواعيد.'], 500);
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ تقني: ' . $e->getMessage()
+            ], 500);
         }
     }
-
-    /**
-     * دالة مساعدة لتوحيد تنسيق بيانات الـ Slot واحتساب الحالات والتقييمات
-     */
     private function formatSlotData($slot, $teacher, $now)
     {
         $student = optional($slot->booking)->user;
@@ -153,10 +203,6 @@ class TeacherBookingController extends Controller
             ] : null
         ];
     }
-
-    /**
-     * 3. بدء الجلسة وتوليد التوكن
-     */
     public function startBookedSession(Request $request)
     {
         $request->validate(['call_session_id' => 'required|exists:call_sessions,id']);
@@ -172,31 +218,70 @@ class TeacherBookingController extends Controller
             if ($call->status === 'ended') {
                 return response()->json(['status' => false, 'message' => 'هذه المكالمة انتهت بالفعل.'], 400);
             }
-
-            // التحقق من الوقت (قبل 5 دقائق كحد أقصى)
             if (Carbon::now()->addMinutes(5)->lessThan(Carbon::parse($call->started_at))) {
                 return response()->json(['status' => false, 'message' => 'لا يمكنك بدء الجلسة الآن، انتظر حتى يحين الموعد.'], 400);
             }
 
-            $call->update(['status' => 'ongoing']);
             $token = $this->agoraService->generateToken($call->channel_name, $user->id, 'publisher');
+            $resourceId = null;
+            $sid = null;
+            if (empty($call->agora_sid)) {
+                $recorderUid = 999999;
+                $recorderToken = $this->agoraService->generateToken(
+                    $call->channel_name,
+                    $recorderUid,
+                    'publisher'
+                );
+                $resourceId = $this->agoraService->acquire($call->channel_name, $recorderUid);
+                if ($resourceId) {
+                    $sid = $this->agoraService->start($resourceId, $call->channel_name, $recorderToken, $recorderUid);
+                    if (!$sid) {
+                        Log::error("Agora Recording Start Failed for Scheduled Call ID: {$call->id}");
+                    }
+                } else {
+                    Log::error("Agora Recording Acquire Failed for Scheduled Call ID: {$call->id}");
+                }
+            }
+            $call->update([
+                'status' => 'ongoing',
+                'agora_resource_id' => $resourceId ?? $call->agora_resource_id,
+                'agora_sid' => $sid ?? $call->agora_sid,
+            ]);
+            try {
+                $student = \App\Models\User::find($call->student_id);
+                if ($student) {
+                    $notificationData = [
+                        'call_session_id' => $call->id,
+                        'channel_name'    => $call->channel_name,
+                        'teacher_name'    => $user->name,
+                    ];
 
+                    broadcast(new \App\Events\TeacherStartedSession($student->id, $notificationData));
+
+                    $student->notify(new \App\Notifications\DynamicNotification(
+                        'المعلم بانتظارك 🎥',
+                        "المعلم {$user->name} بدأ الجلسة المجدولة وهو بانتظار انضمامك الآن.",
+                        'teacher_started_session',
+                        $notificationData
+                    ));
+                }
+            } catch (\Exception $e) {
+                Log::error('Student Notify Error (Start Session): ' . $e->getMessage());
+            }
             return response()->json([
                 'status' => true,
                 'data' => [
                     'token' => $token,
                     'channel' => $call->channel_name,
-                    'uid' => $user->id
+                    'uid' => $user->id,
+                    'is_recording' => !empty($sid)
                 ]
             ]);
         } catch (\Throwable $e) {
+            Log::error('Start Booked Session Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'خطأ في بدء الجلسة.'], 500);
         }
     }
-
-    /**
-     * 4. إنهاء الجلسة وتحويل الدقائق للمحفظة
-     */
     public function endBookedSession(Request $request)
     {
         $request->validate(['call_session_id' => 'required|exists:call_sessions,id']);
@@ -216,14 +301,38 @@ class TeacherBookingController extends Controller
 
             $now = Carbon::now();
             $durationMinutes = (int) ceil(Carbon::parse($call->started_at)->diffInMinutes($now));
+            $recordingUrl = $call->recording_url;
+
+            if (!empty($call->agora_sid) && !empty($call->agora_resource_id)) {
+                $recorderUid = 999999;
+                $fileName = $this->agoraService->stop(
+                    $call->agora_resource_id,
+                    $call->agora_sid,
+                    $call->channel_name,
+                    $recorderUid
+                );
+
+                if ($fileName) {
+                    $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL');
+                    if ($publicUrl) {
+                        $recordingUrl = rtrim($publicUrl, '/') . '/' . ltrim($fileName, '/');
+                    } else {
+                        $endpoint = env('AGORA_STORAGE_ENDPOINT');
+                        $bucket   = env('AGORA_STORAGE_BUCKET');
+                        $recordingUrl = "https://{$endpoint}/{$bucket}/{$fileName}";
+                    }
+                } else {
+                    Log::error("Failed to stop Agora recording for Scheduled Call: {$call->id}");
+                }
+            }
 
             $call->update([
                 'ended_at' => $now,
                 'duration_minutes' => $durationMinutes,
-                'status' => 'ended'
+                'status' => 'ended',
+                'recording_url' => $recordingUrl
             ]);
 
-            // البحث عن الـ Slot والـ Booking المرتبطين لإنهاء الدورة المالية
             $slot = TeacherSlot::where('teacher_id', $call->teacher_id)
                 ->where('date', Carbon::parse($call->started_at)->toDateString())
                 ->where('start_time', Carbon::parse($call->started_at)->toTimeString())
@@ -233,16 +342,40 @@ class TeacherBookingController extends Controller
                 $booking = SlotBooking::where('teacher_slot_id', $slot->id)->first();
                 if ($booking && $booking->status !== 'completed') {
                     $booking->update(['status' => 'completed']);
-                    // إضافة الدقائق المحجوزة مسبقاً لرصيد المعلم
                     $call->teacher->increment('minutes', $booking->deducted_minutes);
                 }
             }
 
             DB::commit();
-            return response()->json(['status' => true, 'message' => 'تم إنهاء الجلسة وإضافة الرصيد محفظتك.']);
+
+            try {
+                $student = \App\Models\User::find($call->student_id);
+                if ($student) {
+                    $notificationData = [
+                        'call_session_id'  => $call->id,
+                        'duration_minutes' => $durationMinutes,
+                        'teacher_name'     => $user->name,
+                    ];
+                    broadcast(new \App\Events\TeacherEndedSession($student->id, $notificationData));
+                    $student->notify(new \App\Notifications\DynamicNotification(
+                        'انتهاء الجلسة ✅',
+                        "أنهى المعلم {$user->name} الجلسة. يمكنك الآن تقييم الحصة ومراجعة التسجيل.",
+                        'session_ended',
+                        $notificationData
+                    ));
+                }
+            } catch (\Exception $e) {
+                Log::error('Student Notify Error (End Session): ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'تم إنهاء الجلسة وإضافة الرصيد لمحفظتك.',
+                'recording_url' => $recordingUrl
+            ]);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('End Session Error: ' . $e->getMessage());
+            Log::error('End Booked Session Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'فشل إنهاء الجلسة.'], 500);
         }
     }

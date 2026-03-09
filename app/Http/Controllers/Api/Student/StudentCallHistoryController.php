@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Api\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\CallSession;
-use App\Models\Rating;
-use Illuminate\Http\Request;
 
 class StudentCallHistoryController extends Controller
 {
@@ -20,7 +18,7 @@ class StudentCallHistoryController extends Controller
             ->with([
                 'teacher.user:id,name',
                 // Eager load the rating specifically for each call session
-                'ratings' => function($query) use ($studentId) {
+                'ratings' => function ($query) use ($studentId) {
                     $query->where('user_id', $studentId);
                 }
             ])
@@ -39,6 +37,8 @@ class StudentCallHistoryController extends Controller
                 'duration_minutes' => $call->duration_minutes,
                 'started_at' => $call->started_at ? $call->started_at->format('Y-m-d H:i:s') : null,
                 'created_at' => $call->created_at->format('Y-m-d H:i:s'),
+                // 🎥 إضافة رابط التسجيل السحابي هنا
+                'recording_url' => $call->recording_url,
                 // Display rating summary in the list
                 'is_rated' => (bool)$rating,
                 'rating_stars' => $rating ? $rating->rating : null,
@@ -87,6 +87,8 @@ class StudentCallHistoryController extends Controller
                 'session_details' => [
                     'channel_name'     => $call->channel_name,
                     'duration_minutes' => $call->duration_minutes,
+                    // 🎥 إضافة رابط التسجيل السحابي هنا للتفاصيل أيضاً
+                    'recording_url'    => $call->recording_url,
                     'timeline' => [
                         'requested_at' => $call->created_at->format('Y-m-d H:i:s'),
                         'started_at'   => $call->started_at ? $call->started_at->format('H:i:s') : null,

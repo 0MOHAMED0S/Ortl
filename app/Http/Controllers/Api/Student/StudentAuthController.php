@@ -120,11 +120,10 @@ class StudentAuthController extends Controller
             // 📸 معالجة رفع الصورة الشخصية
             $photoPath = null;
             if ($request->hasFile('profile_photo_path')) {
-                // تخزين الصورة في مجلد 'profiles' داخل الـ public disk
                 $photoPath = $request->file('profile_photo_path')->store('profiles', 'public');
             }
 
-            // 1️⃣ إنشاء المستخدم (بدون تمرير email_verified_at هنا)
+            // 1️⃣ إنشاء المستخدم
             $user = User::create([
                 'name'     => $request->name,
                 'email'    => $request->email,
@@ -132,7 +131,7 @@ class StudentAuthController extends Controller
                 'role'     => 'student',
             ]);
 
-            // ✅ توثيق البريد الإلكتروني فوراً (هذه الدالة تضع now() في قاعدة البيانات مباشرة)
+            // ✅ توثيق البريد الإلكتروني فوراً
             $user->markEmailAsVerified();
 
             // 2️⃣ إنشاء بروفايل الطالب
@@ -147,7 +146,6 @@ class StudentAuthController extends Controller
                 'profile_photo_path'  => $photoPath,
             ]);
 
-            // 🌟 إضافة الرابط الكامل للصورة للاستجابة
             $student->profile_photo_url = $photoPath ? asset('storage/' . $photoPath) : null;
 
             // 3️⃣ حذف OTP لمنع إعادة الاستخدام
@@ -157,7 +155,33 @@ class StudentAuthController extends Controller
             $token = $user->createToken('auth_token')->plainTextToken;
 
             DB::commit();
+            try {
+                // جلب جميع مديري النظام (بافتراض أن دورهم هو 'admin')
+                $admins = User::where('role', 'admin')->get();
 
+                if ($admins->count() > 0) {
+                    $notificationData = [
+                        'student_id'   => $user->id,
+                        'student_name' => $user->name,
+                        'student_email' => $user->email,
+                    ];
+
+                    // 1. الحفظ في الداتابيز لكل المديرين دفعة واحدة
+                    \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
+                        'طالب جديد 🎉',
+                        "سجل الطالب {$user->name} للتو في التطبيق.",
+                        'new_student',
+                        $notificationData
+                    ));
+
+                    // 2. إرسال البث اللحظي (Pusher) لكل مدير
+                    foreach ($admins as $admin) {
+                        broadcast(new \App\Events\NewStudentRegistered($admin->id, $notificationData));
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Admin Registration Notification Error: ' . $e->getMessage());
+            }
             return response()->json([
                 'status'  => true,
                 'message' => 'تم إنشاء الحساب بنجاح.',
@@ -170,7 +194,6 @@ class StudentAuthController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            // تنظيف الصورة إذا فشلت العملية
             if (isset($photoPath) && $photoPath) {
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($photoPath);
             }
@@ -183,7 +206,7 @@ class StudentAuthController extends Controller
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء إنشاء الحساب. حاول مرة أخرى.',
-                'error'   => $e->getMessage()
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -207,13 +230,7 @@ class StudentAuthController extends Controller
                     'message' => 'غير مصرح لك بتسجيل الدخول من هنا.',
                 ], 403);
             }
-
-            // لو حابب تخلي تسجيل دخول بجلسة واحدة فقط
-            // $user->tokens()->delete();
-
             $token = $user->createToken('auth_token')->plainTextToken;
-
-            // 🌟 Prepare the profile and add the full photo URL
             $profile = $user->studentProfile;
             if ($profile) {
                 $profile->profile_photo_url = $profile->profile_photo_path

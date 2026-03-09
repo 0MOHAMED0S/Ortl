@@ -55,19 +55,15 @@ class PrivateCallController extends Controller
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id'
         ]);
-
         $user = auth()->user();
         $totalAvailableMinutes = $this->calculateTotalMinutes($user->id);
-
         if ($totalAvailableMinutes <= 0) {
             return response()->json([
                 'status'  => false,
                 'message' => 'ليس لديك رصيد دقائق كافٍ لإجراء المكالمة.'
             ], 400);
         }
-
         $teacher = Teacher::with('user')->findOrFail($request->teacher_id);
-
         if (!$teacher->is_online) {
             return response()->json([
                 'status'  => false,
@@ -76,33 +72,28 @@ class PrivateCallController extends Controller
         }
         $isBusyInCall = CallSession::where('teacher_id', $teacher->id)
             ->where(function ($query) {
-                $query->where('status', 'live')
+                $query->where('status', 'live') // إذا كانت الحالة عندك ongoing استخدمها بدلاً من live
                     ->orWhere(function ($q) {
                         $q->where('status', 'initiated')
                             ->where('created_at', '>=', now()->subMinutes(2)); // حماية المعلم من التعليق للأبد
                     });
             })
             ->exists();
-
         $isBusyInLiveSession = RecitationSession::where('teacher_id', $teacher->id)
             ->where('status', 'live')
             ->exists();
-
         $mustJoinSession = RecitationSession::where('teacher_id', $teacher->id)
             ->whereIn('status', ['scheduled', 'upcoming'])
-            ->where('start_at', '<=', now()->addMinutes(15)) // يمكنك تغيير الـ 15 دقيقة حسب رغبتك
+            ->where('start_at', '<=', now()->addMinutes(15))
             ->where('end_at', '>', now())
             ->exists();
-
         if ($isBusyInCall || $isBusyInLiveSession || $mustJoinSession) {
             return response()->json([
                 'status'  => false,
                 'message' => 'عذراً، المعلم مشغول حالياً (في حصة، مكالمة، أو لديه حصة ستبدأ فوراً). يرجى المحاولة لاحقاً.'
             ], 400);
         }
-
         $channelName = 'private_call_' . $user->id . '_' . $teacher->id . '_' . time();
-
         $call = CallSession::create([
             'student_id'   => $user->id,
             'teacher_id'   => $teacher->id,
@@ -110,9 +101,26 @@ class PrivateCallController extends Controller
             'status'       => 'initiated',
             'started_at'   => null,
         ]);
-
         $token = $this->agoraService->generateToken($channelName, $user->id, 'publisher');
+        $resourceId = null;
+        $sid = null;
+        $recorderUid = 999999;
+        $recorderToken = $this->agoraService->generateToken($channelName, $recorderUid, 'publisher');
 
+        $resourceId = $this->agoraService->acquire($channelName, $recorderUid);
+
+        if ($resourceId) {
+            $sid = $this->agoraService->start($resourceId, $channelName, $recorderToken, $recorderUid);
+            if (!$sid) {
+                Log::error("Agora Recording Start Failed for Instant Call ID: {$call->id}");
+            }
+        } else {
+            Log::error("Agora Recording Acquire Failed for Instant Call ID: {$call->id}");
+        }
+        $call->update([
+            'agora_resource_id' => $resourceId,
+            'agora_sid'         => $sid,
+        ]);
         $callData = [
             'call_id'      => $call->id,
             'channel_name' => $channelName,
@@ -142,7 +150,8 @@ class PrivateCallController extends Controller
                 'channel_name'        => $channelName,
                 'agora_token'         => $token,
                 'uid'                 => $user->id,
-                'max_minutes_allowed' => (int) $totalAvailableMinutes
+                'max_minutes_allowed' => (int) $totalAvailableMinutes,
+                'is_recording'        => !empty($sid)
             ]
         ]);
     }
@@ -194,6 +203,30 @@ class PrivateCallController extends Controller
             $durationMinutes = (int) ceil($durationSeconds / 60);
         }
 
+        $recordingUrl = $call->recording_url;
+
+        if (!empty($call->agora_sid) && !empty($call->agora_resource_id)) {
+            $recorderUid = 999999;
+            $fileName = $this->agoraService->stop(
+                $call->agora_resource_id,
+                $call->agora_sid,
+                $call->channel_name,
+                $recorderUid
+            );
+
+            if ($fileName) {
+                $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL');
+                if ($publicUrl) {
+                    $recordingUrl = rtrim($publicUrl, '/') . '/' . ltrim($fileName, '/');
+                } else {
+                    $endpoint = env('AGORA_STORAGE_ENDPOINT');
+                    $bucket   = env('AGORA_STORAGE_BUCKET');
+                    $recordingUrl = "https://{$endpoint}/{$bucket}/{$fileName}";
+                }
+            } else {
+                Log::error("Failed to stop Agora recording for Instant Call: {$call->id}");
+            }
+        }
         DB::beginTransaction();
         try {
             $actualDeduction = 0;
@@ -227,7 +260,8 @@ class PrivateCallController extends Controller
             $call->update([
                 'ended_at'         => $now,
                 'duration_minutes' => $actualDeduction,
-                'status'           => 'ended'
+                'status'           => 'ended',
+                'recording_url'    => $recordingUrl
             ]);
 
             DB::commit();
@@ -239,7 +273,8 @@ class PrivateCallController extends Controller
                 'message' => 'تم إنهاء المكالمة بنجاح.',
                 'data'    => [
                     'call_duration_minutes'     => $actualDeduction,
-                    'student_remaining_minutes' => (int) $studentRemainingMinutes
+                    'student_remaining_minutes' => (int) $studentRemainingMinutes,
+                    'recording_url'             => $recordingUrl
                 ]
             ]);
         } catch (\Throwable $e) {

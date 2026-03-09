@@ -2,11 +2,14 @@
 
 use App\Http\Controllers\Api\Gifts\GiftController;
 use App\Http\Controllers\Api\Student\StudentAuthController;
+use App\Http\Controllers\web\Admin\AdminBookingController;
+use App\Http\Controllers\web\Admin\AdminCallSessionController;
 use App\Http\Controllers\web\Admin\AdsController;
 use App\Http\Controllers\web\Admin\AuthController;
 use App\Http\Controllers\web\Admin\ContactSettingController;
 use App\Http\Controllers\web\Admin\CountryController;
 use App\Http\Controllers\web\Admin\CouponsController;
+use App\Http\Controllers\web\Admin\DashboardController;
 use App\Http\Controllers\web\Admin\PackageController;
 use App\Http\Controllers\web\Admin\ProfileController;
 use App\Http\Controllers\web\Admin\RecitationSessionController;
@@ -18,19 +21,9 @@ use App\Http\Controllers\web\Admin\TrackController as AdminTrackController;
 use App\Http\Controllers\web\User\ContactController;
 use App\Http\Controllers\web\User\MainController;
 use App\Http\Controllers\web\User\TeacherApplicationController;
-use App\Http\Controllers\web\User\TrackController;
-use App\Models\ContactSetting;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\web\Admin\WithdrawalController;
 
-
-// Route::get('/', function () {
-//     return view('welcome');
-// })->name('welcome');
-
-// Route::get('/teacher', function () {
-//     return view('main.teacher');
-// })->name('teacher.index');
 Route::get('/payment/success', function () {
     return view('payments.success');
 })->name('payment.success');
@@ -57,7 +50,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/recitations/create', [RecitationSessionController::class, 'create'])->name('admin.recitations.create');
         Route::post('/recitations', [RecitationSessionController::class, 'store'])->name('admin.recitations.store');
 
-        Route::get('/dashboard', fn() => view('dashboard.index'))->name('admin.dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
         Route::post('settings/toggle-registration', [SettingController::class, 'toggleTeacherRegistration'])->name('settings.toggleRegistration');
         Route::post('/teachers/{id}/update-details', [TeacherController::class, 'updateDetails'])->name('teacher.updateDetails');
 
@@ -84,19 +77,26 @@ Route::prefix('admin')->group(function () {
         Route::get('/countries', [CountryController::class, 'index'])->name('countries.index');
         Route::put('/countries/{country}/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle_status');
         Route::put('/recitations/{id}', [RecitationSessionController::class, 'update'])->name('admin.recitations.update');
-Route::delete('/recitations/{id}', [RecitationSessionController::class, 'destroy'])->name('admin.recitations.destroy');
+        Route::delete('/recitations/{id}', [RecitationSessionController::class, 'destroy'])->name('admin.recitations.destroy');
+        Route::get('/calls', [AdminCallSessionController::class, 'index'])->name('calls.index');
+        Route::get('/bookings', [AdminBookingController::class, 'index'])->name('admin.bookings.index');
 
-Route::get('/withdrawals', [WithdrawalController::class, 'index'])->name('admin.withdrawals.index');
-Route::put('/withdrawals/{id}/status', [WithdrawalController::class, 'updateStatus'])->name('admin.withdrawals.update_status');
+Route::get('/notifications', [\App\Http\Controllers\web\Admin\AdminNotificationController::class, 'index'])->name('admin.notifications.index');
+Route::post('/notifications/read-all', [\App\Http\Controllers\web\Admin\AdminNotificationController::class, 'markAllAsRead'])->name('admin.notifications.readAll');
+Route::post('/notifications/{id}/read', [\App\Http\Controllers\web\Admin\AdminNotificationController::class, 'markAsRead'])->name('admin.notifications.read');
+
+        Route::get('/withdrawals', [WithdrawalController::class, 'index'])->name('admin.withdrawals.index');
+        Route::put('/withdrawals/{id}/status', [WithdrawalController::class, 'updateStatus'])->name('admin.withdrawals.update_status');
     });
 });
 
 Route::post('/teacher-apply', [TeacherApplicationController::class, 'store'])
     ->name('teacher.apply');
+
 Route::post('/contact-us', [ContactController::class, 'sendEmail'])->name('contact.send');
 
 
-Route::match(['get', 'post'], '/gifts/payment/response', [GiftController::class, 'handleResponse'])
-    ->name('web.gifts.payment.response');
-Route::get('/gifts/card/{code}', [GiftController::class, 'showGiftCard'])
-    ->name('web.gifts.card.show');
+Route::match(['get', 'post'], '/gifts/payment/response', [GiftController::class, 'handleResponse'])->name('web.gifts.payment.response');
+Route::get('/gifts/card/{code}', [GiftController::class, 'showGiftCard'])->name('web.gifts.card.show');
+
+

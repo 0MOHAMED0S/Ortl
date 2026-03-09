@@ -45,13 +45,14 @@ class TeacherCallHistoryController extends Controller
             $calls->getCollection()->transform(function ($call) {
                 $rating = $call->ratings->first();
                 return [
-                    'id' => $call->id,
-                    'student_name' => $call->student->name ?? 'طالب',
-                    'status' => $call->status,
+                    'id'               => $call->id,
+                    'student_name'     => $call->student->name ?? 'طالب',
+                    'status'           => $call->status,
                     'duration_minutes' => $call->duration_minutes,
-                    'date' => $call->created_at->format('Y-m-d'),
-                    'time' => $call->created_at->format('H:i:s'),
-                    'rating' => $rating ? $rating->rating : null,
+                    'date'             => $call->created_at->format('Y-m-d'),
+                    'time'             => $call->created_at->format('H:i:s'),
+                    'recording_url'    => $call->recording_url, // 🎥 إضافة رابط التسجيل هنا
+                    'rating'           => $rating ? $rating->rating : null,
                 ];
             });
 
@@ -112,9 +113,10 @@ class TeacherCallHistoryController extends Controller
                         'email' => $call->student->email ?? 'N/A',
                     ],
                     'session_info' => [
-                        'channel' => $call->channel_name,
-                        'duration_minutes' => $call->duration_minutes,
+                        'channel'                 => $call->channel_name,
+                        'duration_minutes'        => $call->duration_minutes,
                         'minutes_added_to_wallet' => $call->duration_minutes,
+                        'recording_url'           => $call->recording_url, // 🎥 إضافة رابط التسجيل هنا
                         'timing' => [
                             'date'       => $call->created_at->format('Y-m-d'),
                             'started_at' => $call->started_at ? $call->started_at->format('H:i:s') : null,
@@ -122,8 +124,8 @@ class TeacherCallHistoryController extends Controller
                         ]
                     ],
                     'feedback' => $rating ? [
-                        'stars'   => $rating->rating,
-                        'comment' => $rating->comment,
+                        'stars'    => $rating->rating,
+                        'comment'  => $rating->comment,
                         'rated_at' => $rating->created_at->format('Y-m-d H:i:s'),
                     ] : null,
                 ]

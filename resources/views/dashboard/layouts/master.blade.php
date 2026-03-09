@@ -63,7 +63,7 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 0 15px rgba(0,0,0,0.02);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.02);
         }
 
         /* Main Content Wrapper */
@@ -109,7 +109,8 @@
             display: flex;
             align-items: center;
             padding: 12px 15px;
-            color: #636e72; /* Neutral text color */
+            color: #636e72;
+            /* Neutral text color */
             text-decoration: none;
             font-weight: 600;
             font-size: 0.95rem;
@@ -122,13 +123,15 @@
             font-size: 1.1rem;
             margin-left: 10px;
             text-align: center;
-            color: #b2bec3; /* Neutral Icon color */
+            color: #b2bec3;
+            /* Neutral Icon color */
             transition: 0.3s;
         }
 
         /* Hover State */
         .sidebar-link:hover {
-            background-color: #f0fdf4; /* Very light green */
+            background-color: #f0fdf4;
+            /* Very light green */
             color: var(--primary-dark);
             transform: translateX(-3px);
         }
@@ -153,13 +156,20 @@
             background-color: #fff5f5;
             color: #dc3545 !important;
         }
+
         .sidebar-link.text-danger:hover i {
             color: #dc3545;
         }
 
         /* Scrollbar for sidebar */
-        #sidebar::-webkit-scrollbar { width: 5px; }
-        #sidebar::-webkit-scrollbar-thumb { background: #eee; border-radius: 10px; }
+        #sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb {
+            background: #eee;
+            border-radius: 10px;
+        }
 
         /* =========================================
            3. TOP NAVBAR
@@ -197,24 +207,53 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             border-radius: 12px;
         }
+
         .notif-header {
-            padding: 12px 15px; border-bottom: 1px solid #eee;
-            font-weight: 700; font-size: 0.9rem; color: var(--primary-dark);
-            background: #fcfcfc; border-radius: 12px 12px 0 0;
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--primary-dark);
+            background: #fcfcfc;
+            border-radius: 12px 12px 0 0;
         }
+
         .notif-item {
-            padding: 12px 15px; border-bottom: 1px solid #f9f9f9;
-            display: flex; align-items: start; gap: 12px; transition: 0.2s;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f9f9f9;
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            transition: 0.2s;
         }
-        .notif-item:hover { background: #f8f9fa; }
+
+        .notif-item:hover {
+            background: #f8f9fa;
+        }
+
         .notif-icon {
-            width: 32px; height: 32px; border-radius: 50%;
-            background: #e8f5e9; color: var(--primary-dark);
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0; font-size: 0.9rem;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e8f5e9;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.9rem;
         }
-        .notif-content p { margin: 0; font-size: 0.8rem; font-weight: 600; }
-        .notif-content span { font-size: 0.7rem; color: #999; }
+
+        .notif-content p {
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .notif-content span {
+            font-size: 0.7rem;
+            color: #999;
+        }
 
         /* =========================================
            5. RESPONSIVE LOGIC
@@ -222,24 +261,50 @@
         @media (max-width: 992px) {
             #sidebar {
                 right: calc(var(--sidebar-width) * -1);
-                box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+                box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
             }
-            #content-wrapper { margin-right: 0; width: 100%; }
-            .menu-toggle-btn { display: block; margin-left: 15px; }
 
-            body.sidebar-active #sidebar { right: 0; }
-            body.sidebar-active { overflow: hidden; }
+            #content-wrapper {
+                margin-right: 0;
+                width: 100%;
+            }
+
+            .menu-toggle-btn {
+                display: block;
+                margin-left: 15px;
+            }
+
+            body.sidebar-active #sidebar {
+                right: 0;
+            }
+
+            body.sidebar-active {
+                overflow: hidden;
+            }
 
             /* Overlay */
             #overlay {
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0, 0, 0, 0.5); z-index: 950;
-                display: none; opacity: 0; transition: opacity 0.3s;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 950;
+                display: none;
+                opacity: 0;
+                transition: opacity 0.3s;
                 backdrop-filter: blur(2px);
             }
-            body.sidebar-active #overlay { display: block; opacity: 1; }
 
-            .top-navbar { padding: 0 15px; }
+            body.sidebar-active #overlay {
+                display: block;
+                opacity: 1;
+            }
+
+            .top-navbar {
+                padding: 0 15px;
+            }
         }
     </style>
 
@@ -265,68 +330,93 @@
 
             <ul class="sidebar-menu">
                 <li>
-                    <a href="{{ route('admin.dashboard') }}" class="sidebar-link {{ Route::currentRouteName() == 'admin.dashboard' ? 'active' : '' }}">
+                    <a href="{{ route('admin.dashboard') }}"
+                        class="sidebar-link {{ Route::currentRouteName() == 'admin.dashboard' ? 'active' : '' }}">
                         <i class="fa-solid fa-gauge"></i> الرئيسية
                     </a>
                 </li>
                 <li>
-                    <a href="{{ route('tracks.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'tracks.') ? 'active' : '' }}">
-                        <i class="fa-solid fa-layer-group"></i> المسارات
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('teachers.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'teachers.') ? 'active' : '' }}">
-                        <i class="fa-solid fa-chalkboard-user"></i> المعلمون
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('packages.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'packages.') ? 'active' : '' }}">
-                        <i class="fa-solid fa-sack-dollar"></i> الباقات
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('coupons.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'coupons.') ? 'active' : '' }}">
-                        <i class="fa-solid fa-tags"></i> الكوبونات
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('ads.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'ads.') ? 'active' : '' }}">
-                        <i class="fa-solid fa-ad"></i> الإعلانات
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('admin.students') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.students') ? 'active' : '' }}">
+                    <a href="{{ route('admin.students') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.students') ? 'active' : '' }}">
                         <i class="fa-solid fa-users"></i> الطلاب
                     </a>
                 </li>
                 <li>
-                    <a href="{{ route('admin.recitations.create') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.recitations.create') ? 'active' : '' }}">
+                    <a href="{{ route('teachers.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'teachers.') ? 'active' : '' }}">
+                        <i class="fa-solid fa-chalkboard-user"></i> المعلمون
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('tracks.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'tracks.') ? 'active' : '' }}">
+                        <i class="fa-solid fa-layer-group"></i> المسارات
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.recitations.create') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.recitations.create') ? 'active' : '' }}">
                         <i class="fa-solid fa-video"></i> المقرأه
                     </a>
                 </li>
                 <li>
-                    <a href="{{ route('admin.subscriptions') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.subscriptions') ? 'active' : '' }}">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> الاشتراكات
+                    <a href="{{ route('admin.bookings.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.bookings.index') ? 'active' : '' }}">
+                        <i class="fa-solid fa-calendar-check"></i> الحجوزات
                     </a>
                 </li>
                 <li>
-                    <a href="{{ route('admin.withdrawals.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.withdrawals') ? 'active' : '' }}">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> السحب
+                    <a href="{{ route('calls.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'calls.index') ? 'active' : '' }}">
+                        <i class="fa-solid fa-phone"></i> المكالمات
                     </a>
                 </li>
                 <li>
-    <a href="{{ route('countries.index') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'countries.') ? 'active' : '' }}">
-        <i class="fa-solid fa-tags"></i> الدول
-    </a>
-</li>
-<li>
-    <a href="{{ route('profile') }}" class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'profile') ? 'active' : '' }}">
-        <i class="fa-solid fa-tags"></i> الملف الشخصي
-    </a>
-</li>
+                    <a href="{{ route('packages.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'packages.') ? 'active' : '' }}">
+                        <i class="fa-solid fa-sack-dollar"></i> الباقات
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.subscriptions') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.subscriptions') ? 'active' : '' }}">
+                        <i class="fa-solid fa-id-card"></i> الاشتراكات
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('coupons.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'coupons.') ? 'active' : '' }}">
+                        <i class="fa-solid fa-tags"></i> الكوبونات
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('ads.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'ads.') ? 'active' : '' }}">
+                        <i class="fa-solid fa-ad"></i> الإعلانات
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.withdrawals.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'admin.withdrawals') ? 'active' : '' }}">
+                        <i class="fa-solid fa-money-bill-transfer"></i> السحب
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('countries.index') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'countries.') ? 'active' : '' }}">
+                        <i class="fa-solid fa-globe"></i> الدول
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('profile') }}"
+                        class="sidebar-link {{ Str::startsWith(Route::currentRouteName(), 'profile') ? 'active' : '' }}">
+                        <i class="fa-solid fa-user-gear"></i> الملف الشخصي
+                    </a>
+                </li>
                 {{-- Spacer --}}
                 <li style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;">
-                    <a href="#" class="sidebar-link text-danger" data-bs-toggle="modal" data-bs-target="#logoutModal">
+                    <a href="#" class="sidebar-link text-danger" data-bs-toggle="modal"
+                        data-bs-target="#logoutModal">
                         <i class="fa-solid fa-right-from-bracket"></i> تسجيل خروج
                     </a>
                 </li>
@@ -351,33 +441,86 @@
                 <div class="d-flex align-items-center gap-3">
 
                     {{-- Notifications --}}
-                    <div class="dropdown">
-                        <div class="position-relative p-1" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
-                            <i class="fa-regular fa-bell fs-5 text-secondary"></i>
-                            <span class="position-absolute top-0 start-0 translate-middle p-1 bg-danger border border-light rounded-circle" style="width: 10px; height: 10px;"></span>
-                        </div>
-                        <ul class="dropdown-menu dropdown-menu-end notification-menu">
-                            <li class="notif-header">الإشعارات</li>
-                            <li>
-                                <a class="dropdown-item notif-item" href="#">
-                                    <div class="notif-icon"><i class="fa-solid fa-user-plus"></i></div>
-                                    <div class="notif-content">
-                                        <p>طالب جديد سجل في المنصة</p>
-                                        <span>منذ 5 دقائق</span>
-                                    </div>
-                                </a>
-                            </li>
-                            <li><a class="dropdown-item text-center p-2 small text-primary fw-bold" href="#">عرض الكل</a></li>
-                        </ul>
+@php
+    // جلب عدد الإشعارات غير المقروءة وأحدث 5 إشعارات
+    $unreadCount = auth()->user()->unreadNotifications->count();
+    $recentNotifications = auth()->user()->unreadNotifications()->take(5)->get();
+@endphp
+
+<div class="dropdown">
+    <div class="position-relative p-1" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
+        <i class="fa-regular fa-bell fs-5 text-secondary"></i>
+
+        {{-- إظهار العداد فقط إذا كان هناك إشعارات غير مقروءة --}}
+        @if($unreadCount > 0)
+            <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem; padding: 0.25em 0.4em;">
+                {{ $unreadCount > 99 ? '99+' : $unreadCount }}
+            </span>
+        @endif
+    </div>
+
+    <ul class="dropdown-menu dropdown-menu-end notification-menu shadow-lg" style="width: 320px; max-height: 450px; overflow-y: auto;">
+        <li class="notif-header px-3 py-2 fw-bold border-bottom d-flex justify-content-between align-items-center">
+            <span>الإشعارات</span>
+            @if($unreadCount > 0)
+                <span class="badge bg-primary rounded-pill">{{ $unreadCount }} جديد</span>
+            @endif
+        </li>
+
+        {{-- عرض أحدث الإشعارات ديناميكياً --}}
+        @forelse($recentNotifications as $notification)
+            @php
+                $data = $notification->data;
+                $icon = 'fa-bell';
+
+                // تغيير الأيقونة حسب نوع الإشعار
+                if(isset($data['type'])) {
+                    if($data['type'] == 'new_student') $icon = 'fa-user-graduate';
+                    if($data['type'] == 'new_order') $icon = 'fa-sack-dollar';
+                    if($data['type'] == 'new_teacher_application') $icon = 'fa-chalkboard-user';
+                    if($data['type'] == 'new_withdrawal') $icon = 'fa-money-bill-transfer';
+                }
+            @endphp
+            <li>
+                {{-- توجيه الإشعار لصفحة الإشعارات --}}
+                <a class="dropdown-item notif-item d-flex gap-3 align-items-start py-3 border-bottom text-wrap" href="{{ route('admin.notifications.index') }}">
+                    <div class="notif-icon text-primary mt-1"><i class="fa-solid {{ $icon }} fs-5"></i></div>
+                    <div class="notif-content flex-grow-1">
+                        <p class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">{{ $data['title'] ?? 'إشعار جديد' }}</p>
+                        <span class="text-muted d-block" style="font-size: 0.75rem;">
+                            <i class="fa-regular fa-clock me-1"></i> {{ $notification->created_at->diffForHumans() }}
+                        </span>
                     </div>
+                </a>
+            </li>
+        @empty
+            <li>
+                <div class="dropdown-item text-center text-muted py-4 small">
+                    <i class="fa-regular fa-bell-slash fs-4 mb-2 d-block opacity-50"></i>
+                    لا توجد إشعارات جديدة
+                </div>
+            </li>
+        @endforelse
+
+        {{-- زر عرض الكل يوجه للصفحة التي برمجناها --}}
+        <li class="position-sticky bottom-0 bg-white">
+            <a class="dropdown-item text-center p-3 small text-primary fw-bold" href="{{ route('admin.notifications.index') }}" style="background-color: #f8fafc;">
+                عرض كل الإشعارات <i class="fa-solid fa-arrow-left ms-1"></i>
+            </a>
+        </li>
+    </ul>
+</div>
 
                     {{-- Admin Info --}}
                     <div class="d-flex align-items-center">
                         <div class="admin-details text-end d-none d-md-block ms-2">
-                            <span class="d-block fw-bold small text-dark">{{ Auth::user()->name ?? 'المدير العام' }}</span>
-                            <span class="d-block small text-muted" style="font-size: 0.7rem;">{{ Auth::user()->email ?? 'admin@wartel.com' }}</span>
+                            <span
+                                class="d-block fw-bold small text-dark">{{ Auth::user()->name ?? 'المدير العام' }}</span>
+                            <span class="d-block small text-muted"
+                                style="font-size: 0.7rem;">{{ Auth::user()->email ?? 'admin@wartel.com' }}</span>
                         </div>
-                        <img src="https://ui-avatars.com/api/?name={{ Auth::user()->name ?? 'Admin' }}&background=2d8a74&color=fff" class="rounded-circle border" width="40" height="40" alt="Admin">
+                        <img src="https://ui-avatars.com/api/?name={{ Auth::user()->name ?? 'Admin' }}&background=2d8a74&color=fff"
+                            class="rounded-circle border" width="40" height="40" alt="Admin">
                     </div>
                 </div>
             </nav>
@@ -399,7 +542,8 @@
                     <h5 class="fw-bold mb-2">تسجيل الخروج</h5>
                     <p class="text-muted small">هل أنت متأكد من رغبتك في تسجيل الخروج؟</p>
                     <div class="mt-4 d-flex justify-content-center gap-2">
-                        <button type="button" class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="button" class="btn btn-light btn-sm px-3"
+                            data-bs-dismiss="modal">إلغاء</button>
                         <form action="{{ route('admin.logout') }}" method="POST">
                             @csrf
                             <button type="submit" class="btn btn-danger btn-sm px-3">تأكيد الخروج</button>
@@ -431,14 +575,14 @@
         const overlay = document.getElementById('overlay');
         const body = document.body;
 
-        if(toggleBtn) {
+        if (toggleBtn) {
             toggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 body.classList.add('sidebar-active');
             });
         }
 
-        if(overlay) {
+        if (overlay) {
             overlay.addEventListener('click', () => {
                 body.classList.remove('sidebar-active');
             });
@@ -447,7 +591,7 @@
         // Auto-close on mobile link click
         document.querySelectorAll('.sidebar-link').forEach(link => {
             link.addEventListener('click', () => {
-                if(window.innerWidth < 992) body.classList.remove('sidebar-active');
+                if (window.innerWidth < 992) body.classList.remove('sidebar-active');
             });
         });
 

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Ads\AdsController;
 use App\Http\Controllers\Api\Country\CountryController;
 use App\Http\Controllers\Api\Gifts\GiftController;
+use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Student\favoriteController;
 use App\Http\Controllers\Api\Student\PrivateCallController;
 use App\Http\Controllers\Api\Student\RatingController;
@@ -192,4 +193,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/gifts/buy', [GiftController::class, 'buyGift']);
     Route::post('/gifts/claim', [GiftController::class, 'claimGift']);
     Route::get('/gifts/history', [GiftController::class, 'myGifts']);
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);
 });

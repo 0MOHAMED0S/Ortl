@@ -32,11 +32,11 @@
         .btn-filter { border-radius: 50px; padding: 6px 18px; font-weight: 700; font-size: 0.85rem; border: 1px solid #e2e8f0; background: #fff; color: var(--text-muted); transition: 0.3s; white-space: nowrap; cursor: pointer; }
         .btn-filter.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); box-shadow: 0 4px 10px rgba(13, 148, 136, 0.2); }
 
-        .search-box-custom { position: relative; min-width: 280px; flex-grow: 1; max-width: 400px; }
+        .search-box-custom { position: relative; min-width: 250px; flex-grow: 1; max-width: 400px; }
         .search-box-custom input { border-radius: 50px; padding: 10px 20px 10px 40px; border: 1px solid var(--border-color); width: 100%; background: #f8fafc; font-size: 0.9rem; transition: 0.3s; }
         .search-box-custom input:focus { background: #fff; border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); outline: none; }
         .search-box-custom i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-        .results-count { font-weight: 800; color: var(--primary-color); background: var(--primary-light); padding: 4px 12px; border-radius: 50px; font-size: 0.85rem; }
+        .results-count { font-weight: 800; color: var(--primary-color); background: var(--primary-light); padding: 4px 12px; border-radius: 50px; font-size: 0.85rem; white-space: nowrap; }
 
         /* --- Professional Table Styling --- */
         .table-card { border-radius: 20px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); background: #fff; }
@@ -56,11 +56,15 @@
         @keyframes pulse-dot { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
         /* Action Buttons */
-        .btn-action-group { display: flex; justify-content: flex-end; gap: 8px; }
-        .action-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; color: var(--text-muted); transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .btn-action-group { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+        .action-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; color: var(--text-muted); transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); text-decoration: none; }
         .action-btn:hover { background: var(--bg-light); color: var(--text-main); border-color: #cbd5e1; transform: translateY(-2px); }
         .action-btn.delete:hover { background: #fef2f2; color: #ef4444; border-color: #fee2e2; }
         .action-btn.copy:hover { background: var(--primary-light); color: var(--primary-color); border-color: #a7f3d0; }
+
+        /* زر التسجيل */
+        .action-btn.record-play { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+        .action-btn.record-play:hover { background: #3b82f6; color: #ffffff; border-color: #2563eb; }
 
         /* Modal & Select2 Styling */
         .modal-content-pro { border-radius: 24px; border: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
@@ -69,7 +73,7 @@
         .select2-container--default .select2-selection--single { height: auto !important; min-height: 50px !important; padding: 8px 12px !important; border-radius: 12px !important; border: 1.5px solid #e2e8f0 !important; background-color: #f8fafc !important; }
         .select2-container--default .select2-selection--single .select2-selection__arrow { top: 12px !important; right: 10px !important; }
         .select2-track-badge { background: #e0e7ff; color: #4338ca; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-right: 4px; font-weight: bold; }
-        .select2-dropdown { z-index: 100000; } /* لحل مشكلة Select2 خلف الـ Modal */
+        .select2-dropdown { z-index: 100000; }
 
         /* Attendance List */
         .student-list-item { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
@@ -80,13 +84,23 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* --- Media Queries (Responsiveness) --- */
+        @media (max-width: 768px) {
+            .filters-wrapper { flex-direction: column; align-items: stretch; gap: 10px; }
+            .filter-btn-group { overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+            .filters-wrapper > div.d-flex { flex-direction: column-reverse; align-items: stretch !important; max-width: 100% !important; }
+            .search-box-custom { max-width: 100%; width: 100%; }
+            .results-count { align-self: flex-start; }
+            .table-custom th, .table-custom td { padding: 12px 15px; }
+        }
     </style>
 @endsection
 
 @section('title')
     <div class="d-flex justify-content-between align-items-center w-100">
         <div>
-            <h5 class="m-0 fw-bold fs-5">المقرأه </h5>
+            <h5 class="m-0 fw-bold fs-5">المقرأه</h5>
         </div>
     </div>
 @endsection
@@ -203,7 +217,6 @@
                             $searchString = strtolower($session->title . ' ' . $tName . ' ' . $session->channel_name);
                         @endphp
 
-                        {{-- تم تغيير data-status ليعتمد على المتغير الجديد --}}
                         <tr class="session-row" data-status="{{ $currentStatus }}" data-search="{{ $searchString }}">
                             {{-- تفاصيل الجلسة --}}
                             <td class="text-start">
@@ -262,9 +275,16 @@
                             {{-- الإجراءات --}}
                             <td class="text-end">
                                 <div class="btn-action-group">
+                                    {{-- 🎥 زر التسجيل: يظهر فقط إذا كان يوجد رابط تسجيل في قاعدة البيانات --}}
+                                    @if(!empty($session->recording_url))
+                                        <a href="{{ $session->recording_url }}" target="_blank" class="action-btn record-play" title="مشاهدة التسجيل">
+                                            <i class="fa-solid fa-play"></i>
+                                        </a>
+                                    @endif
+{{--
                                     <button class="action-btn copy" onclick="copyLink('{{ $session->channel_name }}')" title="نسخ رابط الجلسة">
                                         <i class="fa-solid fa-link"></i>
-                                    </button>
+                                    </button> --}}
                                     <button class="action-btn" data-bs-toggle="modal" data-bs-target="#editSessionModal_{{ $session->id }}" title="تعديل">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                     </button>
@@ -367,8 +387,6 @@
     </div>
 
     @foreach($sessions as $session)
-        {{-- تم تغيير الـ ID بإضافة _ لتجنب التداخل --}}
-
         {{-- Modal: View Attendees --}}
         <div class="modal fade" id="attendeesModal_{{ $session->id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
