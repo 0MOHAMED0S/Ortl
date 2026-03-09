@@ -172,4 +172,49 @@ class StudentBookingController extends Controller
             ], 500);
         }
     }
+
+    public function leaveBookedSession(Request $request)
+    {
+        $request->validate([
+            'call_session_id' => 'required|exists:call_sessions,id'
+        ]);
+
+        $user = auth()->user();
+
+        try {
+            $call = CallSession::with('teacher.user')->findOrFail($request->call_session_id);
+            if ($call->student_id !== $user->id) {
+                return response()->json(['status' => false, 'message' => 'غير مصرح لك.'], 403);
+            }
+            if ($call->status === 'ended') {
+                return response()->json(['status' => true, 'message' => 'الجلسة منتهية بالفعل.']);
+            }
+            try {
+                $teacherUser = $call->teacher->user;
+                if ($teacherUser) {
+                    $notificationData = [
+                        'call_session_id' => $call->id,
+                        'student_name'    => $user->name,
+                        'event'           => 'student_left'
+                    ];
+                    broadcast(new \App\Events\StudentLeftSession($call->teacher_id, $notificationData));
+                }
+            } catch (\Exception $e) {
+                Log::error('Teacher Leave Notification Error: ' . $e->getMessage());
+            }
+            // ==========================================
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تمت المغادرة بنجاح. يمكنك العودة للجلسة طالما أنها مستمرة.',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            Log::error('Leave Booked Session Error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء محاولة المغادرة.'
+            ], 500);
+        }
+    }
 }

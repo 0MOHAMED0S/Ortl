@@ -162,7 +162,7 @@ Route::prefix('student')->group(function () {
         Route::get('/my-bookings', [StudentBookingController::class, 'getStudentBookings']);
         Route::post('/bookings/join', [StudentBookingController::class, 'joinBookedSession']);
         Route::post('/cancel-booking', [StudentTeacherController::class, 'cancelBookingByStudent']);
-
+        Route::post('/bookings/leave', [StudentBookingController::class, 'leaveBookedSession']);
         // تقييم المعلم بعد الجلسة
         Route::post('/rate-teacher', [RatingController::class, 'store']);
         Route::get('/featured', [StudentTeacherController::class, 'featuredTeachers']);
