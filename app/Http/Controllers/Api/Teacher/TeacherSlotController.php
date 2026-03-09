@@ -227,39 +227,47 @@ class TeacherSlotController extends Controller
             ], 500);
         }
     }
-public function cancelSlotByTeacher(Request $request)
+    public function cancelSlotByTeacher(Request $request)
     {
         $request->validate([
             'slot_id' => 'required|exists:teacher_slots,id'
         ]);
 
-        // نفترض أن الدخول الحالي هو للمعلم
         $teacherUser = auth()->user();
-        $teacher = $teacherUser->teacherProfile;
+        $teacher = $teacherUser->teacher;
 
         if (!$teacher) {
             return response()->json(['status' => false, 'message' => 'غير مصرح لك.'], 403);
         }
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
         try {
-            // 1️⃣ جلب الموعد والتأكد أنه يخص هذا المعلم وأنه محجوز
             $slot = \App\Models\TeacherSlot::where('id', $request->slot_id)
                 ->where('teacher_id', $teacher->id)
-                ->lockForUpdate()
                 ->first();
 
             if (!$slot) {
-                \Illuminate\Support\Facades\DB::rollBack();
-                return response()->json(['status' => false, 'message' => 'الموعد غير موجود أو لا يتبع لك.'], 404);
+                return response()->json(['status' => false, 'message' => 'الموعد غير موجود.'], 404);
             }
+            $slotStartDateTime = \Carbon\Carbon::parse($slot->date . ' ' . $slot->start_time);
+            $now = \Carbon\Carbon::now();
+            $hoursUntilSession = $now->diffInHours($slotStartDateTime, false);
+
+            if ($hoursUntilSession < 12) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'عذراً، لا يمكن إلغاء الحجز قبل أقل من 12 ساعة من موعد الحصة. يرجى التواصل مع الإدارة في حالات الطوارئ.'
+                ], 400);
+            }
+
+            // 3️⃣ بدء الترانزاكشن بعد التحقق من الوقت لضمان الأداء
+            \Illuminate\Support\Facades\DB::beginTransaction();
 
             if (!$slot->is_booked) {
                 \Illuminate\Support\Facades\DB::rollBack();
                 return response()->json(['status' => false, 'message' => 'هذا الموعد غير محجوز مسبقاً.'], 400);
             }
 
-            // 2️⃣ جلب تفاصيل الحجز الفعلي لمعرفة الطالب وعدد الدقائق المخصومة
+            // 4️⃣ جلب الحجز وتجهيز الاسترداد (Refund)
             $booking = \App\Models\SlotBooking::where('teacher_slot_id', $slot->id)
                 ->where('status', 'scheduled')
                 ->lockForUpdate()
@@ -272,35 +280,21 @@ public function cancelSlotByTeacher(Request $request)
                 $studentId = $booking->user_id;
                 $refundMinutes = $booking->deducted_minutes;
 
-                // 3️⃣ عملية الاسترجاع المالي (Refund) للطالب
+                // استرجاع الدقائق للطالب
                 if ($refundMinutes > 0) {
-                    $activePackage = \App\Models\UserPackage::where('user_id', $studentId)
-                        ->whereIn('status', ['active', 'Active'])
+                    $userPackage = \App\Models\UserPackage::where('user_id', $studentId)
+                        ->where('status', 'active')
                         ->orderBy('expires_at', 'desc')
                         ->first();
 
-                    if ($activePackage) {
-                        $activePackage->increment('remaining_minutes', $refundMinutes);
-                    } else {
-                        $expiredPackage = \App\Models\UserPackage::where('user_id', $studentId)
-                            ->orderBy('id', 'desc')
-                            ->first();
-
-                        if ($expiredPackage) {
-                            $expiredPackage->update([
-                                'remaining_minutes' => $expiredPackage->remaining_minutes + $refundMinutes,
-                                'status'            => 'active'
-                            ]);
-                        }
+                    if ($userPackage) {
+                        $userPackage->increment('remaining_minutes', $refundMinutes);
                     }
                 }
 
-                // 4️⃣ تحديث حالة الحجز إلى ملغي
                 $booking->update(['status' => 'cancelled']);
 
-                // 5️⃣ حذف أو إلغاء جلسة المكالمة المجدولة
-                $slotStartDateTime = \Carbon\Carbon::parse($slot->date . ' ' . $slot->start_time);
-
+                // حذف جلسة المكالمة
                 \App\Models\CallSession::where('teacher_id', $teacher->id)
                     ->where('student_id', $studentId)
                     ->where('started_at', $slotStartDateTime)
@@ -308,7 +302,7 @@ public function cancelSlotByTeacher(Request $request)
                     ->delete();
             }
 
-            // 6️⃣ تحرير الموعد ليكون متاحاً لطلاب آخرين
+            // 5️⃣ تحرير الموعد
             $slot->update([
                 'is_booked'  => false,
                 'student_id' => null
@@ -316,53 +310,45 @@ public function cancelSlotByTeacher(Request $request)
 
             \Illuminate\Support\Facades\DB::commit();
 
-            // ==========================================
-            // 🔔 إرسال إشعار لحظي للطالب (المعلم ألغى الموعد)
-            // ==========================================
+            // 6️⃣ إرسال الإشعارات (خارج الترانزاكشن)
             if ($studentId) {
-                try {
-                    $student = \App\Models\User::find($studentId);
-                    if ($student) {
-                        $notificationData = [
-                            'slot_id'          => $slot->id,
-                            'teacher_name'     => $teacherUser->name,
-                            'date'             => $slot->date,
-                            'start_time'       => $slot->start_time,
-                            'refunded_minutes' => $refundMinutes
-                        ];
-
-                        // 1. بث لحظي عبر Pusher
-                        broadcast(new \App\Events\TeacherCancelledSlot($student->id, $notificationData));
-
-                        // 2. حفظ الإشعار في الداتابيز
-                        $timeFormatted = \Carbon\Carbon::parse($slot->start_time)->format('h:i A');
-                        $student->notify(new \App\Notifications\DynamicNotification(
-                            'إلغاء موعد ❌',
-                            "نأسف، قام المعلم {$teacherUser->name} بإلغاء موعدك المجدول يوم {$slot->date} الساعة {$timeFormatted}. تمت إعادة {$refundMinutes} دقيقة لرصيدك.",
-                            'teacher_cancelled_slot',
-                            $notificationData
-                        ));
-                    }
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Student Cancel Slot Notification Error: ' . $e->getMessage());
-                }
+                $this->notifyStudentCancellation($studentId, $teacherUser->name, $slot, $refundMinutes);
             }
-            // ==========================================
 
             return response()->json([
                 'status'  => true,
                 'message' => 'تم إلغاء الموعد بنجاح، وتمت إعادة الدقائق لرصيد الطالب.'
             ], 200);
-
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            if (\Illuminate\Support\Facades\DB::transactionLevel() > 0) {
+                \Illuminate\Support\Facades\DB::rollBack();
+            }
             \Illuminate\Support\Facades\Log::error('Cancel Slot Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء الإلغاء.'], 500);
+        }
+    }
+    private function notifyStudentCancellation($studentId, $teacherName, $slot, $refundMinutes)
+    {
+        try {
+            $student = \App\Models\User::find($studentId);
+            if ($student) {
+                $notificationData = [
+                    'teacher_name' => $teacherName,
+                    'date'         => $slot->date,
+                    'start_time'   => $slot->start_time,
+                ];
 
-            return response()->json([
-                'status'  => false,
-                'message' => 'حدث خطأ أثناء الإلغاء.',
-                'error'   => config('app.debug') ? $e->getMessage() : null
-            ], 500);
+                broadcast(new \App\Events\TeacherCancelledSlot($student->id, $notificationData));
+
+                $student->notify(new \App\Notifications\DynamicNotification(
+                    'إلغاء موعد ❌',
+                    "قام المعلم {$teacherName} بإلغاء موعدك يوم {$slot->date}. تمت إعادة {$refundMinutes} دقيقة لرصيدك.",
+                    'teacher_cancelled_slot',
+                    $notificationData
+                ));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Notification Error: ' . $e->getMessage());
         }
     }
 }

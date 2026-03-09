@@ -172,7 +172,6 @@ class StudentBookingController extends Controller
             ], 500);
         }
     }
-
     public function leaveBookedSession(Request $request)
     {
         $request->validate([
