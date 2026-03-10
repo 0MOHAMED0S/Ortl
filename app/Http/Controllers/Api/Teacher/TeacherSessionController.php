@@ -102,8 +102,8 @@ public function joinSession(Request $request, $sessionId)
         $userId = auth()->id();
         $now = now();
 
-        // نجلب الجلسة مع المعلم وبيانات حسابه (user) لضمان الحصول على الاسم والصورة
-        $session = RecitationSession::with('teacher.user')->findOrFail($sessionId);
+        // نجلب الجلسة مع المعلم (للحصول على الصورة) والمستخدم (للحصول على الاسم)
+        $session = RecitationSession::with(['teacher.user'])->findOrFail($sessionId);
 
         if ($now->gt($session->end_at)) {
             $session->update(['status' => 'ended']);
@@ -131,8 +131,9 @@ public function joinSession(Request $request, $sessionId)
             ['joined_at' => $now, 'left_at' => null]
         );
 
-        // جلب بيانات المعلم من موديل User المرتبط بموديل Teacher
-        $teacherUser = $session->teacher->user ?? null;
+        // مرجع لبيانات المعلم والمستخدم المرتبط به
+        $teacher = $session->teacher;
+        $teacherUser = $teacher->user ?? null;
 
         return response()->json([
             'status' => true,
@@ -142,12 +143,12 @@ public function joinSession(Request $request, $sessionId)
                 'channel_name' => $session->channel_name,
                 'app_id'       => config('services.agora.app_id'),
                 'uid'          => (int)$userId,
-                // جلب الاسم من بيانات المستخدم المرتبط بالمعلم
+                // الاسم من جدول الـ users
                 'teacher_name' => $teacherUser->name ?? 'غير متوفر',
-                // جلب الصورة الكاملة (بناءً على حقل image في جدول users)
-                'teacher_image'=> ($teacherUser && $teacherUser->image)
-                                   ? url('storage/' . $teacherUser->image)
-                                   : url('assets/images/default-avatar.png')
+                // الصورة من حقل profile_photo_path في جدول الـ teachers
+                'teacher_image'=> ($teacher && $teacher->profile_photo_path)
+                    ? url('storage/' . $teacher->profile_photo_path)
+                    : url('assets/images/default-avatar.png')
             ]
         ]);
     } catch (\Throwable $e) {
