@@ -251,7 +251,7 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'Error fetching slots.'], 500);
         }
     }
-public function bookSlot(Request $request)
+    public function bookSlot(Request $request)
     {
         $request->validate([
             'slot_id' => 'required|exists:teacher_slots,id'
@@ -362,18 +362,19 @@ public function bookSlot(Request $request)
                 'message' => "تم الحجز بنجاح. تم خصم $duration دقيقة من رصيدك.",
                 'data'    => ['booking' => $booking, 'call' => $call]
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Booking Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'فشلت عملية الحجز، يرجى المحاولة مرة أخرى.'], 500);
         }
     }
-
     public function cancelBookingByStudent(Request $request)
     {
         $request->validate([
             'slot_id' => 'required|exists:teacher_slots,id'
+        ], [
+            'slot_id.required' => 'يجب تحديد الموعد المراد إلغاؤه.',
+            'slot_id.exists'   => 'الموعد المحدد غير موجود في سجلاتنا.'
         ]);
 
         $studentId = auth()->id();
@@ -382,6 +383,7 @@ public function bookSlot(Request $request)
 
         DB::beginTransaction();
         try {
+            // 1️⃣ جلب الحجز والتأكد من أنه يخص الطالب وأنه ما زال مجدولاً
             $booking = SlotBooking::where('teacher_slot_id', $request->slot_id)
                 ->where('user_id', $studentId)
                 ->where('status', 'scheduled')
@@ -389,9 +391,10 @@ public function bookSlot(Request $request)
                 ->first();
 
             if (!$booking) {
-                return response()->json(['status' => false, 'message' => 'الحجز غير موجود أو تم إلغاؤه مسبقاً.'], 404);
+                return response()->json(['status' => false, 'message' => 'عذراً، هذا الحجز غير موجود أو تم إلغاؤه مسبقاً.'], 404);
             }
 
+            // 2️⃣ التحقق من السياسة الزمنية للإلغاء (90 دقيقة)
             $slot = TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
             $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
             $diffInMinutes = $now->diffInMinutes($slotStartDateTime, false);
@@ -399,9 +402,11 @@ public function bookSlot(Request $request)
             if ($diffInMinutes < 90) {
                 return response()->json([
                     'status'  => false,
-                    'message' => 'عذراً، لا يمكن إلغاء الموعد قبل بدايته بأقل من ساعة ونصف.'
+                    'message' => 'عذراً، لا يمكن إلغاء الموعد قبل بدايته بأقل من ساعة ونصف حسب سياسة المنصة.'
                 ], 400);
             }
+
+            // 3️⃣ عملية استرجاع الدقائق لرصيد الطالب
             $refundMinutes = $booking->deducted_minutes;
             if ($refundMinutes > 0) {
                 $packageToRefund = UserPackage::where('user_id', $studentId)
@@ -412,6 +417,7 @@ public function bookSlot(Request $request)
                 if ($packageToRefund) {
                     $packageToRefund->increment('remaining_minutes', $refundMinutes);
                 } else {
+                    // إذا لم توجد باقة نشطة، نفتح أحدث باقة منتهية ونعيد لها الرصيد
                     $lastPackage = UserPackage::where('user_id', $studentId)->latest()->first();
                     if ($lastPackage) {
                         $lastPackage->update([
@@ -422,7 +428,7 @@ public function bookSlot(Request $request)
                 }
             }
 
-            // 4️⃣ تحديث الحالات
+            // 4️⃣ تحديث حالة الحجز والموعد وحذف جلسة الاتصال المجدولة
             $booking->update(['status' => 'cancelled']);
             $slot->update(['is_booked' => false]);
 
@@ -434,6 +440,7 @@ public function bookSlot(Request $request)
 
             DB::commit();
 
+            // 5️⃣ إرسال الإشعارات اللحظية للمعلم
             try {
                 $teacher = $slot->teacher;
                 if ($teacher && $teacher->user) {
@@ -443,25 +450,29 @@ public function bookSlot(Request $request)
                         'date'         => $slot->date,
                         'start_time'   => $slot->start_time,
                     ];
+
                     broadcast(new \App\Events\SlotBookingCancelled($teacher->id, $notificationData));
+
+                    $timeFormatted = \Carbon\Carbon::parse($slot->start_time)->format('h:i A');
                     $teacher->user->notify(new \App\Notifications\DynamicNotification(
-                        'إلغاء حجز ❌',
-                        "قام الطالب {$studentName} بإلغاء حجزه ليوم {$slot->date} الساعة " . \Carbon\Carbon::parse($slot->start_time)->format('h:i A') . ".",
+                        'إلغاء حجز من قبل طالب ❌',
+                        "قام الطالب {$studentName} بإلغاء موعده ليوم {$slot->date} الساعة {$timeFormatted}.",
                         'booking_cancelled',
                         $notificationData
                     ));
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 Log::error('Teacher Cancel Booking Notification Error: ' . $e->getMessage());
             }
+
             return response()->json([
                 'status'  => true,
-                'message' => 'تم إلغاء الموعد بنجاح وإعادة الدقائق لرصيدك.'
+                'message' => 'تم إلغاء الموعد بنجاح، وتمت إعادة الدقائق إلى رصيدك.'
             ], 200);
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Student Cancel Booking Error: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء إلغاء الحجز.'], 500);
+            return response()->json(['status' => false, 'message' => 'حدث خطأ تقني أثناء محاولة إلغاء الحجز، يرجى المحاولة لاحقاً.'], 500);
         }
     }
     public function featuredTeachers(Request $request)
@@ -470,19 +481,20 @@ public function bookSlot(Request $request)
             $perPage = $request->query('per_page', 5);
             $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
 
+            // جلب طلبات المعلمين المعتمدين الذين لديهم ملفات شخصية مكتملة
             $teachersQuery = Teacher_application::where('status', 'approved')
                 ->whereHas('profile')
                 ->with([
                     'profile' => function ($query) {
                         $query->withAvg('ratings', 'rating')
                             ->withCount('ratings')
-                            // 🚀 1. جلب التقييمات مع بيانات الطالب مسبقاً (Eager Loading)
                             ->with('ratings.user');
                     },
                     'profile.user',
                     'tracks'
                 ])
                 ->get()
+                // الترتيب حسب متوسط التقييم أولاً، ثم سنوات الخبرة
                 ->sortByDesc(function ($application) {
                     return optional($application->profile)->ratings_avg_rating ?? $application->experience_years ?? 0;
                 })
@@ -498,12 +510,13 @@ public function bookSlot(Request $request)
 
                 $name = optional($user)->name ?? $application->full_name;
                 $photoPath = optional($profile)->profile_photo_path ?? $application->profile_photo_path;
+
+                // إنشاء رابط الصورة الشخصية أو صورة افتراضية
                 $photoUrl = $photoPath
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
                 $stats = $this->getTeacherStats($teacherId);
-
                 $rating = (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', '');
 
                 return [
@@ -516,24 +529,22 @@ public function bookSlot(Request $request)
                     'rating'           => $rating,
                     'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
 
-                    'students_count'   => $stats['students_count'],
-                    'calls_count'      => $stats['calls_count'],
-                    'slots_count'      => $stats['slots_count'],
-                    'sessions_count'   => $stats['sessions_count'],
+                    'students_count'   => $stats['students_count'], // عدد الطلاب
+                    'calls_count'      => $stats['calls_count'],    // عدد المكالمات
+                    'slots_count'      => $stats['slots_count'],    // المواعيد المتاحة
+                    'sessions_count'   => $stats['sessions_count'], // إجمالي الجلسات
 
-                    'qualification'    => $application->qualification,
-                    'country'          => $application->origin_country,
-                    'languages'        => $application->languages,
+                    'qualification'    => $application->qualification, // المؤهل العلمي
+                    'country'          => $application->origin_country, // بلد الإقامة
+                    'languages'        => $application->languages,      // اللغات
                     'experience_years' => $application->experience_years,
                     'specialties'      => $application->tracks->map(function ($track) {
                         return [
                             'id'   => $track->id,
-                            'name' => $track->name,
+                            'name' => $track->name, // مسار التعليم (حفظ، تجويد، إلخ)
                         ];
                     }),
-                    'about'            => $application->ijazas_text,
-
-                    // 🌟 2. إضافة تفاصيل التقييمات (مع أخذ أحدث 3 تقييمات كمثال للمعلمين المتميزين)
+                    'about'            => $application->ijazas_text, // نبذة/إجازات
                     'reviews_details'  => optional($profile)->ratings ? $profile->ratings->map(function ($rate) {
                         return [
                             'id'           => $rate->id,
@@ -542,7 +553,7 @@ public function bookSlot(Request $request)
                             'comment'      => $rate->comment,
                             'date'         => $rate->created_at ? $rate->created_at->format('Y-m-d') : null,
                         ];
-                    })->sortByDesc('id')->take(3)->values() : [], // وضعنا take(3) لأنها قائمة مصغرة
+                    })->sortByDesc('id')->take(3)->values() : [],
 
                     'user_data'        => $user,
                     'profile_data'     => $profile ? array_merge($profile->toArray(), [
@@ -553,7 +564,7 @@ public function bookSlot(Request $request)
 
             return response()->json([
                 'status'  => true,
-                'message' => 'Teachers retrieved successfully.',
+                'message' => 'تم استرجاع قائمة المعلمين بنجاح.',
                 'data'    => [
                     'teachers'   => $formattedTeachers,
                     'pagination' => [
@@ -568,7 +579,7 @@ public function bookSlot(Request $request)
             Log::error('Featured Teachers Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
-                'message' => 'حدث خطأ أثناء استرجاع المعلمين المتميزين.'
+                'message' => 'حدث خطأ تقني أثناء استرجاع بيانات المعلمين المتميزين، يرجى المحاولة لاحقاً.'
             ], 500);
         }
     }
