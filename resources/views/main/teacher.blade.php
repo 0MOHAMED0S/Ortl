@@ -395,11 +395,154 @@
             box-shadow: none;
         }
 
+        /* =========================================
+           5. PROFESSIONAL MEGA FOOTER
+           ========================================= */
         footer {
-            background: var(--primary-dark);
+            background-color: #0f2922;
+            /* Darker than primary-dark */
+            color: #ecf0f1;
+            padding: 80px 0 30px;
+            font-size: 0.95rem;
+            text-align: right;
+        }
+
+        .footer-logo {
+            height: 70px;
+            margin-bottom: 25px;
+        }
+
+        .footer-desc {
+            color: #bdc3c7;
+            margin-bottom: 30px;
+            line-height: 1.8;
+            max-width: 90%;
+        }
+
+        .footer-title {
+            color: var(--gold-main);
+            font-weight: 700;
+            margin-bottom: 25px;
+            font-size: 1.1rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        .footer-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 40px;
+            height: 3px;
+            background: var(--gold-main);
+            border-radius: 2px;
+        }
+
+        .footer-links {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            text-decoration: none;
+            color: #d1d5db;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+        }
+
+        .footer-links a:hover {
+            color: var(--gold-main);
+            transform: translateX(-5px);
+        }
+
+        .footer-links a i {
+            font-size: 12px;
+            margin-left: 8px;
+            color: var(--gold-main);
+        }
+
+        .social-icons a {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
             color: white;
-            padding: 40px 0;
-            text-align: center;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            margin-left: 10px;
+            transition: 0.3s;
+            font-size: 1.1rem;
+            text-decoration: none;
+        }
+
+        .social-icons a:hover {
+            background: var(--gold-main);
+            transform: translateY(-3px);
+        }
+
+        .newsletter-form {
+            position: relative;
+            margin-top: 20px;
+        }
+
+        .newsletter-form input {
+            width: 100%;
+            padding: 12px 20px;
+            padding-left: 50px;
+            border-radius: 50px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .newsletter-form input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .newsletter-form button {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            height: 38px;
+            width: 38px;
+            border-radius: 50%;
+            border: none;
+            background: var(--gold-main);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: 0.3s;
+        }
+
+        .newsletter-form button:hover {
+            background: white;
+            color: var(--gold-main);
+        }
+
+        .footer-bottom {
+            margin-top: 60px;
+            padding-top: 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .copyright {
+            margin-top: 60px;
+            padding-top: 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #7f8c8d;
+            font-size: 0.9rem;
         }
 
         /* --- New Photo Upload Styles --- */
@@ -875,8 +1018,64 @@
     </div>
 
     <footer>
-        <div class="container text-center">
-            <p class="small opacity-50 m-0">جميع الحقوق محفوظة © ورتل 2026</p>
+        <div class="container">
+            <div class="row gy-5">
+                <div class="col-lg-4 col-md-6">
+                    <img src="{{ asset('images/mainlogo.png') }}" alt="Logo" class="footer-logo">
+                    <p class="footer-desc">ورتل.. رفيقك في رحلة تعلم القرآن الكريم. نسعى لربط المسلمين بكتاب الله عبر
+                        تقنيات حديثة وكوادر تعليمية مؤهلة.</p>
+                    <div class="social-icons">
+                        <a href="https://www.facebook.com/share/1HZASt1L9h/?mibextid=wwXIfr" target="_blank"><i class="fa-brands fa-facebook-f"></i></a>
+                        <a href="https://www.instagram.com/wartil20?igsh=MWxidnk0cjl4YXpwNw==" target="_blank"><i class="fa-brands fa-instagram"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-lg-2 col-md-6">
+                    <h5 class="footer-title">خريطة الموقع</h5>
+                    <ul class="footer-links">
+                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الرئيسية</a></li>
+                        <li><a href="#about"><i class="fa-solid fa-chevron-left text-xs"></i> عن التطبيق</a></li>
+                        <li><a href="#packages"><i class="fa-solid fa-chevron-left text-xs"></i> الأسعار</a></li>
+                        <li><a href="{{ route('teacher.index') }}"><i class="fa-solid fa-chevron-left text-xs"></i>
+                                انضم كمعلم</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    {{-- <h5 class="footer-title">المساعدة</h5>
+                    <ul class="footer-links">
+                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الأسئلة الشائعة</a>
+                        </li>
+                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> سياسة الخصوصية</a></li>
+                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الشروط والأحكام</a>
+                        </li>
+                        <li><a href="#contact"><i class="fa-solid fa-chevron-left text-xs"></i> اتصل بنا</a></li>
+                    </ul> --}}
+                </div>
+
+                <div class="col-lg-3 col-md-6">
+                    <h5 class="footer-title">اشترك في النشرة</h5>
+                    <p class="text-white-50 small mb-3">احصل على أحدث المقالات والنصائح القرآنية.</p>
+                    <form class="position-relative mb-4">
+                        <input type="email"
+                            class="form-control bg-dark border-secondary text-white rounded-pill ps-4"
+                            placeholder="البريد الإلكتروني">
+                        <button class="btn position-absolute top-0 start-0 h-100 text-warning pe-3"><i
+                                class="fa-solid fa-paper-plane"></i></button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="copyright">
+                <div class="row align-items-center">
+                    <div class="col-md-6 text-center text-md-end">
+                        &copy; {{ date('Y') }} جميع الحقوق محفوظة لـ <strong>ورتل</strong>.
+                    </div>
+                    <div class="col-md-6 text-center text-md-start mt-2 mt-md-0">
+                        تم التطوير بكل ❤️ لخدمة القرآن الكريم
+                    </div>
+                </div>
+            </div>
         </div>
     </footer>
 
