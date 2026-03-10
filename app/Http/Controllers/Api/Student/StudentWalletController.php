@@ -17,128 +17,83 @@ public function getTransactions(Request $request)
     {
         $userId = auth()->id();
 
-        // 1️⃣ استهلاك الدقائق (مكالمات منتهية)
+        // 1️⃣ استهلاك الدقائق
         $calls = CallSession::where('student_id', $userId)
             ->where('status', 'ended')
             ->select('id', 'duration_minutes as minutes', 'started_at as date')
             ->get();
 
-        // 2️⃣ استرجاع الدقائق (إلغاء حجز)
+        // 2️⃣ استرجاع الدقائق
         $refunds = SlotBooking::where('user_id', $userId)
             ->where('status', 'cancelled')
             ->where('deducted_minutes', '>', 0)
             ->select('id', 'deducted_minutes as minutes', 'updated_at as date')
             ->get();
 
-        // 3️⃣ شراء الباقات (إضافة رصيد)
+        // 3️⃣ شراء الباقات
         $additions = UserPackage::where('user_id', $userId)
             ->with('package:id,name,base_minutes,bonus_minutes')
             ->select('id', 'package_id', 'created_at as date')
             ->get();
 
-        // 4️⃣ الهدايا المستلمة (شحن رصيد من كود)
+        // 4️⃣ الهدايا المستلمة فقط (التي أضافت دقائق للمحفظة)
         $receivedGifts = GiftCard::where('claimed_by_user_id', $userId)
             ->where('status', 'claimed')
             ->with('sender:id,name')
             ->select('id', 'minutes', 'occasion', 'sender_id', 'claimed_at as date')
             ->get();
 
-        // 5️⃣ الهدايا المرسلة (سجل مالي)
-        $sentGifts = GiftCard::where('sender_id', $userId)
-            ->where('payment_status', 'paid')
-            ->select('id', 'minutes', 'recipient_name', 'recipient_email', 'occasion', 'created_at as date')
-            ->get();
+        // تم حذف استعلام الهدايا المرسلة (sentGifts) بناءً على طلبك
 
         $transactions = collect();
 
-        // معالجة المكالمات
+        // معالجة البيانات وإضافتها للـ Timeline
         foreach ($calls as $call) {
-            $parsedDate = Carbon::parse($call->date);
-            $transactions->push([
-                'id'        => $call->id,
-                'title'     => 'جلسة تعليمية مباشرة',
-                'subtitle'  => 'استهلاك رصيد دقائق',
-                'minutes'   => "-" . $call->minutes . " دقيقة",
-                'type'      => 'out',
-                'datetime'  => $parsedDate->format('Y-m-d h:i A'),
-                'sort_date' => $parsedDate->timestamp,
-                'icon_type' => 'call'
-            ]);
+            $transactions->push($this->mapTransaction($call, 'out', 'جلسة تعليمية مباشرة', 'استهلاك رصيد دقائق', 'call'));
         }
 
-        // معالجة المبالغ المستردة
         foreach ($refunds as $refund) {
-            $parsedDate = Carbon::parse($refund->date);
-            $transactions->push([
-                'id'        => $refund->id,
-                'title'     => 'مستردات حجز ملغي',
-                'subtitle'  => 'تمت إعادة الدقائق لمحفظتك',
-                'minutes'   => "+" . $refund->minutes . " دقيقة",
-                'type'      => 'in',
-                'datetime'  => $parsedDate->format('Y-m-d h:i A'),
-                'sort_date' => $parsedDate->timestamp,
-                'icon_type' => 'refund'
-            ]);
+            $transactions->push($this->mapTransaction($refund, 'in', 'مستردات حجز ملغي', 'تمت إعادة الدقائق لمحفظتك', 'refund'));
         }
 
-        // معالجة شراء الباقات
         foreach ($additions as $addition) {
-            $parsedDate = Carbon::parse($addition->date);
             $totalMins = ($addition->package->base_minutes ?? 0) + ($addition->package->bonus_minutes ?? 0);
-            $transactions->push([
-                'id'        => $addition->id,
-                'title'     => 'شراء باقة: ' . ($addition->package->name ?? 'باقة دقائق'),
-                'subtitle'  => 'عملية شحن رصيد ناجحة',
-                'minutes'   => "+" . $totalMins . " دقيقة",
-                'type'      => 'in',
-                'datetime'  => $parsedDate->format('Y-m-d h:i A'),
-                'sort_date' => $parsedDate->timestamp,
-                'icon_type' => 'purchase'
-            ]);
+            $transactions->push($this->mapTransaction($addition, 'in', 'شراء باقة: ' . ($addition->package->name ?? 'باقة دقائق'), 'عملية شحن ناجحة', 'purchase', $totalMins));
         }
 
-        // معالجة الهدايا المستلمة
+        // إضافة الهدايا المستلمة فقط
         foreach ($receivedGifts as $gift) {
-            $parsedDate = Carbon::parse($gift->date ?? now());
-            $transactions->push([
-                'id'        => $gift->id,
-                'title'     => 'هدية مستلمة',
-                'subtitle'  => 'من: ' . ($gift->sender->name ?? 'فاعل خير'),
-                'minutes'   => "+" . $gift->minutes . " دقيقة",
-                'type'      => 'in',
-                'datetime'  => $parsedDate->format('Y-m-d h:i A'),
-                'sort_date' => $parsedDate->timestamp,
-                'icon_type' => 'gift_received'
-            ]);
+            $transactions->push($this->mapTransaction($gift, 'in', 'هدية مستلمة', 'من: ' . ($gift->sender->name ?? 'فاعل خير'), 'gift_received'));
         }
 
-        // معالجة الهدايا المرسلة
-        foreach ($sentGifts as $gift) {
-            $parsedDate = Carbon::parse($gift->date);
-            $transactions->push([
-                'id'        => $gift->id,
-                'title'     => 'إرسال بطاقة هدية',
-                'subtitle'  => 'إلى: ' . ($gift->recipient_name ?? $gift->recipient_email),
-                'minutes'   => $gift->minutes . " دقيقة",
-                'type'      => 'neutral',
-                'datetime'  => $parsedDate->format('Y-m-d h:i A'),
-                'sort_date' => $parsedDate->timestamp,
-                'icon_type' => 'gift_sent'
-            ]);
-        }
-
-        // الترتيب من الأحدث للأقدم
+        // الترتيب والتحويل لمصفوفة نهائية
         $sortedData = $transactions->sortByDesc('sort_date')->values()->map(function ($item) {
             unset($item['sort_date']);
             return $item;
-        });
+        })->toArray();
 
         return response()->json([
             'status'  => true,
             'message' => 'تم جلب سجل العمليات بنجاح.',
-            'data'    => $sortedData
+            'data'    => $sortedData 
         ]);
     }
+
+    private function mapTransaction($item, $type, $title, $subtitle, $icon, $customMinutes = null)
+    {
+        $parsedDate = Carbon::parse($item->date ?? $item->created_at ?? now());
+        return [
+            'id'        => $item->id,
+            'title'     => $title,
+            'subtitle'  => $subtitle,
+            'minutes'   => ($type == 'out' ? '-' : ($type == 'in' ? '+' : '')) . ($customMinutes ?? $item->minutes ?? 0) . " دقيقة",
+            'type'      => $type,
+            'datetime'  => $parsedDate->format('Y-m-d h:i A'),
+            'sort_date' => $parsedDate->timestamp,
+            'icon_type' => $icon
+        ];
+    }
+
 
     public function getWalletSummary()
     {
