@@ -160,80 +160,85 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
-    public function show($id)
-    {
-        try {
-            // جلب المعلم مع كافة العلاقات المطلوبة والتقييمات المتوسطة
-            $teacher = Teacher::with([
-                'user',
-                'application.tracks',
-                'ratings.user'
-            ])
-                ->withAvg('ratings', 'rating')
-                ->withCount('ratings')
-                ->find($id);
+public function show($id)
+{
+    try {
+        $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
+            ->withAvg('ratings', 'rating')
+            ->withCount('ratings')
+            ->find($id);
 
-            if (!$teacher) {
-                return response()->json(['status' => false, 'message' => 'Teacher not found.'], 404);
-            }
-
-            $application = $teacher->application;
-
-            // جلب الإحصائيات (تأكد من وجود الدالة getTeacherStats في نفس الكنترولر)
-            $stats = $this->getTeacherStats($teacher->id);
-
-            return response()->json([
-                'status'  => true,
-                'message' => "Teacher profile retrieved successfully.",
-                'data'    => [
-                    'id'               => $teacher->id,
-                    'application_id'   => $teacher->teacher_application_id,
-                    'name'             => $teacher->user->name ?? ($application->full_name ?? 'N/A'),
-                    'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
-                    'is_online'        => (bool) $teacher->is_online,
-                    'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
-                    'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
-
-                    // الإحصائيات
-                    'students_count'   => $stats['students_count'],
-                    'calls_count'      => $stats['calls_count'],
-                    'slots_count'      => $stats['slots_count'],
-                    'sessions_count'   => $stats['sessions_count'],
-
-                    // البيانات المهنية
-                    'qualification'    => $application->qualification ?? null,
-                    'country'          => $application->origin_country ?? null,
-                    'languages'        => $application->languages ?? [],
-                    'experience_years' => $application->experience_years ?? 0,
-                    'specialties'      => collect($application->tracks ?? [])->map(fn($t) => [
-                        'id'   => $t->id,
-                        'name' => $t->name
-                    ]),
-                    'about'            => $application->ijazas_text ?? null,
-
-                    // تفاصيل المراجعات (مبسطة)
-                    'reviews_details'  => $teacher->ratings->map(function ($rate) {
-                        return [
-                            'id'           => $rate->id,
-                            'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
-                            'rating'       => (float) $rate->rating,
-                            'comment'      => $rate->comment,
-                            'date'         => $rate->created_at->format('Y-m-d'),
-                        ];
-                    })->sortByDesc('id')->values(),
-
-                    // 🔹 بيانات المستخدم الكاملة (كما في طلبك)
-                    'user_data' => $teacher->user,
-
-                    // 🔹 بيانات الملف الشخصي الكاملة مع التقييمات والعلاقات المتداخلة
-                    'profile_data' => $teacher
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Show Teacher Error: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
+        if (!$teacher) {
+            return response()->json(['status' => false, 'message' => 'Teacher not found.'], 404);
         }
+
+        $application = $teacher->application;
+        $name = $teacher->user->name ?? $application->full_name;
+
+        // استدعاء الإحصائيات
+        $stats = $this->getTeacherStats($teacher->id);
+
+        // بناء مصفوفة المراجعات التفصيلية
+        $reviewsDetails = $teacher->ratings->map(function ($rate) {
+            return [
+                'id'           => $rate->id,
+                'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
+                'rating'       => (float) $rate->rating,
+                'comment'      => $rate->comment,
+                'date'         => $rate->created_at->format('Y-m-d'),
+            ];
+        })->sortByDesc('id')->values();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Teachers retrieved successfully.',
+            'data'    => [
+                'teachers' => [
+                    [
+                        'id'               => $teacher->id,
+                        'application_id'   => $teacher->teacher_application_id,
+                        'name'             => $name,
+                        'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
+                        'is_online'        => (bool) $teacher->is_online,
+                        'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                        'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
+
+                        // الإحصائيات
+                        'students_count'   => $stats['students_count'],
+                        'calls_count'      => $stats['calls_count'],
+                        'slots_count'      => $stats['slots_count'],
+                        'sessions_count'   => $stats['sessions_count'],
+
+                        'qualification'    => $application->qualification ?? null,
+                        'country'          => $application->origin_country ?? null,
+                        'languages'        => $application->languages ?? [],
+                        'experience_years' => $application->experience_years ?? 0,
+                        'specialties'      => collect($application->tracks ?? [])->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
+                        'about'            => $application->ijazas_text ?? null,
+
+                        'reviews_details'  => $reviewsDetails,
+
+                        // بيانات المستخدم الأساسية
+                        'user_data' => $teacher->user,
+
+                        // بيانات الملف الشخصي كاملة (Object) كما هي في قاعدة البيانات
+                        'profile_data' => $teacher
+                    ]
+                ],
+                // محاكاة نظام الترقيم (Pagination) ليتطابق مع الرد المطلوب
+                'pagination' => [
+                    'total'        => 1,
+                    'per_page'     => 10,
+                    'current_page' => 1,
+                    'total_pages'  => 1
+                ]
+            ]
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Show Teacher Error: ' . $e->getMessage());
+        return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
     }
+}
     public function getTeacherAvailableSlots(Request $request, $teacherId)
     {
         try {
