@@ -251,30 +251,36 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'Error fetching slots.'], 500);
         }
     }
-    public function bookSlot(Request $request)
+public function bookSlot(Request $request)
     {
-        $request->validate(['slot_id' => 'required|exists:teacher_slots,id']);
+        $request->validate([
+            'slot_id' => 'required|exists:teacher_slots,id'
+        ], [
+            'slot_id.required' => 'يجب اختيار موعد للحجز.',
+            'slot_id.exists'   => 'الموعد المختار غير موجود.'
+        ]);
+
         $user = auth()->user();
 
         DB::beginTransaction();
         try {
-            // 1. Lock slot to prevent race conditions
+            // 1. قفل الموعد لمنع الحجز المزدوج (Race conditions)
             $slot = TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
 
             if ($slot->is_booked) {
-                return response()->json(['status' => false, 'message' => 'Slot already booked.'], 400);
+                return response()->json(['status' => false, 'message' => 'عذراً، هذا الموعد تم حجزه بالفعل.'], 400);
             }
 
             $slotStart = Carbon::parse($slot->date . ' ' . $slot->start_time);
             $slotEnd   = Carbon::parse($slot->date . ' ' . $slot->end_time);
 
             if ($slotStart->isPast()) {
-                return response()->json(['status' => false, 'message' => 'Cannot book past slots.'], 400);
+                return response()->json(['status' => false, 'message' => 'لا يمكن حجز مواعد قديمة.'], 400);
             }
 
             $duration = $slotStart->diffInMinutes($slotEnd);
 
-            // 2. Financial Lock: Get and lock active packages
+            // 2. التحقق من رصيد الباقات النشطة
             $activePackages = UserPackage::where('user_id', $user->id)
                 ->whereIn('status', ['active', 'Active'])
                 ->where('remaining_minutes', '>', 0)
@@ -284,9 +290,10 @@ class StudentTeacherController extends Controller
                 ->get();
 
             if ($activePackages->sum('remaining_minutes') < $duration) {
-                return response()->json(['status' => false, 'message' => 'Insufficient balance.'], 400);
+                return response()->json(['status' => false, 'message' => 'رصيد دقائقك غير كافٍ لحجز هذا الموعد.'], 400);
             }
 
+            // 3. خصم الدقائق من الباقات
             $remainingToDeduct = $duration;
             foreach ($activePackages as $package) {
                 if ($remainingToDeduct <= 0) break;
@@ -296,12 +303,12 @@ class StudentTeacherController extends Controller
                 $remainingToDeduct -= $deduction;
 
                 if ($package->remaining_minutes <= 0) {
-                    $package->status = 'exhausted';
+                    $package->status = 'exhausted'; // باقة منتهية
                 }
                 $package->save();
             }
 
-            // 4. Finalize Booking
+            // 4. إتمام عملية الحجز
             $slot->update(['is_booked' => true]);
 
             $booking = SlotBooking::create([
@@ -311,19 +318,19 @@ class StudentTeacherController extends Controller
                 'status'           => 'scheduled'
             ]);
 
-            // Create future call session
+            // إنشاء جلسة المكالمة المجدولة
             $call = CallSession::create([
                 'student_id'   => $user->id,
                 'teacher_id'   => $slot->teacher_id,
                 'channel_name' => 'scheduled_' . $user->id . '_' . time(),
                 'status'       => 'initiated',
-                'started_at'   => $slotStart, // Scheduled start
+                'started_at'   => $slotStart,
             ]);
 
             DB::commit();
 
             // ==========================================
-            // 🔔 إرسال إشعار لحظي للمعلم (حجز جديد)
+            // 🔔 إرسال إشعارات للمعلم
             // ==========================================
             try {
                 $teacher = $slot->teacher;
@@ -337,26 +344,29 @@ class StudentTeacherController extends Controller
                     ];
 
                     broadcast(new \App\Events\NewSlotBooked($teacher->id, $notificationData));
+
+                    $timeFormatted = \Carbon\Carbon::parse($slot->start_time)->format('h:i A');
                     $teacher->user->notify(new \App\Notifications\DynamicNotification(
                         'حجز موعد جديد 📅',
-                        "قام الطالب {$user->name} بحجز موعد يوم {$slot->date} الساعة " . \Carbon\Carbon::parse($slot->start_time)->format('h:i A') . ".",
+                        "قام الطالب {$user->name} بحجز موعد يوم {$slot->date} الساعة {$timeFormatted}.",
                         'new_booking',
                         $notificationData
                     ));
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 Log::error('Teacher Booking Notification Error: ' . $e->getMessage());
             }
 
             return response()->json([
                 'status'  => true,
-                'message' => "Booking successful. $duration minutes deducted.",
+                'message' => "تم الحجز بنجاح. تم خصم $duration دقيقة من رصيدك.",
                 'data'    => ['booking' => $booking, 'call' => $call]
             ]);
-        } catch (Exception $e) {
+
+        } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Booking Error: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Booking failed.'], 500);
+            return response()->json(['status' => false, 'message' => 'فشلت عملية الحجز، يرجى المحاولة مرة أخرى.'], 500);
         }
     }
 
