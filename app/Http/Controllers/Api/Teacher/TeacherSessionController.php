@@ -120,8 +120,6 @@ public function joinSession(Request $request, $sessionId)
             $userId,
             'subscriber'
         );
-
-        // تسجيل دخول الطالب للجلسة
         Session_student::updateOrCreate(
             ['recitation_session_id' => $session->id, 'user_id' => $userId],
             ['joined_at' => $now, 'left_at' => null]
@@ -142,7 +140,6 @@ public function joinSession(Request $request, $sessionId)
                 'teacher_image'       => ($teacher && $teacher->profile_photo_path)
                                             ? url('storage/' . $teacher->profile_photo_path)
                                             : url('assets/images/default-avatar.png'),
-                // القيم الجديدة المطلوبة
                 'max_minutes_allowed' => (int)$session->duration_minutes,
                 'is_recording'        => (bool)$session->is_recorded
             ]

@@ -163,7 +163,12 @@ class StudentTeacherController extends Controller
     public function show($id)
     {
         try {
-            $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
+            // جلب المعلم مع كافة العلاقات المطلوبة والتقييمات المتوسطة
+            $teacher = Teacher::with([
+                'user',
+                'application.tracks',
+                'ratings.user'
+            ])
                 ->withAvg('ratings', 'rating')
                 ->withCount('ratings')
                 ->find($id);
@@ -173,36 +178,40 @@ class StudentTeacherController extends Controller
             }
 
             $application = $teacher->application;
-            $name = $teacher->user->name ?? $application->full_name;
 
-            // 🚀 استدعاء الإحصائيات بسطر واحد أيضاً!
+            // جلب الإحصائيات (تأكد من وجود الدالة getTeacherStats في نفس الكنترولر)
             $stats = $this->getTeacherStats($teacher->id);
 
             return response()->json([
                 'status'  => true,
+                'message' => "Teacher profile retrieved successfully.",
                 'data'    => [
                     'id'               => $teacher->id,
-                    'name'             => $name,
+                    'application_id'   => $teacher->teacher_application_id,
+                    'name'             => $teacher->user->name ?? ($application->full_name ?? 'N/A'),
                     'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
                     'is_online'        => (bool) $teacher->is_online,
-
                     'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
                     'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
 
-                    // ✅ إضافة جميع الإحصائيات لصفحة التفاصيل أيضاً
+                    // الإحصائيات
                     'students_count'   => $stats['students_count'],
                     'calls_count'      => $stats['calls_count'],
                     'slots_count'      => $stats['slots_count'],
                     'sessions_count'   => $stats['sessions_count'],
 
-                    'about'            => $application->ijazas_text ?? null,
+                    // البيانات المهنية
+                    'qualification'    => $application->qualification ?? null,
                     'country'          => $application->origin_country ?? null,
                     'languages'        => $application->languages ?? [],
-                    'qualification'    => $application->qualification ?? null,
                     'experience_years' => $application->experience_years ?? 0,
-                    'minutes_balance'  => $teacher->minutes,
-                    'specialties'      => collect($application->tracks ?? [])->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
+                    'specialties'      => collect($application->tracks ?? [])->map(fn($t) => [
+                        'id'   => $t->id,
+                        'name' => $t->name
+                    ]),
+                    'about'            => $application->ijazas_text ?? null,
 
+                    // تفاصيل المراجعات (مبسطة)
                     'reviews_details'  => $teacher->ratings->map(function ($rate) {
                         return [
                             'id'           => $rate->id,
@@ -212,6 +221,12 @@ class StudentTeacherController extends Controller
                             'date'         => $rate->created_at->format('Y-m-d'),
                         ];
                     })->sortByDesc('id')->values(),
+
+                    // 🔹 بيانات المستخدم الكاملة (كما في طلبك)
+                    'user_data' => $teacher->user,
+
+                    // 🔹 بيانات الملف الشخصي الكاملة مع التقييمات والعلاقات المتداخلة
+                    'profile_data' => $teacher
                 ]
             ]);
         } catch (\Exception $e) {
