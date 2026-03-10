@@ -174,11 +174,16 @@ public function show($id)
 
         $application = $teacher->application;
         $name = $teacher->user->name ?? $application->full_name;
-
-        // استدعاء الإحصائيات
         $stats = $this->getTeacherStats($teacher->id);
 
-        // بناء مصفوفة المراجعات التفصيلية
+        // 1. استخراج المسارات (ID والاسم فقط) بشكل نظيف
+        $specialties = collect($application->tracks ?? [])->map(function($track) {
+            return [
+                'id'   => $track->id,
+                'name' => $track->name,
+            ];
+        })->values();
+
         $reviewsDetails = $teacher->ratings->map(function ($rate) {
             return [
                 'id'           => $rate->id,
@@ -189,9 +194,12 @@ public function show($id)
             ];
         })->sortByDesc('id')->values();
 
+        // 2. إزالة العلاقات المحملة من كائن البروفايل لمنع التكرار في الرد
+        $teacherProfile = $teacher->makeHidden(['application', 'user', 'ratings']);
+
         return response()->json([
             'status'  => true,
-            'message' => 'Teachers retrieved successfully.',
+            'message' => 'Teacher profile retrieved successfully.',
             'data'    => [
                 'teachers' => [
                     [
@@ -202,30 +210,21 @@ public function show($id)
                         'is_online'        => (bool) $teacher->is_online,
                         'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
                         'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
-
-                        // الإحصائيات
                         'students_count'   => $stats['students_count'],
                         'calls_count'      => $stats['calls_count'],
                         'slots_count'      => $stats['slots_count'],
                         'sessions_count'   => $stats['sessions_count'],
-
                         'qualification'    => $application->qualification ?? null,
                         'country'          => $application->origin_country ?? null,
                         'languages'        => $application->languages ?? [],
                         'experience_years' => $application->experience_years ?? 0,
-                        'specialties'      => collect($application->tracks ?? [])->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
+                        'specialties'      => $specialties, // هنا أصبحت ID واسم فقط
                         'about'            => $application->ijazas_text ?? null,
-
                         'reviews_details'  => $reviewsDetails,
-
-                        // بيانات المستخدم الأساسية
-                        'user_data' => $teacher->user,
-
-                        // بيانات الملف الشخصي كاملة (Object) كما هي في قاعدة البيانات
-                        'profile_data' => $teacher
+                        'user_data'        => $teacher->user,
+                        'profile_data'     => $teacherProfile
                     ]
                 ],
-                // محاكاة نظام الترقيم (Pagination) ليتطابق مع الرد المطلوب
                 'pagination' => [
                     'total'        => 1,
                     'per_page'     => 10,
@@ -234,7 +233,7 @@ public function show($id)
                 ]
             ]
         ]);
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         Log::error('Show Teacher Error: ' . $e->getMessage());
         return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
     }
