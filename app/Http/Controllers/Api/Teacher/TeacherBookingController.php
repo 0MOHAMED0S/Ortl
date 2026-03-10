@@ -362,10 +362,7 @@ class TeacherBookingController extends Controller
             }
 
             DB::commit();
-
-            // 5. إشعارات الطالب (بث لحظي + تنبيه)
             $this->notifyStudentSessionEnded($call, $user->name, $actualDuration);
-
             return response()->json([
                 'status' => true,
                 'message' => 'تم إنهاء الجلسة بنجاح وتوثيق أرباحك.',
