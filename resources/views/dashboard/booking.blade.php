@@ -571,7 +571,7 @@
                             </tr>
 
                             {{-- Modal: Delete Booking --}}
-                            <div class="modal fade" id="deleteBookingModal_{{ $booking->id }}" tabindex="-1"
+                            {{-- <div class="modal fade" id="deleteBookingModal_{{ $booking->id }}" tabindex="-1"
                                 aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered modal-sm">
                                     <div class="modal-content modal-content-pro text-center">
@@ -597,7 +597,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
                         @empty
                             <tr id="emptyStateRow">
                                 <td colspan="5" class="text-center py-5">
