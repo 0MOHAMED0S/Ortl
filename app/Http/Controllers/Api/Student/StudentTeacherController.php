@@ -162,7 +162,6 @@ class StudentTeacherController extends Controller
     }
     public function show($id)
     {
-        dd($id);
         try {
             $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
                 ->withAvg('ratings', 'rating')
