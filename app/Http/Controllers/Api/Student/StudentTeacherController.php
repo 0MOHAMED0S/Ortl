@@ -163,7 +163,6 @@ class StudentTeacherController extends Controller
 public function show($id)
 {
     try {
-        // جلب المعلم مع العلاقات الضرورية فقط
         $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
             ->withAvg('ratings', 'rating')
             ->withCount('ratings')
@@ -174,61 +173,50 @@ public function show($id)
         }
 
         $application = $teacher->application;
-        $name = $teacher->user->name ?? $application->full_name;
         $stats = $this->getTeacherStats($teacher->id);
-
-        // 1. تنسيق المسارات (ID والاسم فقط)
-        $specialties = collect($application->tracks ?? [])->map(fn($t) => [
-            'id'   => $t->id,
-            'name' => $t->name
-        ])->values();
-
-        // 2. تنسيق تفاصيل المراجعات
-        $reviewsDetails = $teacher->ratings->map(fn($rate) => [
-            'id'           => $rate->id,
-            'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
-            'rating'       => (int) $rate->rating,
-            'comment'      => $rate->comment,
-            'date'         => $rate->created_at->format('Y-m-d'),
-        ])->sortByDesc('id')->values();
-
-        // 3. تجهيز كائن البروفايل (profile_data) مع إخفاء العلاقات لتجنب التكرار
-        $profileData = $teacher->makeHidden(['application', 'user', 'ratings']);
 
         return response()->json([
             'status'  => true,
             'message' => 'Teacher profile retrieved successfully.',
             'data'    => [
-                'teachers' => [
-                    [
-                        'id'               => $teacher->id,
-                        'application_id'   => $teacher->teacher_application_id,
-                        'name'             => $name,
-                        'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
-                        'is_online'        => (bool) $teacher->is_online,
-                        'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
-                        'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
-                        'students_count'   => $stats['students_count'],
-                        'calls_count'      => $stats['calls_count'],
-                        'slots_count'      => $stats['slots_count'],
-                        'sessions_count'   => $stats['sessions_count'],
-                        'qualification'    => $application->qualification ?? null,
-                        'country'          => $application->origin_country ?? null,
-                        'languages'        => $application->languages ?? [],
-                        'experience_years' => $application->experience_years ?? 0,
-                        'specialties'      => $specialties,
-                        'about'            => $application->ijazas_text ?? null,
-                        'reviews_details'  => $reviewsDetails,
-                        'user_data'        => $teacher->user,
-                        'profile_data'     => $profileData
-                    ]
-                ],
-                'pagination' => [
-                    'total'        => 1,
-                    'per_page'     => 10,
-                    'current_page' => 1,
-                    'total_pages'  => 1
-                ]
+                'id'               => $teacher->id,
+                'application_id'   => $teacher->teacher_application_id,
+                'name'             => $teacher->user->name ?? $application->full_name,
+                'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
+                'is_online'        => (bool) $teacher->is_online,
+                'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
+
+                // الإحصائيات
+                'students_count'   => $stats['students_count'],
+                'calls_count'      => $stats['calls_count'],
+                'slots_count'      => $stats['slots_count'],
+                'sessions_count'   => $stats['sessions_count'],
+
+                'qualification'    => $application->qualification ?? null,
+                'country'          => $application->origin_country ?? null,
+                'languages'        => $application->languages ?? [],
+                'experience_years' => $application->experience_years ?? 0,
+
+                // Specialties (ID و Name فقط)
+                'specialties'      => collect($application->tracks ?? [])->map(fn($t) => [
+                    'id'   => $t->id,
+                    'name' => $t->name
+                ])->values(),
+
+                'about'            => $application->ijazas_text ?? null,
+
+                // المراجعات
+                'reviews_details'  => $teacher->ratings->map(fn($rate) => [
+                    'id'           => $rate->id,
+                    'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
+                    'rating'       => (int) $rate->rating,
+                    'comment'      => $rate->comment,
+                    'date'         => $rate->created_at->format('Y-m-d'),
+                ])->sortByDesc('id')->values(),
+
+                'user_data'        => $teacher->user,
+                'profile_data'     => $teacher->makeHidden(['application', 'user', 'ratings'])
             ]
         ]);
     } catch (\Exception $e) {
