@@ -160,84 +160,77 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
-public function show($id)
-{
-    try {
-        $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
-            ->withAvg('ratings', 'rating')
-            ->withCount('ratings')
-            ->find($id);
-
-        if (!$teacher) {
-            return response()->json(['status' => false, 'message' => 'Teacher not found.'], 404);
-        }
-
-        $application = $teacher->application;
-        $name = $teacher->user->name ?? $application->full_name;
-        $stats = $this->getTeacherStats($teacher->id);
-
-        // 1. استخراج المسارات (ID والاسم فقط) بشكل نظيف
-        $specialties = collect($application->tracks ?? [])->map(function($track) {
-            return [
-                'id'   => $track->id,
-                'name' => $track->name,
-            ];
-        })->values();
-
-        $reviewsDetails = $teacher->ratings->map(function ($rate) {
-            return [
-                'id'           => $rate->id,
-                'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
-                'rating'       => (float) $rate->rating,
-                'comment'      => $rate->comment,
-                'date'         => $rate->created_at->format('Y-m-d'),
-            ];
-        })->sortByDesc('id')->values();
-
-        // 2. إزالة العلاقات المحملة من كائن البروفايل لمنع التكرار في الرد
-        $teacherProfile = $teacher->makeHidden(['application', 'user', 'ratings']);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'Teacher profile retrieved successfully.',
-            'data'    => [
-                'teachers' => [
-                    [
-                        'id'               => $teacher->id,
-                        'application_id'   => $teacher->teacher_application_id,
-                        'name'             => $name,
-                        'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
-                        'is_online'        => (bool) $teacher->is_online,
-                        'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
-                        'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
-                        'students_count'   => $stats['students_count'],
-                        'calls_count'      => $stats['calls_count'],
-                        'slots_count'      => $stats['slots_count'],
-                        'sessions_count'   => $stats['sessions_count'],
-                        'qualification'    => $application->qualification ?? null,
-                        'country'          => $application->origin_country ?? null,
-                        'languages'        => $application->languages ?? [],
-                        'experience_years' => $application->experience_years ?? 0,
-                        'specialties'      => $specialties, // هنا أصبحت ID واسم فقط
-                        'about'            => $application->ijazas_text ?? null,
-                        'reviews_details'  => $reviewsDetails,
-                        'user_data'        => $teacher->user,
-                        'profile_data'     => $teacherProfile
+    public function show($id)
+    {
+        dd($id);
+        try {
+            $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
+                ->withAvg('ratings', 'rating')
+                ->withCount('ratings')
+                ->find($id);
+            if (!$teacher) {
+                return response()->json(['status' => false, 'message' => 'Teacher not found.'], 404);
+            }
+            $application = $teacher->application;
+            $name = $teacher->user->name ?? $application->full_name;
+            $stats = $this->getTeacherStats($teacher->id);
+            $specialties = collect($application->tracks ?? [])->map(function ($track) {
+                return [
+                    'id'   => $track->id,
+                    'name' => $track->name,
+                ];
+            })->values();
+            $reviewsDetails = $teacher->ratings->map(function ($rate) {
+                return [
+                    'id'           => $rate->id,
+                    'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
+                    'rating'       => (float) $rate->rating,
+                    'comment'      => $rate->comment,
+                    'date'         => $rate->created_at->format('Y-m-d'),
+                ];
+            })->sortByDesc('id')->values();
+            $teacherProfile = $teacher->makeHidden(['application', 'user', 'ratings']);
+            return response()->json([
+                'status'  => true,
+                'message' => 'Teacher profile retrieved successfully.',
+                'data'    => [
+                    'teachers' => [
+                        [
+                            'id'               => $teacher->id,
+                            'application_id'   => $teacher->teacher_application_id,
+                            'name'             => $name,
+                            'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
+                            'is_online'        => (bool) $teacher->is_online,
+                            'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                            'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
+                            'students_count'   => $stats['students_count'],
+                            'calls_count'      => $stats['calls_count'],
+                            'slots_count'      => $stats['slots_count'],
+                            'sessions_count'   => $stats['sessions_count'],
+                            'qualification'    => $application->qualification ?? null,
+                            'country'          => $application->origin_country ?? null,
+                            'languages'        => $application->languages ?? [],
+                            'experience_years' => $application->experience_years ?? 0,
+                            'specialties'      => $specialties,
+                            'about'            => $application->ijazas_text ?? null,
+                            'reviews_details'  => $reviewsDetails,
+                            'user_data'        => $teacher->user,
+                            'profile_data'     => $teacherProfile
+                        ]
+                    ],
+                    'pagination' => [
+                        'total'        => 1,
+                        'per_page'     => 10,
+                        'current_page' => 1,
+                        'total_pages'  => 1
                     ]
-                ],
-                'pagination' => [
-                    'total'        => 1,
-                    'per_page'     => 10,
-                    'current_page' => 1,
-                    'total_pages'  => 1
                 ]
-            ]
-        ]);
-    } catch (Exception $e) {
-        Log::error('Show Teacher Error: ' . $e->getMessage());
-        return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
+            ]);
+        } catch (Exception $e) {
+            Log::error('Show Teacher Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
+        }
     }
-}
     public function getTeacherAvailableSlots(Request $request, $teacherId)
     {
         try {
