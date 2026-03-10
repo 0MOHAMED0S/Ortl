@@ -101,10 +101,7 @@ public function joinSession(Request $request, $sessionId)
     try {
         $userId = auth()->id();
         $now = now();
-
-        // نجلب الجلسة مع المعلم (للحصول على الصورة) والمستخدم (للحصول على الاسم)
         $session = RecitationSession::with(['teacher.user'])->findOrFail($sessionId);
-
         if ($now->gt($session->end_at)) {
             $session->update(['status' => 'ended']);
             return response()->json([
@@ -112,26 +109,24 @@ public function joinSession(Request $request, $sessionId)
                 'message' => 'هذه الحصة انتهت زمنياً.'
             ], 400);
         }
-
         if ($session->status !== 'live') {
             return response()->json([
                 'status' => false,
                 'message' => 'الحصة لم تبدأ بعد.'
             ], 403);
         }
-
         $token = $this->agoraService->generateToken(
             $session->channel_name,
             $userId,
             'subscriber'
         );
 
+        // تسجيل دخول الطالب للجلسة
         Session_student::updateOrCreate(
             ['recitation_session_id' => $session->id, 'user_id' => $userId],
             ['joined_at' => $now, 'left_at' => null]
         );
 
-        // مرجع لبيانات المعلم والمستخدم المرتبط به
         $teacher = $session->teacher;
         $teacherUser = $teacher->user ?? null;
 
@@ -139,16 +134,17 @@ public function joinSession(Request $request, $sessionId)
             'status' => true,
             'message' => 'تم الانضمام للحصة بنجاح.',
             'data' => [
-                'agora_token'  => $token,
-                'channel_name' => $session->channel_name,
-                'app_id'       => config('services.agora.app_id'),
-                'uid'          => (int)$userId,
-                // الاسم من جدول الـ users
-                'teacher_name' => $teacherUser->name ?? 'غير متوفر',
-                // الصورة من حقل profile_photo_path في جدول الـ teachers
-                'teacher_image'=> ($teacher && $teacher->profile_photo_path)
-                    ? url('storage/' . $teacher->profile_photo_path)
-                    : url('assets/images/default-avatar.png')
+                'agora_token'         => $token,
+                'channel_name'        => $session->channel_name,
+                'app_id'              => config('services.agora.app_id'),
+                'uid'                 => (int)$userId,
+                'teacher_name'        => $teacherUser->name ?? 'غير متوفر',
+                'teacher_image'       => ($teacher && $teacher->profile_photo_path)
+                                            ? url('storage/' . $teacher->profile_photo_path)
+                                            : url('assets/images/default-avatar.png'),
+                // القيم الجديدة المطلوبة
+                'max_minutes_allowed' => (int)$session->duration_minutes,
+                'is_recording'        => (bool)$session->is_recorded
             ]
         ]);
     } catch (\Throwable $e) {
