@@ -282,7 +282,7 @@ class TeacherBookingController extends Controller
             return response()->json(['status' => false, 'message' => 'خطأ في بدء الجلسة.'], 500);
         }
     }
-public function endBookedSession(Request $request)
+    public function endBookedSession(Request $request)
     {
         $request->validate(['call_session_id' => 'required|exists:call_sessions,id'], [
             'call_session_id.required' => 'معرف الجلسة مطلوب.',
@@ -322,7 +322,7 @@ public function endBookedSession(Request $request)
                     );
 
                     if ($fileName) {
-                        $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL') ?? "https://".env('AGORA_STORAGE_ENDPOINT')."/".env('AGORA_STORAGE_BUCKET');
+                        $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL') ?? "https://" . env('AGORA_STORAGE_ENDPOINT') . "/" . env('AGORA_STORAGE_BUCKET');
                         $recordingUrl = rtrim($publicUrl, '/') . '/' . ltrim($fileName, '/');
                     }
                 } catch (\Exception $e) {
@@ -374,7 +374,6 @@ public function endBookedSession(Request $request)
                     'recording_url' => $recordingUrl
                 ]
             ]);
-
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('End Session Error: ' . $e->getMessage());
