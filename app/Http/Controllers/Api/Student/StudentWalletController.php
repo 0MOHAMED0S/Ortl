@@ -156,80 +156,69 @@ class StudentWalletController extends Controller
         $userId = auth()->id();
         $now = Carbon::now();
 
-        // 1️⃣ جلب الباقات النشطة مع تفاصيلها لحساب (المتاح) و (الأصل)
+        // --- (الكود السابق للباقات والإحصائيات كما هو) ---
         $activePackages = UserPackage::with('package:id,name,base_minutes,bonus_minutes')
             ->where('user_id', $userId)
             ->whereIn('status', ['active', 'Active'])
             ->where(function ($q) use ($now) {
-                $q->where('expires_at', '>', $now)
-                    ->orWhereNull('expires_at');
-            })
-            ->get();
+                $q->where('expires_at', '>', $now)->orWhereNull('expires_at');
+            })->get();
 
-        // حساب الدقائق المتاحة حالياً
         $availableMinutes = $activePackages->sum('remaining_minutes');
-
-        // حساب إجمالي الدقائق الأصلية لهذه الباقات النشطة (X من أصل Y)
         $totalOriginalMinutes = $activePackages->sum(function ($up) {
             $pkgTotal = ($up->package->base_minutes ?? 0) + ($up->package->bonus_minutes ?? 0);
             return max($pkgTotal, $up->remaining_minutes);
         });
 
-        // 2️⃣ الدقائق منتهية الصلاحية
-        $expiredMinutes = UserPackage::where('user_id', $userId)
-            ->where(function ($q) use ($now) {
-                $q->where('status', 'expired')
-                    ->orWhere('expires_at', '<=', $now);
-            })
-            ->where('remaining_minutes', '>', 0)
-            ->sum('remaining_minutes');
+        $totalUsedMinutes = CallSession::where('student_id', $userId)->where('status', 'ended')->sum('duration_minutes');
 
-        // 3️⃣ إجمالي الدقائق المستخدمة (التعلم الفعلي)
-        $totalUsedMinutes = CallSession::where('student_id', $userId)
-            ->where('status', 'ended')
-            ->sum('duration_minutes');
-
-        // 4️⃣ حساب ساعات التعلم (Learning Hours)
-        $learningHours = floor($totalUsedMinutes / 60);
-        $learningMinutesRemaining = $totalUsedMinutes % 60;
-
-        // 5️⃣ جلب قائمة الباقات الحالية
-        $myPackages = UserPackage::with('package:id,name,base_minutes,bonus_minutes')
-            ->where('user_id', $userId)
+        // 🎁 1. الهدايا التي أرسلها المستخدم (Sent Gifts)
+        $sentGifts = \App\Models\GiftCard::where('sender_id', $userId)
+            ->where('payment_status', 'paid')
             ->latest()
             ->get()
-            ->map(function ($up) use ($now) {
-                $pkgTotal = ($up->package->base_minutes ?? 0) + ($up->package->bonus_minutes ?? 0);
-                $original = max($pkgTotal, $up->remaining_minutes);
-
+            ->map(function ($gift) {
                 return [
-                    'package_name'     => $up->package->name ?? 'باقة مخصصة',
-                    'remaining'        => $up->remaining_minutes,
-                    'total_original'   => $original,
-                    'text_format'      => "{$up->remaining_minutes} دقيقة من أصل {$original}",
-                    'is_expired'       => $up->expires_at ? Carbon::parse($up->expires_at)->isPast() : false,
-                    'expiry_date'      => $up->expires_at ? $up->expires_at : 'لا تنتهي',
-                    'status'           => $up->status,
+                    'id' => $gift->id,
+                    'recipient_email' => $gift->recipient_email,
+                    'minutes' => $gift->minutes,
+                    'code' => $gift->code,
+                    'is_redeemed' => (bool)$gift->is_redeemed,
+                    'date' => $gift->created_at->format('Y-m-d')
                 ];
-            });
+            }) ?? []; // نضمن أنها مصفوفة حتى لو كانت null
+
+        // 🎁 2. الهدايا التي استلمها المستخدم (Received Gifts)
+        // ملاحظة: نفترض أن الطالب استلمها عبر تفعيل كود أو أرسلت له مباشرة
+        $receivedGifts = \App\Models\GiftCard::where('recipient_email', auth()->user()->email)
+            ->where('is_redeemed', true)
+            ->latest()
+            ->get()
+            ->map(function ($gift) {
+                return [
+                    'id' => $gift->id,
+                    'sender_name' => $gift->sender->name ?? 'فاعل خير',
+                    'minutes' => $gift->minutes,
+                    'date' => $gift->redeemed_at ? Carbon::parse($gift->redeemed_at)->format('Y-m-d') : null
+                ];
+            }) ?? [];
 
         return response()->json([
             'status' => true,
             'message' => 'تم استرجاع بيانات المحفظة بنجاح.',
             'data' => [
                 'summary' => [
-                    'available_minutes'      => (int) $availableMinutes,
+                    'available_minutes' => (int) $availableMinutes,
                     'total_original_minutes' => (int) $totalOriginalMinutes,
-                    'balance_text'           => "الرصيد المتبقي {$availableMinutes} من أصل {$totalOriginalMinutes} دقيقة",
-                    'used_minutes'           => (int) $totalUsedMinutes,
-                    'expired_minutes'        => (int) $expiredMinutes,
+                    'used_minutes' => (int) $totalUsedMinutes,
                 ],
                 'learning_stats' => [
-                    'total_hours'   => (int) $learningHours,
+                    'total_hours' => (int) floor($totalUsedMinutes / 60),
                     'total_minutes' => (int) $totalUsedMinutes,
-                    'formatted'     => "{$learningHours} ساعة و {$learningMinutesRemaining} دقيقة",
                 ],
-                'packages_details' => $myPackages
+                'sent_gifts' => $sentGifts,
+                'received_gifts' => $receivedGifts,
+                'packages_details' => $activePackages // أو الـ map الخاص بك
             ]
         ]);
     }
