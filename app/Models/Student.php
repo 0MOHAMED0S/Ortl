@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 class Student extends Model
 {
     use HasFactory;
-
     protected $fillable = [
         'user_id',
         'country_id',
@@ -18,7 +17,7 @@ class Student extends Model
         'professional_status',
         'gender',
         'profile_photo_path',
-        
+
         'age_group',
         'reading_level',
         'preferred_teacher_language',
@@ -28,17 +27,14 @@ class Student extends Model
         'reading_type',
         'teacher_response_speed',
     ];
-
     public function user()
     {
         return $this->belongsTo(User::class);
     }
-
     public function country()
     {
         return $this->belongsTo(Country::class);
     }
-
     public function favorites()
     {
         return $this->belongsToMany(Teacher_application::class, 'favorites', 'student_id', 'teacher_id')

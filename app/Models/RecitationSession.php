@@ -23,6 +23,7 @@ class RecitationSession extends Model
         'recording_url'
 
     ];
+
     protected $guarded = [];
 
     protected $casts = [
@@ -32,11 +33,15 @@ class RecitationSession extends Model
     const STATUS_SCHEDULED = 'scheduled';
     const STATUS_LIVE = 'live';
     const STATUS_ENDED = 'ended';
-    public function teacher()
-    {
-        return $this->belongsTo(Teacher::class);
-    }
+    // public function teacher()
+    // {
+    //     return $this->belongsTo(Teacher::class);
+    // }
 
+    public function teacher()
+{
+    return $this->belongsTo(Teacher::class, 'teacher_id');
+}
     public function admin()
     {
         return $this->belongsTo(User::class, 'created_by');
