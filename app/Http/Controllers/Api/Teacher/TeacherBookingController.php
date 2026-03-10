@@ -293,10 +293,7 @@ class TeacherBookingController extends Controller
 
         DB::beginTransaction();
         try {
-            // 1. جلب الجلسة مع قفل التعديل لضمان عدم التكرار
             $call = CallSession::with('teacher')->lockForUpdate()->findOrFail($request->call_session_id);
-
-            // التحقق من الهوية (يجب أن يكون المعلم هو من ينهي الجلسة)
             if ($call->teacher->user_id !== $user->id) {
                 return response()->json(['status' => false, 'message' => 'غير مصرح لك بإنهاء هذه الجلسة.'], 403);
             }
@@ -306,11 +303,9 @@ class TeacherBookingController extends Controller
             }
 
             $now = Carbon::now();
-            // حساب الدقائق الفعلية (من وقت البدء الفعلي وحتى الآن)
             $actualDuration = (int) ceil(Carbon::parse($call->started_at)->diffInMinutes($now));
             $recordingUrl = $call->recording_url;
 
-            // 2. إيقاف التسجيل في Agora إذا كان مفعلاً
             if (!empty($call->agora_sid) && !empty($call->agora_resource_id)) {
                 try {
                     $recorderUid = 999999;
@@ -330,7 +325,6 @@ class TeacherBookingController extends Controller
                 }
             }
 
-            // 3. تحديث بيانات الجلسة
             $call->update([
                 'ended_at' => $now,
                 'duration_minutes' => $actualDuration,
@@ -338,8 +332,6 @@ class TeacherBookingController extends Controller
                 'recording_url' => $recordingUrl
             ]);
 
-            // 4. معالجة الحجز والدقائق (إضافة الرصيد للمعلم)
-            // نبحث عن السلوت المرتبط بهذه الجلسة
             $slot = TeacherSlot::where('teacher_id', $call->teacher_id)
                 ->where('date', Carbon::parse($call->started_at)->toDateString())
                 ->where('start_time', Carbon::parse($call->started_at)->toTimeString())
@@ -351,12 +343,8 @@ class TeacherBookingController extends Controller
                     ->first();
 
                 if ($booking) {
-                    // تحديث حالة الحجز
                     $booking->update(['status' => 'completed']);
-
-                    // إضافة الدقائق المخصومة من الطالب إلى محفظة المعلم (أرباح المعلم)
                     $call->teacher->increment('minutes', $booking->deducted_minutes);
-
                     Log::info("Session ended: {$booking->deducted_minutes} minutes added to teacher {$call->teacher_id}");
                 }
             }
@@ -377,7 +365,6 @@ class TeacherBookingController extends Controller
             return response()->json(['status' => false, 'message' => 'حدث خطأ تقني أثناء إنهاء الجلسة.'], 500);
         }
     }
-
     private function notifyStudentSessionEnded($call, $teacherName, $duration)
     {
         try {
