@@ -163,24 +163,15 @@ Route::prefix('student')->group(function () {
         Route::post('/bookings/join', [StudentBookingController::class, 'joinBookedSession']);
         Route::post('/cancel-booking', [StudentTeacherController::class, 'cancelBookingByStudent']);
         Route::post('/bookings/leave', [StudentBookingController::class, 'leaveBookedSession']);
-        // تقييم المعلم بعد الجلسة
         Route::post('/rate-teacher', [RatingController::class, 'store']);
         Route::get('/featured', [StudentTeacherController::class, 'featuredTeachers']);
-
-
-        //contact us
         Route::get('/contact-settings', [ContactSettingController::class, 'index']);
-
-        //wallet
         Route::get('/wallet', [StudentWalletController::class, 'getWalletSummary']);
         Route::get('/wallet/transactions', [StudentWalletController::class, 'getTransactions']);
     });
 });
 Route::get('payments/callback', [BuyPackageController::class, 'handleCallback']);
 
-
-
-// Gift Routes
 Route::post('/gifts/payment/callback', [GiftController::class, 'handleCallback'])
     ->name('api.gifts.payment.callback');
 

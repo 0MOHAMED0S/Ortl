@@ -96,13 +96,12 @@ class TeacherSessionController extends Controller
             ], 500);
         }
     }
-    public function joinSession(Request $request, $sessionId)
+public function joinSession(Request $request, $sessionId)
     {
         try {
             $userId = auth()->id();
             $now = now();
-
-            $session = RecitationSession::findOrFail($sessionId);
+            $session = RecitationSession::with('teacher')->findOrFail($sessionId);
 
             if ($now->gt($session->end_at)) {
                 $session->update(['status' => 'ended']);
@@ -144,7 +143,11 @@ class TeacherSessionController extends Controller
                     'agora_token' => $token,
                     'channel_name' => $session->channel_name,
                     'app_id' => config('services.agora.app_id'),
-                    'uid' => (int)$userId
+                    'uid' => (int)$userId,
+                    'teacher_name' => $session->teacher->name ?? 'غير متوفر',
+                    'teacher_image' => $session->teacher && $session->teacher->image
+                                        ? url('storage/' . $session->teacher->image)
+                                        : url('assets/images/default-avatar.png')
                 ]
             ]);
         } catch (\Throwable $e) {

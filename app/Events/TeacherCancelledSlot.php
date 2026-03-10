@@ -15,40 +15,21 @@ class TeacherCancelledSlot implements ShouldBroadcastNow
 
     public $studentId;
     public $cancelData;
-
-    /**
-     * Create a new event instance.
-     */
     public function __construct($studentId, $cancelData)
     {
         $this->studentId = $studentId;
         $this->cancelData = $cancelData;
     }
-
-    /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
-     */
     public function broadcastOn(): array
     {
-        // بث الإشعار على القناة الخاصة بالطالب
         return [
             new PrivateChannel('student.' . $this->studentId),
         ];
     }
-
-    /**
-     * اسم الحدث الذي سيستمع له الموبايل
-     */
     public function broadcastAs()
     {
         return 'TeacherCancelledSlot';
     }
-
-    /**
-     * البيانات المرسلة مع الحدث
-     */
     public function broadcastWith()
     {
         return [
