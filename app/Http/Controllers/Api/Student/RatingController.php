@@ -63,12 +63,7 @@ class RatingController extends Controller
             'rateable_id'   => $request->target_id,
             'rateable_type' => $modelClass,
         ]);
-
-        // ==========================================
-        // 🔔 إرسال الإشعار اللحظي للمعلم (Pusher & Database)
-        // ==========================================
         $teacher = Teacher::with('user')->find($request->teacher_id);
-
         if ($teacher && $teacher->user) {
             $notificationData = [
                 'rating_id'    => $rating->id,
@@ -79,10 +74,7 @@ class RatingController extends Controller
             ];
 
             try {
-                // 1. إرسال عبر Pusher (مباشر للموبايل)
                 broadcast(new NewRatingReceived($teacher->id, $notificationData));
-
-                // 2. الحفظ في الداتابيز وإرسال Firebase/OneSignal عبر نظام لارافيل
                 $teacher->user->notify(new \App\Notifications\DynamicNotification(
                     'تقييم جديد ⭐',
                     "قام الطالب {$user->name} بتقييم جلستك بـ {$rating->rating} نجوم.",
@@ -93,8 +85,6 @@ class RatingController extends Controller
                 Log::error('Rating Notification/Broadcast Error: ' . $e->getMessage());
             }
         }
-        // ==========================================
-
         return response()->json([
             'status'  => true,
             'message' => 'شكراً لك! تم إرسال تقييمك بنجاح.',

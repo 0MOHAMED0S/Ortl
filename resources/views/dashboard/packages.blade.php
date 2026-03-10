@@ -182,30 +182,57 @@
 
 @section('content')
 
-{{-- نظام التنبيهات --}}
+{{-- نظام التنبيهات المطور --}}
 <div class="fixed-alert-container">
+    {{-- رسائل النجاح --}}
     @if(session('success'))
         <div class="custom-toast success shadow-lg" role="alert">
             <div class="toast-content">
                 <button type="button" class="toast-close" onclick="this.closest('.custom-toast').remove()">&times;</button>
-                <div class="toast-body"><span class="toast-title">تم بنجاح</span><p class="toast-message">{{ session('success') }}</p></div>
+                <div class="toast-body">
+                    <span class="toast-title">تم بنجاح</span>
+                    <p class="toast-message">{{ session('success') }}</p>
+                </div>
                 <div class="toast-icon"><i class="fa-solid fa-circle-check"></i></div>
             </div>
             <div class="toast-progress"></div>
         </div>
     @endif
+
+    {{-- رسائل الخطأ العادية (Flash Session) --}}
     @if(session('error'))
         <div class="custom-toast error shadow-lg" role="alert">
             <div class="toast-content">
                 <button type="button" class="toast-close" onclick="this.closest('.custom-toast').remove()">&times;</button>
-                <div class="toast-body"><span class="toast-title">خطأ في العملية</span><p class="toast-message">{{ session('error') }}</p></div>
+                <div class="toast-body">
+                    <span class="toast-title">خطأ في العملية</span>
+                    <p class="toast-message">{{ session('error') }}</p>
+                </div>
                 <div class="toast-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
             </div>
             <div class="toast-progress"></div>
         </div>
     @endif
-</div>
 
+    {{-- رسائل أخطاء التحقق من البيانات (Validation Errors) --}}
+    @if($errors->any())
+        <div class="custom-toast error shadow-lg" role="alert">
+            <div class="toast-content">
+                <button type="button" class="toast-close" onclick="this.closest('.custom-toast').remove()">&times;</button>
+                <div class="toast-body">
+                    <span class="toast-title">خطأ في الإدخال</span>
+                    <ul class="toast-message" style="list-style: none; padding: 0; margin: 0;">
+                        @foreach ($errors->all() as $error)
+                            <li>- {{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                <div class="toast-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
+            <div class="toast-progress"></div>
+        </div>
+    @endif
+</div>
 <div class="container-fluid p-3 p-md-4">
 
     {{-- الإحصائيات العلوية (Responsive Grid) --}}
@@ -357,11 +384,11 @@
                             <div class="row g-4">
                                 <div class="col-12 col-md-6">
                                     <label class="form-label"><i class="fa-solid fa-tag text-muted me-1"></i> اسم الباقة</label>
-                                    <input type="text" name="name" class="form-control custom-input" value="{{ $package->name }}" required>
+                                    <input type="text" name="name" class="form-control custom-input" value="{{ $package->name }}" >
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <label class="form-label"><i class="fa-solid fa-dollar-sign text-muted me-1"></i> السعر النهائي</label>
-                                    <input type="number" name="price" class="form-control custom-input text-success fw-bold" value="{{ $package->price }}" step="0.01" required>
+                                    <input type="number" name="price" class="form-control custom-input text-success fw-bold" value="{{ $package->price }}" step="0.01" >
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <label class="form-label"><i class="fa-solid fa-percent text-muted me-1"></i> الخصم (%)</label>
@@ -372,7 +399,7 @@
 
                                 <div class="col-6 col-md-4">
                                     <label class="form-label"><i class="fa-solid fa-phone text-muted me-1"></i> الدقائق الأساسية</label>
-                                    <input type="number" name="base_minutes" class="form-control custom-input" value="{{ $package->base_minutes }}" required>
+                                    <input type="number" name="base_minutes" class="form-control custom-input" value="{{ $package->base_minutes }}" >
                                 </div>
                                 <div class="col-6 col-md-4">
                                     <label class="form-label"><i class="fa-solid fa-gift text-muted me-1"></i> دقائق الهدية</label>
@@ -380,7 +407,7 @@
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <label class="form-label"><i class="fa-regular fa-calendar-check text-muted me-1"></i> الصلاحية (بالأيام)</label>
-                                    <input type="number" name="validity_days" class="form-control custom-input" value="{{ $package->validity_days }}" required>
+                                    <input type="number" name="validity_days" class="form-control custom-input" value="{{ $package->validity_days }}" >
                                 </div>
 
                                 <div class="col-12">
@@ -449,11 +476,11 @@
                     <div class="row g-4">
                         <div class="col-12 col-md-6">
                             <label class="form-label"><i class="fa-solid fa-tag text-muted me-1"></i> اسم الباقة <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control custom-input" placeholder="مثال: الخطة الماسية" required>
+                            <input type="text" name="name" class="form-control custom-input" placeholder="مثال: الخطة الماسية" >
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label"><i class="fa-solid fa-dollar-sign text-muted me-1"></i> السعر <span class="text-danger">*</span></label>
-                            <input type="number" name="price" class="form-control custom-input fw-bold" placeholder="0.00" step="0.01" required>
+                            <input type="number" name="price" class="form-control custom-input fw-bold" placeholder="0.00" step="0.01" >
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label"><i class="fa-solid fa-percent text-muted me-1"></i> خصم تسويقي</label>
@@ -464,7 +491,7 @@
 
                         <div class="col-6 col-md-4">
                             <label class="form-label"><i class="fa-solid fa-phone text-muted me-1"></i> الدقائق <span class="text-danger">*</span></label>
-                            <input type="number" name="base_minutes" class="form-control custom-input" placeholder="100" required>
+                            <input type="number" name="base_minutes" class="form-control custom-input" placeholder="100" >
                         </div>
                         <div class="col-6 col-md-4">
                             <label class="form-label"><i class="fa-solid fa-gift text-muted me-1"></i> بونص (هدية)</label>
@@ -472,7 +499,7 @@
                         </div>
                         <div class="col-12 col-md-4">
                             <label class="form-label"><i class="fa-regular fa-calendar-check text-muted me-1"></i> الصلاحية <span class="text-danger">*</span></label>
-                            <input type="number" name="validity_days" class="form-control custom-input" value="30" required>
+                            <input type="number" name="validity_days" class="form-control custom-input" value="30" >
                         </div>
 
                         <div class="col-12">
