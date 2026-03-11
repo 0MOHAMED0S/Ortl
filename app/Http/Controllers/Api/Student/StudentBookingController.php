@@ -18,80 +18,86 @@ class StudentBookingController extends Controller
     {
         $this->agoraService = $agoraService;
     }
-    public function getStudentBookings(Request $request)
-    {
-        try {
-            $user = auth()->user();
-            $now = Carbon::now();
-            $allBookings = SlotBooking::with(['slot.teacher.user'])
-                ->where('slot_bookings.user_id', $user->id)
-                ->where('slot_bookings.status', '!=', 'cancelled')
-                ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
-                ->orderBy('teacher_slots.date', 'desc') // الأحدث أولاً
-                ->orderBy('teacher_slots.start_time', 'desc')
-                ->select('slot_bookings.*')
-                ->get();
+public function getStudentBookings(Request $request)
+{
+    try {
+        $user = auth()->user();
+        $now = Carbon::now();
 
-            $processedBookings = $allBookings->map(function ($booking) use ($user, $now) {
-                $slot = $booking->slot;
-                if (!$slot || !$slot->teacher) return null;
+        $allBookings = SlotBooking::with(['slot.teacher.user'])
+            ->where('slot_bookings.user_id', $user->id)
+            ->where('slot_bookings.status', '!=', 'cancelled')
+            ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
+            ->orderBy('teacher_slots.date', 'desc')
+            ->orderBy('teacher_slots.start_time', 'desc')
+            ->select('slot_bookings.*')
+            ->get();
 
-                $teacher = $slot->teacher;
-                $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
-                $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
+        $processedBookings = $allBookings->map(function ($booking) use ($user, $now) {
+            $slot = $booking->slot;
+            if (!$slot || !$slot->teacher) return null;
 
-                $callSession = CallSession::where('student_id', $user->id)
-                    ->where('teacher_id', $teacher->id)
-                    ->where('started_at', $slotStartDateTime->toDateTimeString())
-                    ->whereIn('status', ['initiated', 'scheduled', 'ongoing', 'ended'])
-                    ->first();
-                $isPast = $slotEndDateTime->isPast() || optional($callSession)->status === 'ended' || $booking->status === 'completed';
-                $canJoin = !$isPast && $now->copy()->addMinutes(5)->greaterThanOrEqualTo($slotStartDateTime)
-                    && $now->lessThanOrEqualTo($slotEndDateTime);
+            $teacher = $slot->teacher;
+            $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
+            $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
 
-                return [
-                    'booking_id'       => $booking->id,
-                    'date'             => $slot->date,
-                    'start_time'       => $slot->start_time,
-                    'end_time'         => $slot->end_time,
-                    'full_date_time'   => $slotStartDateTime->toDateTimeString(),
-                    'status'           => $booking->status, // scheduled, completed, etc.
-                    'is_past'          => $isPast,
-                    'teacher' => [
-                        'id'    => $teacher->id,
-                        'name'  => optional($teacher->user)->name ?? 'معلم ورتل',
-                        'photo' => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
-                    ],
-                    'call_details' => [
-                        'id'           => optional($callSession)->id,
-                        'channel_name' => optional($callSession)->channel_name,
-                        'status'       => optional($callSession)->status,
-                        'can_join'     => $canJoin,
-                    ]
-                ];
-            })->filter()->values();
+            $callSession = CallSession::where('student_id', $user->id)
+                ->where('teacher_id', $teacher->id)
+                ->where('started_at', $slotStartDateTime->toDateTimeString())
+                ->whereIn('status', ['initiated', 'scheduled', 'ongoing', 'ended'])
+                ->first();
 
-            // 3️⃣ تقسيم البيانات إلى قادم وسابق
-            $upcoming = $processedBookings->where('is_past', false)->values();
-            $history  = $processedBookings->where('is_past', true)->values();
+            $isPast = $slotEndDateTime->isPast() || optional($callSession)->status === 'ended' || $booking->status === 'completed';
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'تم استرجاع الحجوزات بنجاح.',
-                'data'    => [
-                    'upcoming' => $upcoming,
-                    'history'  => $history
+            // يمكن الانضمام قبل 5 دقائق من الموعد وحتى نهاية الوقت
+            $canJoin = !$isPast && $now->copy()->addMinutes(5)->greaterThanOrEqualTo($slotStartDateTime)
+                && $now->lessThanOrEqualTo($slotEndDateTime);
+
+            return [
+                'booking_id'       => $booking->id,
+                'slot_id'          => $slot->id, // ✅ تم إضافة معرف الموعد هنا
+                'date'             => $slot->date,
+                'start_time'       => $slot->start_time,
+                'end_time'         => $slot->end_time,
+                'full_date_time'   => $slotStartDateTime->toDateTimeString(),
+                'status'           => $booking->status,
+                'is_past'          => $isPast,
+                'teacher' => [
+                    'id'    => $teacher->id,
+                    'name'  => optional($teacher->user)->name ?? 'معلم ورتل',
+                    'photo' => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
+                ],
+                'call_details' => [
+                    'id'           => optional($callSession)->id,
+                    'channel_name' => optional($callSession)->channel_name,
+                    'status'       => optional($callSession)->status,
+                    'can_join'     => $canJoin,
                 ]
-            ], 200);
-        } catch (\Throwable $e) {
-            Log::error('Get Student Bookings Error: ' . $e->getMessage());
-            return response()->json([
-                'status'  => false,
-                'message' => $e->getMessage(),
-                'line'    => $e->getLine()
-            ], 500);
-        }
+            ];
+        })->filter()->values();
+
+        // تقسيم البيانات إلى قادم وسابق
+        $upcoming = $processedBookings->where('is_past', false)->values();
+        $history  = $processedBookings->where('is_past', true)->values();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم استرجاع الحجوزات بنجاح.',
+            'data'    => [
+                'upcoming' => $upcoming,
+                'history'  => $history
+            ]
+        ], 200);
+
+    } catch (\Throwable $e) {
+        Log::error('Get Student Bookings Error: ' . $e->getMessage());
+        return response()->json([
+            'status'  => false,
+            'message' => 'حدث خطأ أثناء جلب البيانات.',
+            'error'   => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
+}
     public function joinBookedSession(Request $request)
     {
         $request->validate([
