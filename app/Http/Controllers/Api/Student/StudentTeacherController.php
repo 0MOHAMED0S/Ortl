@@ -160,70 +160,70 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
-public function show($id)
-{
-    try {
-        $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
-            ->withAvg('ratings', 'rating')
-            ->withCount('ratings')
-            ->find($id);
+    public function show($id)
+    {
+        try {
+            $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
+                ->withAvg('ratings', 'rating')
+                ->withCount('ratings')
+                ->find($id);
 
-        if (!$teacher) {
-            return response()->json(['status' => false, 'message' => 'Teacher not found.'], 404);
+            if (!$teacher) {
+                return response()->json(['status' => false, 'message' => 'Teacher not found.'], 404);
+            }
+
+            $application = $teacher->application;
+            $stats = $this->getTeacherStats($teacher->id);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Teacher profile retrieved successfully.',
+                'data'    => [
+                    'id'               => $teacher->id,
+                    'application_id'   => $teacher->teacher_application_id,
+                    'name'             => $teacher->user->name ?? $application->full_name,
+                    'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
+                    'is_online'        => (bool) $teacher->is_online,
+                    'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
+                    'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
+
+                    // الإحصائيات
+                    'students_count'   => $stats['students_count'],
+                    'calls_count'      => $stats['calls_count'],
+                    'slots_count'      => $stats['slots_count'],
+                    'sessions_count'   => $stats['sessions_count'],
+
+                    'qualification'    => $application->qualification ?? null,
+                    'country'          => $application->origin_country ?? null,
+                    'languages'        => $application->languages ?? [],
+                    'experience_years' => $application->experience_years ?? 0,
+
+                    // Specialties (ID و Name فقط)
+                    'specialties'      => collect($application->tracks ?? [])->map(fn($t) => [
+                        'id'   => $t->id,
+                        'name' => $t->name
+                    ])->values(),
+
+                    'about'            => $application->ijazas_text ?? null,
+
+                    // المراجعات
+                    'reviews_details'  => $teacher->ratings->map(fn($rate) => [
+                        'id'           => $rate->id,
+                        'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
+                        'rating'       => (int) $rate->rating,
+                        'comment'      => $rate->comment,
+                        'date'         => $rate->created_at->format('Y-m-d'),
+                    ])->sortByDesc('id')->values(),
+
+                    'user_data'        => $teacher->user,
+                    'profile_data'     => $teacher->makeHidden(['application', 'user', 'ratings'])
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Show Teacher Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
         }
-
-        $application = $teacher->application;
-        $stats = $this->getTeacherStats($teacher->id);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'Teacher profile retrieved successfully.',
-            'data'    => [
-                'id'               => $teacher->id,
-                'application_id'   => $teacher->teacher_application_id,
-                'name'             => $teacher->user->name ?? $application->full_name,
-                'photo_url'        => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
-                'is_online'        => (bool) $teacher->is_online,
-                'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
-                'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
-
-                // الإحصائيات
-                'students_count'   => $stats['students_count'],
-                'calls_count'      => $stats['calls_count'],
-                'slots_count'      => $stats['slots_count'],
-                'sessions_count'   => $stats['sessions_count'],
-
-                'qualification'    => $application->qualification ?? null,
-                'country'          => $application->origin_country ?? null,
-                'languages'        => $application->languages ?? [],
-                'experience_years' => $application->experience_years ?? 0,
-
-                // Specialties (ID و Name فقط)
-                'specialties'      => collect($application->tracks ?? [])->map(fn($t) => [
-                    'id'   => $t->id,
-                    'name' => $t->name
-                ])->values(),
-
-                'about'            => $application->ijazas_text ?? null,
-
-                // المراجعات
-                'reviews_details'  => $teacher->ratings->map(fn($rate) => [
-                    'id'           => $rate->id,
-                    'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
-                    'rating'       => (int) $rate->rating,
-                    'comment'      => $rate->comment,
-                    'date'         => $rate->created_at->format('Y-m-d'),
-                ])->sortByDesc('id')->values(),
-
-                'user_data'        => $teacher->user,
-                'profile_data'     => $teacher->makeHidden(['application', 'user', 'ratings'])
-            ]
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Show Teacher Error: ' . $e->getMessage());
-        return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
     }
-}
     public function getTeacherAvailableSlots(Request $request, $teacherId)
     {
         try {
@@ -585,6 +585,82 @@ public function show($id)
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ تقني أثناء استرجاع بيانات المعلمين المتميزين، يرجى المحاولة لاحقاً.'
+            ], 500);
+        }
+    }
+    public function getTeachersByTrack(Request $request, $trackId)
+    {
+        try {
+            $perPage = $request->query('per_page', 10);
+            $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
+
+            // 1. جلب طلبات المعلمين المعتمدين المرتبطين بـ track_id معين
+            $teachersQuery = Teacher_application::where('status', 'approved')
+                ->whereHas('tracks', function ($query) use ($trackId) {
+                    $query->where('tracks.id', $trackId);
+                })
+                ->whereHas('profile') // التأكد من وجود ملف شخصي (معلم معتمد نهائياً)
+                ->with([
+                    'profile' => function ($query) {
+                        $query->withAvg('ratings', 'rating')
+                            ->withCount('ratings')
+                            ->with('ratings.user');
+                    },
+                    'profile.user',
+                    'tracks'
+                ])
+                ->get()
+                ->sortByDesc(function ($application) {
+                    // الترتيب حسب التقييم لضمان جودة النتائج
+                    return optional($application->profile)->ratings_avg_rating ?? 0;
+                })
+                ->values();
+
+            $total = $teachersQuery->count();
+
+            // 2. تقسيم النتائج (Manual Pagination) لضمان عمل الترتيب البرمجي بشكل صحيح
+            $paginatedItems = $teachersQuery->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+            // 3. تنسيق البيانات (نفس التنسيق الموحد في التطبيق)
+            $formattedTeachers = $paginatedItems->map(function ($application) {
+                $profile = $application->profile;
+                $user = optional($profile)->user;
+                $teacherId = optional($profile)->id;
+                $stats = $this->getTeacherStats($teacherId);
+                $rating = (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', '');
+
+                return [
+                    'id'               => $teacherId,
+                    'name'             => $user->name ?? $application->full_name,
+                    'photo_url'        => $profile->profile_photo_path ? asset('storage/' . $profile->profile_photo_path) : null,
+                    'is_online'        => (bool) optional($profile)->is_online,
+                    'rating'           => $rating,
+                    'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
+                    'country'          => $application->origin_country,
+                    'experience_years' => $application->experience_years,
+                    'specialties'      => $application->tracks->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
+                    // يمكنك إضافة المزيد من الحقول هنا إذا كنت بحاجة لها في واجهة الفلترة
+                ];
+            });
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم جلب المعلمين في هذا المسار بنجاح.',
+                'data'    => [
+                    'teachers'   => $formattedTeachers,
+                    'pagination' => [
+                        'total'        => $total,
+                        'per_page'     => (int) $perPage,
+                        'current_page' => $currentPage,
+                        'total_pages'  => (int) ceil($total / $perPage) ?: 1
+                    ]
+                ]
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Filter Teachers by Track Error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء تصفية المعلمين حسب المسار.'
             ], 500);
         }
     }

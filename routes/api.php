@@ -136,6 +136,7 @@ Route::prefix('student')->group(function () {
 
         Route::get('/packages', [StudentPackageController::class, 'index']);
         Route::get('/teachers', [StudentTeacherController::class, 'index']);
+        Route::get('/tracks/{trackId}/teachers', [StudentTeacherController::class, 'getTeachersByTrack']);
 
         Route::get('/ads', [AdsController::class, 'index']);
 
