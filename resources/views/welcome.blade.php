@@ -607,7 +607,7 @@
             transform: scale(1.02);
             z-index: 5;
         }
-        
+
         .pkg-card.featured::before {
             background: var(--gold-main);
             height: 8px;
@@ -658,7 +658,7 @@
             border: 1px dashed rgba(45, 138, 116, 0.3);
             width: 100%;
         }
-        
+
         .featured .pkg-gift {
             background: var(--gold-light);
             color: #b3893f;
@@ -669,7 +669,7 @@
             padding-bottom: 12px;
             border-bottom: 1px solid rgba(0,0,0,0.03);
         }
-        
+
         .pkg-card ul li:last-child {
             border-bottom: none;
         }
@@ -1551,91 +1551,254 @@
             </div>
         </div>
     </section>
+<style>
+    <style>
+/* --- Premium Pricing Design --- */
+.pricing-section {
+    background-color: #f8fafc;
+    padding: 100px 0;
+}
 
-    <section id="packages" class="pricing-section">
-        <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <span class="section-tag">الباقات</span>
-                <h2 class="section-title">اختر خطتك التعليمية</h2>
-            </div>
-            <div class="owl-carousel packages-carousel owl-theme py-4">
+.premium-pkg-card {
+    background: #ffffff;
+    border-radius: 30px;
+    padding: 40px 30px;
+    position: relative;
+    border: 1px solid #e2e8f0;
+    transition: all 0.4s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
 
-                @foreach ($packages as $package)
-                    @php
-                        $hasDiscount = $package->discount > 0;
-                        $isVip = str_contains($package->name, 'VIP');
+.premium-pkg-card:hover {
+    transform: translateY(-15px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+    border-color: var(--primary-dark);
+}
 
-                        $originalPrice = $package->price;
-                        $finalPrice = $hasDiscount
-                            ? $originalPrice - $originalPrice * ($package->discount / 100)
-                            : $originalPrice;
-                    @endphp
+/* Featured & VIP Styles */
+.premium-pkg-card.is-featured {
+    border: 2px solid var(--primary-dark);
+}
 
-                    <div class="item px-2 px-md-3" data-aos="{{ $hasDiscount ? 'zoom-in' : 'fade-up' }}">
-                        <div class="pkg-card {{ $hasDiscount ? 'featured' : '' }}">
-                            @if ($hasDiscount)
-                                <div class="badge-popular">الأكثر طلباً</div>
-                            @endif
+.premium-pkg-card.is-vip {
+    background: linear-gradient(180deg, #ffffff 0%, #fffcf5 100%);
+    border-color: #d4a753;
+}
 
-                            <div>
-                                <h4 class="pkg-name {{ $isVip ? 'text-success' : '' }}">{{ $package->name }}</h4>
-                                <div class="pkg-gift {{ $hasDiscount ? '' : 'bg-light' }}">
-                                    @if ($isVip)
-                                        <i class="fa-solid fa-crown text-warning"></i>
-                                    @else
-                                        <i
-                                            class="fa-solid fa-gift {{ $hasDiscount ? 'text-danger fa-lg' : 'text-warning' }}"></i>
-                                    @endif
-                                    <span class="{{ $hasDiscount ? 'fs-6 ms-2' : '' }}">
-                                        {{ $package->base_minutes }} دقيقة
-                                        @if ($package->bonus_minutes > 0)
-                                            + {{ $package->bonus_minutes }} د
-                                        @endif
-                                    </span>
-                                </div>
-                                @if ($hasDiscount)
-                                    <p class="small text-muted mb-4 fw-bold">
-                                        {{ $package->description ?? 'باقة مثالية للبدء في الحفظ والمراجعة' }}</p>
-                                @else
-                                    <ul class="list-unstyled text-muted text-start mx-auto small w-100 px-3">
-                                        <li class="mb-3 d-flex align-items-center"><i class="fa-solid fa-check text-success me-3 bg-light rounded-circle p-1"></i> <div>صلاحية
-                                            {{ $package->validity_days }} يوم</div></li>
-                                        @if ($package->description)
-                                            <li class="mb-3 d-flex align-items-center"><i class="fa-solid fa-check text-success me-3 bg-light rounded-circle p-1"></i>
-                                                <div>{{ Str::limit($package->description, 25) }}</div></li>
-                                        @endif
-                                        @if ($isVip)
-                                            <li class="mb-3 d-flex align-items-center"><i class="fa-solid fa-check text-success me-3 bg-light rounded-circle p-1"></i>
-                                                <div>معلم خاص</div></li>
-                                        @endif
-                                    </ul>
+/* Badge */
+.pkg-badge {
+    position: absolute;
+    top: 20px;
+    right: -35px;
+    background: #ef4444;
+    color: white;
+    padding: 6px 40px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    transform: rotate(45deg);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Header Sections */
+.pkg-top {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.pkg-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 15px;
+}
+
+.mins-num {
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: var(--primary-dark);
+    line-height: 1;
+}
+
+.mins-unit {
+    display: block;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.pkg-bonus {
+    display: inline-block;
+    background: #f0fdf4;
+    color: #16a34a;
+    padding: 5px 15px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-top: 10px;
+}
+
+/* Content & Features */
+.pkg-content {
+    flex-grow: 1;
+    padding: 20px 0;
+}
+
+.pkg-features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pkg-features-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #475569;
+    font-size: 0.95rem;
+    margin-bottom: 15px;
+}
+
+.pkg-features-list li i {
+    color: #10b981;
+    font-size: 1.1rem;
+}
+
+/* Bottom & Pricing */
+.price-box {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.price-old {
+    display: block;
+    text-decoration: line-through;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    margin-bottom: -5px;
+}
+
+.price-current {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    color: #0f172a;
+}
+
+.price-current .currency {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-top: 10px;
+}
+
+.price-current .amount {
+    font-size: 3rem;
+    font-weight: 900;
+}
+
+/* Button */
+.pkg-action-btn {
+    width: 100%;
+    background: var(--primary-dark);
+    color: white;
+    border: none;
+    padding: 18px;
+    border-radius: 20px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: 0.3s;
+    cursor: pointer;
+}
+
+.pkg-action-btn:hover {
+    background: #1a4d2e;
+    gap: 20px;
+}
+
+.is-vip .pkg-action-btn {
+    background: #d4a753;
+}
+</style>
+</style>
+<section id="packages" class="pricing-section">
+    <div class="container">
+        <div class="section-header text-center mb-5" data-aos="fade-up">
+            <span class="section-tag">باقات الدقائق</span>
+            <h2 class="section-title">اختر خطتك التعليمية</h2>
+        </div>
+
+        <div class="owl-carousel packages-carousel owl-theme py-4">
+            @foreach ($packages as $package)
+                @php
+                    $hasDiscount = $package->discount > 0;
+                    $isVip = str_contains(strtolower($package->name), 'vip');
+                    $finalPrice = $package->price;
+                    $originalPrice = $hasDiscount ? ($finalPrice / (1 - ($package->discount / 100))) : $finalPrice;
+                @endphp
+
+                <div class="item px-3" data-aos="{{ $hasDiscount ? 'zoom-in' : 'fade-up' }}">
+                    <div class="premium-pkg-card {{ $hasDiscount ? 'is-featured' : '' }} {{ $isVip ? 'is-vip' : '' }}">
+
+                        @if ($hasDiscount)
+                            <div class="pkg-badge">خصم {{ round($package->discount) }}%</div>
+                        @endif
+
+                        <div class="pkg-top">
+                            <h4 class="pkg-title">{{ $package->name }}</h4>
+                            <div class="pkg-minutes">
+                                <span class="mins-num">{{ $package->base_minutes }}</span>
+                                <span class="mins-unit">دقيقة</span>
+                                @if ($package->bonus_minutes > 0)
+                                    <div class="pkg-bonus">
+                                        + {{ $package->bonus_minutes }} دقيقة هدية
+                                    </div>
                                 @endif
                             </div>
+                        </div>
 
-                            @if ($hasDiscount)
-                                <button class="btn-3d orange">
-                                    <span>{{ number_format($finalPrice, 2) }}</span> <small>EGP</small>
-                                    <span
-                                        class="text-decoration-line-through text-white-50 ms-2 small">{{ number_format($originalPrice, 0) }}</span>
-                                    <svg class="cursor-icon" viewBox="0 0 24 24" fill="white">
-                                        <path d="M5.5 2L18.5 13.5L12 14.5L16 22L13 23.5L9 16L3 18V2Z" stroke="black"
-                                            stroke-width="1.5" />
-                                    </svg>
-                                </button>
-                            @elseif($isVip)
-                                <button class="btn-3d green">{{ number_format($finalPrice, 0) }} <span
-                                        class="small ms-1">EGP</span></button>
-                            @else
-                                <button class="btn-3d outline">{{ number_format($finalPrice, 0) }} <span
-                                        class="small ms-1">EGP</span></button>
-                            @endif
+                        <div class="pkg-content">
+                            <ul class="pkg-features-list">
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <span>صلاحية {{ $package->validity_days }} يوم</span>
+                                </li>
+                                @if ($package->description)
+                                    <li>
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>{{ $package->description }}</span>
+                                    </li>
+                                @endif
+                            </ul>
+                        </div>
+
+                        <div class="pkg-bottom">
+                            <div class="price-box">
+                                @if ($hasDiscount)
+                                    <span class="price-old">${{ number_format($originalPrice, 2) }}</span>
+                                @endif
+                                <div class="price-current">
+                                    <span class="currency">$</span>
+                                    <span class="amount">{{ number_format($finalPrice, 2) }}</span>
+                                </div>
+                            </div>
+
+                            <button class="pkg-action-btn">
+                                <span>اشترك الآن</span>
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
                         </div>
                     </div>
-                @endforeach
-
-            </div>
+                </div>
+            @endforeach
         </div>
-    </section>
+    </div>
+</section>
 
     <section id="teachers" class="py-5">
         <div class="container py-4">
