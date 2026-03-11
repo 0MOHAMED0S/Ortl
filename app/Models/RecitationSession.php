@@ -37,6 +37,11 @@ class RecitationSession extends Model
     // {
     //     return $this->belongsTo(Teacher::class);
     // }
+    public function attendees()
+{
+    // الربط مع موديل حضور الطلاب باستخدام المفتاح الأجنبي الصحيح
+    return $this->hasMany(Session_student::class, 'recitation_session_id');
+}
 
     public function teacher()
 {
