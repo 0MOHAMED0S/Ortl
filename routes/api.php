@@ -125,6 +125,7 @@ Route::prefix('student')->group(function () {
         Route::get('/sessions/available-sessions', [TeacherSessionController::class, 'getAllSessionsForStudent']);
         Route::post('/sessions/{sessionId}/join', [TeacherSessionController::class, 'joinSession']);
         Route::post('/sessions/{sessionId}/leave', [TeacherSessionController::class, 'leaveSession']);
+        Route::get('/sessions/history', [TeacherSessionController::class, 'getStudentSessionHistory']);
 
         Route::post('/profile/update', [StudentAuthController::class, 'updateProfile']);
         Route::get('/profile', [StudentAuthController::class, 'getProfile']);

@@ -96,62 +96,62 @@ class TeacherSessionController extends Controller
             ], 500);
         }
     }
-public function joinSession(Request $request, $sessionId)
-{
-    try {
-        $userId = auth()->id();
-        $now = now();
-        $session = RecitationSession::with(['teacher.user'])->findOrFail($sessionId);
-        if ($now->gt($session->end_at)) {
-            $session->update(['status' => 'ended']);
+    public function joinSession(Request $request, $sessionId)
+    {
+        try {
+            $userId = auth()->id();
+            $now = now();
+            $session = RecitationSession::with(['teacher.user'])->findOrFail($sessionId);
+            if ($now->gt($session->end_at)) {
+                $session->update(['status' => 'ended']);
+                return response()->json([
+                    'status' => false,
+                    'message' => 'هذه الحصة انتهت زمنياً.'
+                ], 400);
+            }
+            if ($session->status !== 'live') {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'الحصة لم تبدأ بعد.'
+                ], 403);
+            }
+            $token = $this->agoraService->generateToken(
+                $session->channel_name,
+                $userId,
+                'subscriber'
+            );
+            Session_student::updateOrCreate(
+                ['recitation_session_id' => $session->id, 'user_id' => $userId],
+                ['joined_at' => $now, 'left_at' => null]
+            );
+
+            $teacher = $session->teacher;
+            $teacherUser = $teacher->user ?? null;
+
+            return response()->json([
+                'status' => true,
+                'message' => 'تم الانضمام للحصة بنجاح.',
+                'data' => [
+                    'agora_token'         => $token,
+                    'channel_name'        => $session->channel_name,
+                    'app_id'              => config('services.agora.app_id'),
+                    'uid'                 => (int)$userId,
+                    'teacher_name'        => $teacherUser->name ?? 'غير متوفر',
+                    'teacher_image'       => ($teacher && $teacher->profile_photo_path)
+                        ? url('storage/' . $teacher->profile_photo_path)
+                        : url('assets/images/default-avatar.png'),
+                    'max_minutes_allowed' => (int)$session->duration_minutes,
+                    'is_recording'        => (bool)$session->is_recorded
+                ]
+            ]);
+        } catch (\Throwable $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'هذه الحصة انتهت زمنياً.'
-            ], 400);
+                'message' => 'فشل الانضمام للحصة.',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-        if ($session->status !== 'live') {
-            return response()->json([
-                'status' => false,
-                'message' => 'الحصة لم تبدأ بعد.'
-            ], 403);
-        }
-        $token = $this->agoraService->generateToken(
-            $session->channel_name,
-            $userId,
-            'subscriber'
-        );
-        Session_student::updateOrCreate(
-            ['recitation_session_id' => $session->id, 'user_id' => $userId],
-            ['joined_at' => $now, 'left_at' => null]
-        );
-
-        $teacher = $session->teacher;
-        $teacherUser = $teacher->user ?? null;
-
-        return response()->json([
-            'status' => true,
-            'message' => 'تم الانضمام للحصة بنجاح.',
-            'data' => [
-                'agora_token'         => $token,
-                'channel_name'        => $session->channel_name,
-                'app_id'              => config('services.agora.app_id'),
-                'uid'                 => (int)$userId,
-                'teacher_name'        => $teacherUser->name ?? 'غير متوفر',
-                'teacher_image'       => ($teacher && $teacher->profile_photo_path)
-                                            ? url('storage/' . $teacher->profile_photo_path)
-                                            : url('assets/images/default-avatar.png'),
-                'max_minutes_allowed' => (int)$session->duration_minutes,
-                'is_recording'        => (bool)$session->is_recorded
-            ]
-        ]);
-    } catch (\Throwable $e) {
-        return response()->json([
-            'status' => false,
-            'message' => 'فشل الانضمام للحصة.',
-            'error' => config('app.debug') ? $e->getMessage() : null
-        ], 500);
     }
-}
     public function leaveSession(Request $request, $sessionId)
     {
         try {
@@ -417,6 +417,61 @@ public function joinSession(Request $request, $sessionId)
                 'status' => false,
                 'message' => 'فشل جلب الحصص.',
                 'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    public function getStudentSessionHistory(Request $request)
+    {
+        try {
+            $userId = auth()->id();
+            $perPage = $request->query('per_page', 10);
+            $history = RecitationSession::where('status', 'ended')
+                ->whereHas('attendees', function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                })
+                ->with(['teacher.user', 'attendees' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->orderBy('start_at', 'desc') // الأحدث أولاً
+                ->paginate($perPage);
+            $history->getCollection()->transform(function ($session) {
+                $attendance = $session->attendees->first();
+                $teacher = $session->teacher;
+                $teacherUser = optional($teacher)->user;
+                $teacherName = $teacherUser->name ?? 'معلم ورتل';
+
+                return [
+                    'id'                => $session->id,
+                    'title'             => $session->title,
+                    'teacher_name'      => $teacherName,
+                    'teacher_avatar'    => ($teacher && $teacher->profile_photo_path)
+                        ? asset('storage/' . $teacher->profile_photo_path)
+                        : 'https://ui-avatars.com/api/?name=' . urlencode($teacherName) . '&background=0d9488&color=fff',
+                    'start_at'          => $session->start_at->format('Y-m-d H:i:s'),
+                    'end_at'            => $session->end_at->format('Y-m-d H:i:s'),
+                    'recording_url'     => $session->recording_url,
+                    'my_attendance'     => [
+                        'joined_at'        => optional($attendance)->joined_at ? $attendance->joined_at->format('H:i:s') : null,
+                        'left_at'          => optional($attendance)->left_at ? $attendance->left_at->format('H:i:s') : null,
+                        'duration_minutes' => (optional($attendance)->joined_at && optional($attendance)->left_at)
+                            ? round($attendance->joined_at->diffInMinutes($attendance->left_at), 2)
+                            : 0,
+                    ]
+                ];
+            });
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم استرجاع سجل الحصص بنجاح.',
+                'data'    => $history
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Get Student History Error: " . $e->getMessage());
+            return response()->json([
+                'status'  => false,
+                'message' => 'فشل جلب سجل الحصص.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
