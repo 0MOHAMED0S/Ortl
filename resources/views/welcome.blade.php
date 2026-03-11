@@ -1788,10 +1788,10 @@
                                 </div>
                             </div>
 
-                            <button class="pkg-action-btn">
+                            {{-- <button class="pkg-action-btn">
                                 <span>اشترك الآن</span>
                                 <i class="fa-solid fa-arrow-left"></i>
-                            </button>
+                            </button> --}}
                         </div>
                     </div>
                 </div>
