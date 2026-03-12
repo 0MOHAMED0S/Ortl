@@ -86,8 +86,9 @@ class StudentBookingController extends Controller
         try {
             $user = auth()->user();
             $now = Carbon::now();
+            $perPage = $request->get('per_page', 10); // تحديد عدد العناصر في الصفحة
 
-            $bookings = SlotBooking::with(['slot.teacher.user'])
+            $bookingsPaginator = SlotBooking::with(['slot.teacher.user'])
                 ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
                 ->where('slot_bookings.user_id', $user->id)
                 ->where('slot_bookings.status', 'scheduled')
@@ -102,9 +103,10 @@ class StudentBookingController extends Controller
                 ->orderBy('teacher_slots.date', 'asc')
                 ->orderBy('teacher_slots.start_time', 'asc')
                 ->select('slot_bookings.*')
-                ->get();
+                ->paginate($perPage); // استخدام paginate بدلاً من get
 
-            $data = $bookings->map(function ($booking) use ($user, $now) {
+            // تحويل البيانات داخل الـ Collection الخاص بالـ Paginator
+            $bookingsPaginator->getCollection()->transform(function ($booking) use ($user, $now) {
                 $slot = $booking->slot;
                 $teacher = $slot->teacher;
                 $slotStart = Carbon::parse($slot->date . ' ' . $slot->start_time);
@@ -115,28 +117,28 @@ class StudentBookingController extends Controller
                     ->where('started_at', $slotStart->toDateTimeString())
                     ->first();
 
-                // التحقق من إمكانية الانضمام (قبل 5 دقائق وحتى النهاية)
+                // التحقق من إمكانية الانضمام (قبل 5 دقائق وحتى نهاية الوقت)
                 $canJoin = $now->copy()->addMinutes(5)->greaterThanOrEqualTo($slotStart)
                     && $now->lessThanOrEqualTo($slotEnd);
 
                 return [
-                    'booking_id'   => $booking->id,
-                    'slot_id'      => $slot->id,
-                    'date'         => $slot->date,
-                    'start_time'   => $slot->start_time,
-                    'end_time'     => $slot->end_time,
-                    'teacher_name' => optional($teacher->user)->name ?? 'معلم ورتل',
+                    'booking_id'    => $booking->id,
+                    'slot_id'       => $slot->id,
+                    'date'          => $slot->date,
+                    'start_time'    => $slot->start_time,
+                    'end_time'      => $slot->end_time,
+                    'teacher_name'  => optional($teacher->user)->name ?? 'معلم ورتل',
                     'teacher_photo' => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
-                    'call_id'      => optional($callSession)->id,
-                    'channel_name' => optional($callSession)->channel_name,
-                    'can_join'     => $canJoin,
+                    'call_id'       => optional($callSession)->id,
+                    'channel_name'  => optional($callSession)->channel_name,
+                    'can_join'      => $canJoin,
                 ];
             });
 
             return response()->json([
                 'status'  => true,
                 'message' => 'تم استرجاع الحجوزات القادمة بنجاح.',
-                'data'    => $data
+                'data'    => $bookingsPaginator
             ], 200);
         } catch (\Throwable $e) {
             Log::error('Upcoming Bookings Error: ' . $e->getMessage());
