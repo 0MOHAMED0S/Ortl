@@ -18,6 +18,69 @@ class StudentBookingController extends Controller
     {
         $this->agoraService = $agoraService;
     }
+    public function getStudentBookings(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            $now = Carbon::now();
+
+            // جلب الحجوزات مع تفاصيل الموعد والمعلم
+            $allBookings = SlotBooking::with(['slot.teacher.user'])
+                ->where('user_id', $user->id)
+                ->where('status', '!=', 'cancelled')
+                ->get();
+
+            $processedBookings = $allBookings->map(function ($booking) use ($user, $now) {
+                $slot = $booking->slot;
+                if (!$slot) return null;
+
+                $teacher = $slot->teacher;
+                $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
+                $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
+
+                // جلب الجلسة المرتبطة بهذا الحجز تحديداً لجلب الرابط
+                $callSession = CallSession::where('student_id', $user->id)
+                    ->where('teacher_id', $slot->teacher_id)
+                    ->where('started_at', $slotStartDateTime->toDateTimeString())
+                    ->first();
+
+                $isPast = $slotEndDateTime->isPast() || $booking->status === 'completed' || optional($callSession)->status === 'ended';
+
+                return [
+                    'booking_id'     => $booking->id,
+                    'status'         => $booking->status,
+                    'slot_details'   => [
+                        'id'         => $slot->id,
+                        'date'       => $slot->date,
+                        'start_time' => $slot->start_time,
+                        'end_time'   => $slot->end_time,
+                    ],
+                    'teacher' => [
+                        'name'  => optional($teacher->user)->name ?? 'معلم ورتل',
+                        'photo' => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
+                    ],
+                    'session_record' => [
+                        // 🚀 الرابط الذي طلبته يظهر هنا
+                        'recording_url' => optional($callSession)->recording_url,
+                        'is_available'  => !empty(optional($callSession)->recording_url),
+                    ],
+                    'is_past' => $isPast
+                ];
+            })->filter()->values();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم استرجاع سجل الحجوزات بنجاح.',
+                'data'    => [
+                    'upcoming' => $processedBookings->where('is_past', false)->values(),
+                    'history'  => $processedBookings->where('is_past', true)->values(),
+                ]
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Get Bookings Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'حدث خطأ في الخادم.'], 500);
+        }
+    }
     public function getUpcomingBookings(Request $request)
     {
         try {
@@ -89,7 +152,6 @@ class StudentBookingController extends Controller
             $history = SlotBooking::with(['slot.teacher.user'])
                 ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
                 ->where('slot_bookings.user_id', $user->id)
-                // الحجوزات المكتملة أو التي مضى وقتها
                 ->where(function ($query) {
                     $query->where('slot_bookings.status', 'completed')
                         ->orWhere('teacher_slots.date', '<', now()->toDateString());
