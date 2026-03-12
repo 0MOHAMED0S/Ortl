@@ -162,6 +162,9 @@ Route::prefix('student')->group(function () {
         // الحجز المباشر مع المعلم
         Route::post('/book-slot', [StudentTeacherController::class, 'bookSlot']);
         Route::get('/my-bookings', [StudentBookingController::class, 'getStudentBookings']);
+        Route::get('/my-bookings/upcoming', [StudentBookingController::class, 'getUpcomingBookings']);
+        Route::get('/my-bookings/history', [StudentBookingController::class, 'getBookingsHistory']);
+
         Route::post('/bookings/join', [StudentBookingController::class, 'joinBookedSession']);
         Route::post('/cancel-booking', [StudentTeacherController::class, 'cancelBookingByStudent']);
         Route::post('/bookings/leave', [StudentBookingController::class, 'leaveBookedSession']);
