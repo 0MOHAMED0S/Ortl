@@ -23,62 +23,69 @@ class StudentBookingController extends Controller
         try {
             $user = auth()->user();
             $now = Carbon::now();
-
-            // جلب الحجوزات مع تفاصيل الموعد والمعلم
             $allBookings = SlotBooking::with(['slot.teacher.user'])
-                ->where('user_id', $user->id)
-                ->where('status', '!=', 'cancelled')
+                ->where('slot_bookings.user_id', $user->id)
+                ->where('slot_bookings.status', '!=', 'cancelled')
+                ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
+                ->orderBy('teacher_slots.date', 'desc')
+                ->orderBy('teacher_slots.start_time', 'desc')
+                ->select('slot_bookings.*')
                 ->get();
-
             $processedBookings = $allBookings->map(function ($booking) use ($user, $now) {
                 $slot = $booking->slot;
-                if (!$slot) return null;
-
+                if (!$slot || !$slot->teacher) return null;
                 $teacher = $slot->teacher;
                 $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
                 $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
-
-                // جلب الجلسة المرتبطة بهذا الحجز تحديداً لجلب الرابط
                 $callSession = CallSession::where('student_id', $user->id)
-                    ->where('teacher_id', $slot->teacher_id)
+                    ->where('teacher_id', $teacher->id)
                     ->where('started_at', $slotStartDateTime->toDateTimeString())
+                    ->whereIn('status', ['initiated', 'scheduled', 'ongoing', 'ended'])
                     ->first();
-
-                $isPast = $slotEndDateTime->isPast() || $booking->status === 'completed' || optional($callSession)->status === 'ended';
-
+                $isPast = $slotEndDateTime->isPast() || optional($callSession)->status === 'ended' || $booking->status === 'completed';
+                // يمكن الانضمام قبل 5 دقائق من الموعد وحتى نهاية الوقت
+                $canJoin = !$isPast && $now->copy()->addMinutes(5)->greaterThanOrEqualTo($slotStartDateTime)
+                    && $now->lessThanOrEqualTo($slotEndDateTime);
                 return [
-                    'booking_id'     => $booking->id,
-                    'status'         => $booking->status,
-                    'slot_details'   => [
-                        'id'         => $slot->id,
-                        'date'       => $slot->date,
-                        'start_time' => $slot->start_time,
-                        'end_time'   => $slot->end_time,
-                    ],
+                    'booking_id'       => $booking->id,
+                    'slot_id'          => $slot->id, // ✅ تم إضافة معرف الموعد هنا
+                    'date'             => $slot->date,
+                    'start_time'       => $slot->start_time,
+                    'end_time'         => $slot->end_time,
+                    'full_date_time'   => $slotStartDateTime->toDateTimeString(),
+                    'status'           => $booking->status,
+                    'is_past'          => $isPast,
                     'teacher' => [
+                        'id'    => $teacher->id,
                         'name'  => optional($teacher->user)->name ?? 'معلم ورتل',
                         'photo' => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
                     ],
-                    'session_record' => [
-                        // 🚀 الرابط الذي طلبته يظهر هنا
-                        'recording_url' => optional($callSession)->recording_url,
-                        'is_available'  => !empty(optional($callSession)->recording_url),
-                    ],
-                    'is_past' => $isPast
+                    'call_details' => [
+                        'id'           => optional($callSession)->id,
+                        'channel_name' => optional($callSession)->channel_name,
+                        'status'       => optional($callSession)->status,
+                        'can_join'     => $canJoin,
+                    ]
                 ];
             })->filter()->values();
-
+            // تقسيم البيانات إلى قادم وسابق
+            $upcoming = $processedBookings->where('is_past', false)->values();
+            $history  = $processedBookings->where('is_past', true)->values();
             return response()->json([
                 'status'  => true,
-                'message' => 'تم استرجاع سجل الحجوزات بنجاح.',
+                'message' => 'تم استرجاع الحجوزات بنجاح.',
                 'data'    => [
-                    'upcoming' => $processedBookings->where('is_past', false)->values(),
-                    'history'  => $processedBookings->where('is_past', true)->values(),
+                    'upcoming' => $upcoming,
+                    'history'  => $history
                 ]
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Get Bookings Error: ' . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'حدث خطأ في الخادم.'], 500);
+            Log::error('Get Student Bookings Error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => false,
+                'message' => 'حدث خطأ أثناء جلب البيانات.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
     }
     public function joinBookedSession(Request $request)
