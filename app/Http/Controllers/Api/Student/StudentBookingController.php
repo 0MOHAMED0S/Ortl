@@ -18,75 +18,112 @@ class StudentBookingController extends Controller
     {
         $this->agoraService = $agoraService;
     }
-    public function getStudentBookings(Request $request)
+   public function getStudentSessionHistory(Request $request)
+
     {
+
         try {
-            $user = auth()->user();
-            $now = Carbon::now();
-            $allBookings = SlotBooking::with(['slot.teacher.user'])
-                ->where('slot_bookings.user_id', $user->id)
-                ->where('slot_bookings.status', '!=', 'cancelled')
-                ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
-                ->orderBy('teacher_slots.date', 'desc')
-                ->orderBy('teacher_slots.start_time', 'desc')
-                ->select('slot_bookings.*')
-                ->get();
-            $processedBookings = $allBookings->map(function ($booking) use ($user, $now) {
-                $slot = $booking->slot;
-                if (!$slot || !$slot->teacher) return null;
-                $teacher = $slot->teacher;
-                $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
-                $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
-                $callSession = CallSession::where('student_id', $user->id)
-                    ->where('teacher_id', $teacher->id)
-                    ->where('started_at', $slotStartDateTime->toDateTimeString())
-                    ->whereIn('status', ['initiated', 'scheduled', 'ongoing', 'ended'])
-                    ->first();
-                $isPast = $slotEndDateTime->isPast() || optional($callSession)->status === 'ended' || $booking->status === 'completed';
-                // يمكن الانضمام قبل 5 دقائق من الموعد وحتى نهاية الوقت
-                $canJoin = !$isPast && $now->copy()->addMinutes(5)->greaterThanOrEqualTo($slotStartDateTime)
-                    && $now->lessThanOrEqualTo($slotEndDateTime);
+
+            $userId = auth()->id();
+
+            $perPage = $request->query('per_page', 10);
+
+            $history = RecitationSession::where('status', 'ended')
+
+                ->whereHas('attendees', function ($query) use ($userId) {
+
+                    $query->where('user_id', $userId);
+
+                })
+
+                ->with(['teacher.user', 'attendees' => function ($query) use ($userId) {
+
+                    $query->where('user_id', $userId);
+
+                }])
+
+                ->orderBy('start_at', 'desc') // الأحدث أولاً
+
+                ->paginate($perPage);
+
+            $history->getCollection()->transform(function ($session) {
+
+                $attendance = $session->attendees->first();
+
+                $teacher = $session->teacher;
+
+                $teacherUser = optional($teacher)->user;
+
+                $teacherName = $teacherUser->name ?? 'معلم ورتل';
+
+
+
                 return [
-                    'booking_id'       => $booking->id,
-                    'slot_id'          => $slot->id, // ✅ تم إضافة معرف الموعد هنا
-                    'date'             => $slot->date,
-                    'start_time'       => $slot->start_time,
-                    'end_time'         => $slot->end_time,
-                    'full_date_time'   => $slotStartDateTime->toDateTimeString(),
-                    'status'           => $booking->status,
-                    'is_past'          => $isPast,
-                    'teacher' => [
-                        'id'    => $teacher->id,
-                        'name'  => optional($teacher->user)->name ?? 'معلم ورتل',
-                        'photo' => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
-                    ],
-                    'call_details' => [
-                        'id'           => optional($callSession)->id,
-                        'channel_name' => optional($callSession)->channel_name,
-                        'status'       => optional($callSession)->status,
-                        'can_join'     => $canJoin,
+
+                    'id'                => $session->id,
+
+                    'title'             => $session->title,
+
+                    'teacher_name'      => $teacherName,
+
+                    'teacher_avatar'    => ($teacher && $teacher->profile_photo_path)
+
+                        ? asset('storage/' . $teacher->profile_photo_path)
+
+                        : 'https://ui-avatars.com/api/?name=' . urlencode($teacherName) . '&background=0d9488&color=fff',
+
+                    'start_at'          => $session->start_at->format('Y-m-d H:i:s'),
+
+                    'end_at'            => $session->end_at->format('Y-m-d H:i:s'),
+
+                    'recording_url'     => $session->recording_url,
+
+                    'my_attendance'     => [
+
+                        'joined_at'        => optional($attendance)->joined_at ? $attendance->joined_at->format('H:i:s') : null,
+
+                        'left_at'          => optional($attendance)->left_at ? $attendance->left_at->format('H:i:s') : null,
+
+                        'duration_minutes' => (optional($attendance)->joined_at && optional($attendance)->left_at)
+
+                            ? round($attendance->joined_at->diffInMinutes($attendance->left_at), 2)
+
+                            : 0,
+
                     ]
+
                 ];
-            })->filter()->values();
-            // تقسيم البيانات إلى قادم وسابق
-            $upcoming = $processedBookings->where('is_past', false)->values();
-            $history  = $processedBookings->where('is_past', true)->values();
+
+            });
+
+
+
             return response()->json([
+
                 'status'  => true,
-                'message' => 'تم استرجاع الحجوزات بنجاح.',
-                'data'    => [
-                    'upcoming' => $upcoming,
-                    'history'  => $history
-                ]
-            ], 200);
+
+                'message' => 'تم استرجاع سجل الحصص بنجاح.',
+
+                'data'    => $history
+
+            ]);
+
         } catch (\Throwable $e) {
-            Log::error('Get Student Bookings Error: ' . $e->getMessage());
+
+            \Illuminate\Support\Facades\Log::error("Get Student History Error: " . $e->getMessage());
+
             return response()->json([
+
                 'status'  => false,
-                'message' => 'حدث خطأ أثناء جلب البيانات.',
+
+                'message' => 'فشل جلب سجل الحصص.',
+
                 'error'   => config('app.debug') ? $e->getMessage() : null
+
             ], 500);
+
         }
+
     }
     public function joinBookedSession(Request $request)
     {
