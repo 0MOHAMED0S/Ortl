@@ -10,39 +10,29 @@ use Illuminate\Support\Facades\Log;
 class AdsController extends Controller
 {
     /**
-     * عرض الإعلانات النشطة مع Pagination
+     * عرض البنرات الإعلانية النشطة لتطبيق الموبايل
      */
-public function index(Request $request)
+    public function index(Request $request)
     {
         try {
-            // 1️⃣ عدد العناصر لكل صفحة
+            // 1️⃣ عدد العناصر لكل صفحة (افتراضي 10)
             $perPage = $request->query('per_page', 10);
 
-            // 2️⃣ جلب الإعلانات النشطة مع الكوبونات المرتبطة بها
+            // 2️⃣ جلب الإعلانات النشطة فقط (تم حذف علاقة الكوبون لأنها لم تعد موجودة)
             $ads = Ad::where('status', 'active')
-                ->with('coupon') // ✅ جلب علاقة الكوبون لتسريع الاستعلام
                 ->latest()
                 ->paginate($perPage);
 
-            // 3️⃣ تعديل البيانات قبل الإرجاع
+            // 3️⃣ تعديل البيانات لتشمل فقط الحقول الجديدة
             $ads->getCollection()->transform(function ($ad) {
                 return [
                     'id'        => $ad->id,
-                    'title'     => $ad->title,
-                    'subtitle'  => $ad->subtitle,
-                    'bg_color'  => $ad->bg_color,
                     'image_url' => $ad->image ? asset('storage/' . $ad->image) : null,
-
-                    // ✅ إرفاق بيانات الكوبون إذا كان موجوداً، وإلا يرجع null
-                    'coupon'    => $ad->coupon ? [
-                        'id'      => $ad->coupon->id,
-                        'code'    => $ad->coupon->code,
-                        'percent' => $ad->coupon->percent,
-                    ] : null,
+                    'link'      => $ad->link, // الرابط الذي يفتح عند الضغط على البنر
                 ];
             });
 
-            // 4️⃣ إعادة الرد الموحد
+            // 4️⃣ الرد النهائي
             return response()->json([
                 'status'  => true,
                 'message' => 'تم جلب الإعلانات بنجاح.',
@@ -50,14 +40,12 @@ public function index(Request $request)
             ], 200);
 
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Ads Fetch Error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Ads API Fetch Error: ' . $e->getMessage());
 
             return response()->json([
                 'status'  => false,
-                'message' => 'فشل في جلب الإعلانات. حاول مرة أخرى.',
-                'error'   => config('app.debug') ? $e->getMessage() : null // يفضل إخفاء رسالة الخطأ الحقيقية في الـ Production
+                'message' => 'فشل في جلب الإعلانات، يرجى المحاولة لاحقاً.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
