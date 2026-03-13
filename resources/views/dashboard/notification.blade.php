@@ -5,6 +5,7 @@
     <style>
         :root {
             --primary-color: #0d9488;
+            --primary-dark: #0f766e;
             --primary-light: #ccfbf1;
             --bg-body: #f8fafc;
             --card-bg: #ffffff;
@@ -13,200 +14,174 @@
             --border-color: #e2e8f0;
         }
 
-        .notification-page {
-            max-width: 850px;
-            margin: 0 auto;
-            padding: 30px 15px;
-        }
+        .notification-page { max-width: 900px; margin: 0 auto; padding: 30px 15px; }
 
         /* Header Section */
         .header-section {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid var(--border-color);
+            flex-wrap: wrap; gap: 15px;
         }
 
         .header-title {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--text-main);
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            font-size: 1.5rem; font-weight: 800; color: var(--text-main);
+            margin: 0; display: flex; align-items: center; gap: 12px;
         }
 
-        .btn-mark-all {
-            background-color: var(--card-bg);
-            color: var(--primary-color);
-            border: 1px solid var(--primary-color);
-            border-radius: 50px;
-            padding: 8px 20px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
+        .action-buttons { display: flex; gap: 10px; }
+
+        .btn-custom {
+            border-radius: 50px; padding: 10px 22px; font-weight: 700; font-size: 0.85rem;
+            transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; border: none;
         }
 
-        .btn-mark-all:hover {
-            background-color: var(--primary-color);
-            color: #fff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(13, 148, 136, 0.2);
-        }
+        .btn-send-notif { background-color: var(--primary-color); color: #fff; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2); }
+        .btn-send-notif:hover { background-color: var(--primary-dark); transform: translateY(-2px); color: #fff; box-shadow: 0 6px 15px rgba(13, 148, 136, 0.3); }
+
+        .btn-mark-all { background-color: #fff; color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-mark-all:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
         /* Notification Card */
         .notif-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-            transition: all 0.3s ease;
-            position: relative;
+            background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px;
+            padding: 20px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 20px;
+            transition: all 0.3s ease; position: relative;
         }
-
-        .notif-card:hover {
-            border-color: #cbd5e1;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
-        }
-
-        /* Unread State */
-        .notif-card.is-unread {
-            background-color: #f4fdfb;
-            border-color: var(--primary-light);
-        }
+        .notif-card:hover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); border-color: #cbd5e1; }
+        .notif-card.is-unread { background-color: #f4fdfb; border-color: var(--primary-light); }
 
         .unread-dot {
-            position: absolute;
-            top: 25px;
-            right: 20px;
-            width: 12px;
-            height: 12px;
-            background-color: #ef4444;
-            border-radius: 50%;
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
-            animation: pulse-dot 2s infinite;
+            position: absolute; top: 25px; right: 20px; width: 10px; height: 10px;
+            background-color: #ef4444; border-radius: 50%; animation: pulse-dot 2s infinite;
         }
-
         @keyframes pulse-dot {
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        /* Icons */
         .notif-icon-wrap {
-            width: 55px;
-            height: 55px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            flex-shrink: 0;
-            background-color: #f1f5f9;
-            color: #64748b;
+            width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center;
+            justify-content: center; font-size: 1.3rem; flex-shrink: 0;
         }
-
         .icon-student { background-color: #eff6ff; color: #3b82f6; }
         .icon-order { background-color: #f0fdf4; color: #16a34a; }
         .icon-withdrawal { background-color: #fff7ed; color: #ea580c; }
         .icon-teacher { background-color: #faf5ff; color: #9333ea; }
         .icon-cancel { background-color: #fef2f2; color: #ef4444; }
+        .icon-broadcast { background-color: #f0fdfa; color: #0d9488; }
 
-        /* Content */
-        .notif-body {
-            flex-grow: 1;
-            padding-right: 15px; /* Space for unread dot */
-        }
-
-        .notif-title {
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: var(--text-main);
-            margin: 0 0 8px;
-        }
-
-        .notif-message {
-            font-size: 0.95rem;
-            color: var(--text-secondary);
-            line-height: 1.6;
-            margin: 0 0 15px;
-        }
+        .notif-body { flex-grow: 1; padding-right: 10px; }
+        .notif-title { font-size: 1rem; font-weight: 800; color: var(--text-main); margin: 0 0 5px; }
+        .notif-message { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0 0 12px; }
 
         .notif-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.85rem;
-            color: #94a3b8;
-            border-top: 1px dashed var(--border-color);
-            padding-top: 12px;
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;
+            color: #94a3b8; padding-top: 10px; border-top: 1px solid #f1f5f9;
         }
+        .btn-read { background: none; border: none; color: var(--primary-color); font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 0;}
+        .btn-read:hover { color: var(--primary-dark); text-decoration: underline; }
 
-        .btn-read {
-            background: none;
-            border: none;
-            color: var(--primary-color);
-            font-weight: 700;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            transition: 0.2s;
-        }
-        .btn-read:hover { color: #0f766e; text-decoration: underline; }
+        /* Pagination Styling */
+        .pagination-wrapper { margin-top: 40px; display: flex; justify-content: center; }
+        .pagination { gap: 5px; }
+        .page-link { border-radius: 10px !important; border: none; color: var(--text-secondary); padding: 10px 16px; font-weight: 600; }
+        .page-item.active .page-link { background-color: var(--primary-color); color: #fff; box-shadow: 0 4px 10px rgba(13, 148, 136, 0.3); }
 
-        /* Empty State */
-        .empty-box {
-            text-align: center;
-            padding: 80px 20px;
-            background-color: var(--card-bg);
-            border-radius: 20px;
-            border: 2px dashed var(--border-color);
-        }
-        .empty-box i { font-size: 4rem; color: #cbd5e1; margin-bottom: 20px; }
-        .empty-box h4 { font-weight: 800; color: var(--text-main); margin-bottom: 10px; }
+        .empty-box { text-align: center; padding: 60px; background: #fff; border-radius: 24px; border: 2px dashed #e2e8f0; }
 
-        /* Animation for incoming notif */
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-30px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* Professional Modal Design */
+        .premium-modal .modal-content { border-radius: 28px; border: none; overflow: hidden; }
+        .premium-modal .modal-header {
+            background: linear-gradient(to left, #f8fafc, #ffffff);
+            border-bottom: 1px solid #f1f5f9; padding: 25px 30px;
         }
-        .animate-in { animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .premium-modal .modal-title { font-weight: 800; color: var(--text-main); font-size: 1.25rem; }
+        .premium-modal .modal-body { padding: 30px; background-color: #fcfcfd; }
+
+        .custom-form-group { margin-bottom: 20px; }
+        .custom-label { font-weight: 700; color: #334155; font-size: 0.9rem; margin-bottom: 8px; display: block; }
+        .custom-input {
+            border-radius: 14px; border: 1px solid #cbd5e1; padding: 14px 18px; font-size: 0.95rem;
+            transition: all 0.3s; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .custom-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); outline: none; }
+
+        .target-selector { display: flex; gap: 10px; }
+        .target-radio { display: none; }
+        .target-label {
+            flex: 1; text-align: center; padding: 12px 5px; border: 2px solid #e2e8f0; border-radius: 14px;
+            cursor: pointer; font-weight: 700; color: var(--text-secondary); transition: 0.3s; background: #fff;
+            font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 8px;
+        }
+        .target-label i { font-size: 1.4rem; }
+        .target-radio:checked + .target-label { border-color: var(--primary-color); color: var(--primary-color); background: var(--primary-light); }
+
+        .submit-btn-wrapper { padding: 20px 30px 30px; background-color: #fcfcfd; }
+        .btn-submit-premium {
+            background: var(--primary-color); color: white; border: none; border-radius: 16px;
+            padding: 16px; font-weight: 800; font-size: 1rem; width: 100%; transition: 0.3s;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .btn-submit-premium:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(13, 148, 136, 0.3); }
+        .btn-submit-premium:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .spinner-border { display: none; width: 1.2rem; height: 1.2rem; border-width: 0.15em; }
+        .btn-submit-premium.is-loading .spinner-border { display: inline-block; }
+        .btn-submit-premium.is-loading .btn-text { display: none; }
+        .btn-submit-premium.is-loading .fa-paper-plane { display: none; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: slideIn 0.4s ease-out forwards; }
     </style>
 @endsection
 
 @section('title')
-    <h4 class="m-0 fw-bold">الإشعارات</h4>
+    <h4 class="m-0 fw-bold">مركز الإشعارات</h4>
 @endsection
 
 @section('content')
 <div class="container-fluid">
     <div class="notification-page">
 
+        {{-- SweetAlert Flash Messages --}}
+        @if(session('success'))
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'تم بنجاح', text: "{{ session('success') }}", showConfirmButton: false, timer: 4000 });
+                });
+            </script>
+        @endif
+        @if(session('error') || $errors->any())
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'خطأ', text: "{{ session('error') ?? $errors->first() }}", showConfirmButton: false, timer: 5000 });
+                });
+            </script>
+        @endif
+
         <div class="header-section">
             <h2 class="header-title">
-                <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3 d-flex">
-                    <i class="fa-regular fa-bell"></i>
+                <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3 d-flex shadow-sm">
+                    <i class="fa-solid fa-tower-broadcast"></i>
                 </div>
-                سجل الإشعارات
+                إدارة التنبيهات
             </h2>
 
-            @if(auth()->user()->unreadNotifications->count() > 0)
-                <form action="{{ route('admin.notifications.readAll') }}" method="POST" class="m-0">
-                    @csrf
-                    <button type="submit" class="btn-mark-all">
-                        <i class="fa-solid fa-check-double me-2"></i>تحديد الكل كمقروء
-                    </button>
-                </form>
-            @endif
+            <div class="action-buttons">
+                <button class="btn-custom btn-send-notif" data-bs-toggle="modal" data-bs-target="#sendNotificationModal">
+                    <i class="fa-solid fa-paper-plane"></i> إرسال إشعار جديد
+                </button>
+
+                @if(auth()->user()->unreadNotifications->count() > 0)
+                    <form action="{{ route('admin.notifications.readAll') }}" method="POST" class="m-0">
+                        @csrf
+                        <button type="submit" class="btn-custom btn-mark-all" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin\'></i> جاري التحديث...'; this.style.pointerEvents='none';">
+                            <i class="fa-solid fa-check-double text-success"></i> تحديد الكل كمقروء
+                        </button>
+                    </form>
+                @endif
+            </div>
         </div>
 
         <div id="notificationsWrapper">
@@ -216,35 +191,35 @@
                     $type = $data['type'] ?? 'default';
                     $isUnread = is_null($notification->read_at);
 
-                    // تعيين الأيقونات والألوان
-                    $icon = 'fa-bell';
-                    $colorClass = '';
-
-                    if($type === 'new_student') { $icon = 'fa-user-graduate'; $colorClass = 'icon-student'; }
-                    elseif($type === 'new_order') { $icon = 'fa-sack-dollar'; $colorClass = 'icon-order'; }
-                    elseif($type === 'new_withdrawal') { $icon = 'fa-money-bill-transfer'; $colorClass = 'icon-withdrawal'; }
-                    elseif($type === 'withdrawal_cancelled') { $icon = 'fa-ban'; $colorClass = 'icon-cancel'; }
-                    elseif($type === 'new_teacher_application') { $icon = 'fa-chalkboard-user'; $colorClass = 'icon-teacher'; }
+                    $icons = [
+                        'new_student' => ['icon' => 'fa-user-graduate', 'class' => 'icon-student'],
+                        'new_order' => ['icon' => 'fa-sack-dollar', 'class' => 'icon-order'],
+                        'new_withdrawal' => ['icon' => 'fa-money-bill-transfer', 'class' => 'icon-withdrawal'],
+                        'withdrawal_cancelled' => ['icon' => 'fa-ban', 'class' => 'icon-cancel'],
+                        'new_teacher_application' => ['icon' => 'fa-chalkboard-user', 'class' => 'icon-teacher'],
+                        'admin_broadcast' => ['icon' => 'fa-bullhorn', 'class' => 'icon-broadcast'],
+                    ];
+                    $iconData = $icons[$type] ?? ['icon' => 'fa-bell', 'class' => 'bg-light text-secondary'];
                 @endphp
 
-                <div class="notif-card {{ $isUnread ? 'is-unread' : '' }}">
-                    @if($isUnread) <span class="unread-dot" title="إشعار غير مقروء"></span> @endif
+                <div class="notif-card {{ $isUnread ? 'is-unread' : '' }} animate-in">
+                    @if($isUnread) <span class="unread-dot"></span> @endif
 
-                    <div class="notif-icon-wrap {{ $colorClass }}">
-                        <i class="fa-solid {{ $icon }}"></i>
+                    <div class="notif-icon-wrap {{ $iconData['class'] }}">
+                        <i class="fa-solid {{ $iconData['icon'] }}"></i>
                     </div>
 
                     <div class="notif-body">
                         <h4 class="notif-title">{{ $data['title'] ?? 'تنبيه نظام' }}</h4>
-                        <p class="notif-message">{{ $data['message'] ?? 'يوجد تحديث جديد في النظام يحتاج إلى مراجعتك.' }}</p>
+                        <p class="notif-message">{{ $data['message'] ?? '' }}</p>
 
                         <div class="notif-footer">
-                            <span><i class="fa-regular fa-clock me-2"></i>{{ $notification->created_at->diffForHumans() }}</span>
+                            <span><i class="fa-regular fa-clock me-1"></i> {{ $notification->created_at->diffForHumans() }}</span>
 
                             @if($isUnread)
                                 <form action="{{ route('admin.notifications.read', $notification->id) }}" method="POST" class="m-0">
                                     @csrf
-                                    <button type="submit" class="btn-read">
+                                    <button type="submit" class="btn-read" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin\'></i>'; this.style.pointerEvents='none';">
                                         تحديد كمقروء <i class="fa-solid fa-check ms-1"></i>
                                     </button>
                                 </form>
@@ -258,22 +233,78 @@
                 <div class="empty-box" id="emptyStateBox">
                     <i class="fa-regular fa-bell-slash"></i>
                     <h4>لا توجد إشعارات حالياً</h4>
-                    <p class="text-muted m-0">أنت على اطلاع دائم بكل التحديثات. سنقوم بتنبيهك فور وصول إشعار جديد.</p>
+                    <p class="text-muted m-0">سجل الإشعارات فارغ، سيتم عرض التنبيهات هنا فور وصولها.</p>
                 </div>
             @endforelse
         </div>
 
-        {{-- التصفح --}}
-        <div class="d-flex justify-content-center mt-5">
-            {{ $notifications->links() }}
+        <div class="pagination-wrapper">
+            {!! $notifications->links('pagination::bootstrap-5') !!}
         </div>
-
     </div>
 </div>
 
-{{-- ملف صوتي للإشعارات اللحظية --}}
-<audio id="notifSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+<div class="modal fade premium-modal" id="sendNotificationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <div class="d-inline-block bg-primary bg-opacity-10 p-2 rounded-3 me-2">
+                        <i class="fa-solid fa-paper-plane text-primary"></i>
+                    </div>
+                    إرسال تنبيه جديد
+                </h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
 
+            <form action="{{ route('admin.notifications.broadcast') }}" method="POST" id="broadcastForm">
+                @csrf
+                <div class="modal-body">
+
+                    <div class="custom-form-group">
+                        <label class="custom-label">الفئة المستهدفة <span class="text-danger">*</span></label>
+                        <div class="target-selector">
+                            <input type="radio" name="target" id="target_all" value="all" class="target-radio" checked>
+                            <label for="target_all" class="target-label">
+                                <i class="fa-solid fa-users"></i> الكل
+                            </label>
+
+                            <input type="radio" name="target" id="target_students" value="students" class="target-radio">
+                            <label for="target_students" class="target-label">
+                                <i class="fa-solid fa-user-graduate"></i> الطلاب
+                            </label>
+
+                            <input type="radio" name="target" id="target_teachers" value="teachers" class="target-radio">
+                            <label for="target_teachers" class="target-label">
+                                <i class="fa-solid fa-chalkboard-user"></i> المعلمين
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="custom-form-group">
+                        <label class="custom-label">عنوان الإشعار <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control custom-input" placeholder="مثال: خصم جديد بمناسبة شهر رمضان" required maxlength="100">
+                    </div>
+
+                    <div class="custom-form-group mb-0">
+                        <label class="custom-label">نص الرسالة <span class="text-danger">*</span></label>
+                        <textarea name="message" class="form-control custom-input" rows="4" placeholder="اكتب التفاصيل هنا بوضوح..." required maxlength="500"></textarea>
+                    </div>
+                </div>
+
+                <div class="submit-btn-wrapper">
+                    <button type="submit" class="btn-submit-premium" id="submitBroadcastBtn">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span class="btn-text">إرسال التنبيه الآن</span>
+                        <span class="spinner-border" role="status" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<audio id="notifSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 @endsection
 
 @section('scripts')
@@ -282,94 +313,56 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    $(document).ready(function () {
+    // --- منع النقر المزدوج وعرض حالة التحميل (Loading State) ---
+    document.getElementById('broadcastForm').addEventListener('submit', function(e) {
+        const btn = document.getElementById('submitBroadcastBtn');
 
-        // 1. تفعيل وضع اكتشاف الأخطاء (سيظهر كل شيء في الـ Console)
-        Pusher.logToConsole = true;
-
-        // 2. التحقق من وجود توكن الحماية
-        let csrfToken = $('meta[name="csrf-token"]').attr('content');
-        if(!csrfToken) {
-            console.error("⚠️ خطأ: وسم meta csrf-token غير موجود في صفحة master.blade.php!");
+        // إذا كان الزر في حالة تحميل أصلاً، امنع الإرسال مرة أخرى
+        if(btn.classList.contains('is-loading')) {
+            e.preventDefault();
+            return;
         }
 
-        // 3. إعداد الـ Echo
+        // تحويل الزر لحالة التحميل
+        btn.classList.add('is-loading');
+        btn.disabled = true;
+    });
+
+
+    // --- إعدادات الإشعارات اللحظية (Pusher & Echo) ---
+    $(document).ready(function () {
         window.Echo = new Echo({
             broadcaster: 'pusher',
             key: '{{ env("PUSHER_APP_KEY") }}',
             cluster: '{{ env("PUSHER_APP_CLUSTER") }}',
             forceTLS: true,
             authEndpoint: '/broadcasting/auth',
-            auth: {
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken
-                }
-            }
+            auth: { headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } }
         });
 
         const adminId = {{ auth()->id() }};
         const alertSound = document.getElementById('notifSound');
 
-        console.log("🚀 جاري الاتصال بقناة: private-admin." + adminId);
-
-        // 4. الاستماع للقناة الخاصة بالمدير
         window.Echo.private(`admin.${adminId}`)
-            .subscribed(() => {
-                console.log("✅ تم الاتصال بقناة الإشعارات بنجاح!");
-            })
-            .error((err) => {
-                console.error("❌ فشل الاتصال بالقناة (قد تكون مشكلة في routes/channels.php أو CSRF): ", err);
-            })
-            .listen('.NewStudent', (e) => {
-                renderNewNotification('طالب جديد 🎉', `سجل الطالب ${e.student.student_name} للتو في التطبيق.`, 'fa-user-graduate', 'icon-student');
-            })
-            .listen('.NewOrder', (e) => {
-                renderNewNotification('عملية شراء جديدة 💰', `قام الطالب ${e.order.student_name} بشراء باقة بمبلغ ${e.order.amount}$.`, 'fa-sack-dollar', 'icon-order');
-            })
-            .listen('.WithdrawalRequested', (e) => {
-                renderNewNotification('طلب سحب أرباح 💸', `طلب المعلم ${e.request.teacher_name} سحب ${e.request.amount}$.`, 'fa-money-bill-transfer', 'icon-withdrawal');
-            })
-            .listen('.WithdrawalCancelled', (e) => {
-                renderNewNotification('إلغاء طلب سحب 🔄', `تراجع المعلم ${e.cancellation.teacher_name} عن طلب السحب.`, 'fa-ban', 'icon-cancel');
-            })
-            .listen('.NewTeacherApplication', (e) => {
-                // هنا استخدمنا e.application.full_name بناءً على الـ JSON الذي أرسلته لي
-                renderNewNotification('طلب انضمام معلم 📝', `قدم ${e.application.full_name} طلب انضمام كمعلم.`, 'fa-chalkboard-user', 'icon-teacher');
-            });
+            .listen('.NewStudent', (e) => { renderNewNotification('طالب جديد 🎉', `سجل الطالب ${e.student.student_name} للتو.`, 'fa-user-graduate', 'icon-student'); })
+            .listen('.NewOrder', (e) => { renderNewNotification('عملية شراء 💰', `قام الطالب ${e.order.student_name} بشراء باقة.`, 'fa-sack-dollar', 'icon-order'); })
+            .listen('.NewTeacherApplication', (e) => { renderNewNotification('طلب انضمام معلم 📝', `قدم ${e.application.full_name} طلب جديد.`, 'fa-chalkboard-user', 'icon-teacher'); });
 
-        // دالة إنشاء الإشعار
         function renderNewNotification(title, message, icon, colorClass) {
-            alertSound.play().catch(error => console.log('الصوت يحتاج تفاعل'));
-
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'info',
-                title: title,
-                text: message,
-                showConfirmButton: false,
-                timer: 6000,
-                timerProgressBar: true,
-            });
-
+            alertSound.play().catch(e => console.log('Interactions needed for sound'));
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: title, text: message, showConfirmButton: false, timer: 4000 });
             $('#emptyStateBox').fadeOut();
 
             let html = `
                 <div class="notif-card is-unread animate-in">
-                    <span class="unread-dot" title="إشعار غير مقروء"></span>
-                    <div class="notif-icon-wrap ${colorClass}">
-                        <i class="fa-solid ${icon}"></i>
-                    </div>
+                    <span class="unread-dot"></span>
+                    <div class="notif-icon-wrap ${colorClass}"> <i class="fa-solid ${icon}"></i> </div>
                     <div class="notif-body">
                         <h4 class="notif-title">${title}</h4>
                         <p class="notif-message">${message}</p>
-                        <div class="notif-footer">
-                            <span class="text-primary fw-bold"><i class="fa-solid fa-bolt me-2"></i>الآن (لحظي)</span>
-                        </div>
+                        <div class="notif-footer"> <span class="text-primary fw-bold"><i class="fa-solid fa-bolt me-1"></i> الآن</span> </div>
                     </div>
-                </div>
-            `;
-
+                </div>`;
             $('#notificationsWrapper').prepend(html);
         }
     });

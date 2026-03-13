@@ -84,6 +84,7 @@ Route::prefix('admin')->group(function () {
 Route::get('/notifications', [\App\Http\Controllers\web\Admin\AdminNotificationController::class, 'index'])->name('admin.notifications.index');
 Route::post('/notifications/read-all', [\App\Http\Controllers\web\Admin\AdminNotificationController::class, 'markAllAsRead'])->name('admin.notifications.readAll');
 Route::post('/notifications/{id}/read', [\App\Http\Controllers\web\Admin\AdminNotificationController::class, 'markAsRead'])->name('admin.notifications.read');
+Route::post('/notifications/broadcast', [\App\Http\Controllers\web\Admin\AdminNotificationController::class, 'broadcast'])->name('admin.notifications.broadcast');
 
         Route::get('/withdrawals', [WithdrawalController::class, 'index'])->name('admin.withdrawals.index');
         Route::put('/withdrawals/{id}/status', [WithdrawalController::class, 'updateStatus'])->name('admin.withdrawals.update_status');

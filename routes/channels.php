@@ -16,3 +16,7 @@ Broadcast::channel('teacher.{id}', function ($user, $id) {
 Broadcast::channel('admin.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
+
+Broadcast::channel('group.{role}', function ($user, $role) {
+    return $user->role === $role;
+});
