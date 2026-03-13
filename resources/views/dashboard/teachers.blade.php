@@ -75,6 +75,9 @@
             .registration-control { margin-top: 15px; width: 100%; justify-content: space-between; }
             #searchInput { width: 100%; margin-top: 10px; }
         }
+
+        /* Pagination Styles */
+        .pagination-wrapper { margin-top: 20px; display: flex; justify-content: center; }
     </style>
 @endsection
 
@@ -135,12 +138,13 @@
         @endif
 
         {{-- Stats Grid --}}
+        {{-- ملاحظة: لمعرفة الإحصائيات الدقيقة مع الـ Pagination، يفضل تمرير متغيرات منفصلة من الـ Controller لهذه الأرقام بدلاً من الاعتماد على المتغير المرقّم `$teachers` لتجنب حساب المعروض في الصفحة فقط. --}}
         <div class="row g-3 mb-4">
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-purple">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">إجمالي الطلبات</h6>
-                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->count() }}</h3>
+                        <h6 class="text-muted small fw-bold mb-1">إجمالي المعروض</h6>
+                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->total() ?? $teachers->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-folder-open"></i></div>
                 </div>
@@ -149,7 +153,7 @@
                 <div class="stat-card stat-orange">
                     <div>
                         <h6 class="text-muted small fw-bold mb-1">قيد المراجعة</h6>
-                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->where('status', 'pending')->count() }}</h3>
+                        <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->where('status', 'pending')->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-clock"></i></div>
                 </div>
@@ -158,7 +162,7 @@
                 <div class="stat-card stat-green">
                     <div>
                         <h6 class="text-muted small fw-bold mb-1">تم القبول</h6>
-                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->where('status', 'approved')->count() }}</h3>
+                        <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->where('status', 'approved')->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-check-circle"></i></div>
                 </div>
@@ -167,7 +171,7 @@
                 <div class="stat-card stat-red">
                     <div>
                         <h6 class="text-muted small fw-bold mb-1">مرفوض / غير مفعل</h6>
-                        <h3 class="fw-bold m-0 text-dark">{{ $teachers->whereIn('status', ['rejected', 'not_active'])->count() }}</h3>
+                        <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->whereIn('status', ['rejected', 'not_active'])->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-ban"></i></div>
                 </div>
@@ -188,7 +192,7 @@
             </div>
         </div>
 
-{{-- Table --}}
+        {{-- Table --}}
         <div class="card-box">
             <div class="table-responsive">
                 <table class="table custom-table mb-0 text-nowrap align-middle" id="teachersTable">
@@ -197,7 +201,6 @@
                             <th>المعلم</th>
                             <th>الدولة</th>
                             <th>المؤهل</th>
-                            {{-- العمود الجديد --}}
                             <th>رصيد الدقائق</th>
                             <th>تاريخ الطلب</th>
                             <th>الحالة</th>
@@ -209,9 +212,7 @@
                             @php
                                 $userName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
                                 $userEmail = optional(optional($teacher->profile)->user)->email ?? $teacher->email;
-                                // تحديد مسار الصورة بناءً على حالة الحساب (من جدول التطبيق أو من بروفايل المعلم)
                                 $imagePath = $teacher->status == 'pending' ? $teacher->profile_photo_path : (optional($teacher->profile)->profile_photo_path ?? $teacher->profile_photo_path);
-                                // جلب رصيد الدقائق من البروفايل
                                 $minutes = optional($teacher->profile)->minutes ?? 0;
                             @endphp
 
@@ -230,7 +231,6 @@
                                 <td>{{ $teacher->origin_country ?? 'غير محدد' }}</td>
                                 <td><span class="badge bg-light text-dark border fw-normal">{{ Str::limit($teacher->qualification, 20) }}</span></td>
 
-                                {{-- عرض رصيد الدقائق --}}
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
                                         <i class="fa-regular fa-clock text-primary"></i>
@@ -268,6 +268,13 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- إضافة روابط الترقيم (Pagination Links) أسفل الجدول --}}
+            @if(method_exists($teachers, 'links'))
+                <div class="pagination-wrapper pb-3">
+                    {{ $teachers->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
         </div>
     </div>
 

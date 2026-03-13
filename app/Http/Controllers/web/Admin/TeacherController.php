@@ -17,9 +17,13 @@ use Illuminate\Support\Facades\Storage;
 
 class TeacherController extends Controller
 {
-    public function index()
+public function index()
     {
-        $teachers = Teacher_application::with(['tracks', 'profile.user'])->latest()->get();
+        // تم تغيير get() إلى paginate(10) لتعمل مع الترقيم في واجهة العرض
+        $teachers = Teacher_application::with(['tracks', 'profile.user'])
+            ->latest()
+            ->paginate(10);
+
         return view('dashboard.teachers', compact('teachers'));
     }
     public function approve(ApproveTeacherRequest $request, $id)
