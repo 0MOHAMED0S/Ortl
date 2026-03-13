@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 // 🌟 استدعاء كلاسات النجاح والفشل
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Notifications\Events\NotificationFailed;
+use Illuminate\Support\Facades\Broadcast;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -18,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
 
 public function boot(): void
     {
+        // أضف auth:sanctum هنا
+    Broadcast::routes(['middleware' => ['auth:sanctum']]);
+
+    require base_path('routes/channels.php');
         // 1️⃣ تسجيل أي نجاح في الإشعارات
         \Illuminate\Support\Facades\Event::listen(function (\Illuminate\Notifications\Events\NotificationSent $event) {
             \Illuminate\Support\Facades\Log::info('✅ الإشعار نجح!', [
