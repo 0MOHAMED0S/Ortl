@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\User; // تأكد من استدعاء موديل المستخدم
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
-
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 class AdminNotificationController extends Controller
 {
     public function index()
@@ -29,7 +30,7 @@ class AdminNotificationController extends Controller
     }
 
     // الدالة الجديدة لإرسال الإشعارات الجماعية
-    public function broadcast(Request $request)
+public function broadcast(Request $request)
     {
         $request->validate([
             'target'  => 'required|in:all,students,teachers',
@@ -46,8 +47,6 @@ class AdminNotificationController extends Controller
             ];
 
             // 1. تحديد المستخدمين المستهدفين
-            // ⚠️ ملاحظة: قمت بافتراض أن لديك حقل 'role' في جدول المستخدمين.
-            // قم بتعديل هذا الاستعلام حسب طريقة تمييزك للمعلم والطالب في مشروعك
             $query = User::query();
 
             if ($target === 'students') {
@@ -68,11 +67,57 @@ class AdminNotificationController extends Controller
             // 3. إرسال الإشعار اللحظي عبر Pusher
             broadcast(new \App\Events\AdminBroadcastEvent($target, $data));
 
+            // 4. إرسال إشعارات الهواتف/المتصفح عبر OneSignal
+            $this->sendOneSignalNotification($target, $users, $request->title, $request->message, $data);
+
             return back()->with('success', 'تم إرسال الإشعار بنجاح إلى الفئة المحددة.');
 
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Broadcast Notification Error: ' . $e->getMessage());
+            Log::error('Broadcast Notification Error: ' . $e->getMessage());
             return back()->with('error', 'حدث خطأ أثناء إرسال الإشعار.');
+        }
+    }
+
+    /**
+     * دالة مساعدة لإرسال إشعارات OneSignal
+     */
+    private function sendOneSignalNotification($target, $users, $title, $message, $extraData)
+    {
+        $appId = env('ONESIGNAL_APP_ID');
+        $apiKey = env('ONESIGNAL_REST_API_KEY');
+
+        $payload = [
+            'app_id'   => $appId,
+            'headings' => ['en' => $title, 'ar' => $title],
+            'contents' => ['en' => $message, 'ar' => $message],
+            'data'     => $extraData, // إرسال بيانات إضافية (مثل نوع الإشعار) للتعامل معها داخل التطبيق
+        ];
+
+        // تحديد الفئة المستهدفة
+        if ($target === 'all') {
+            // إرسال للجميع
+            $payload['included_segments'] = ['Subscribed Users'];
+        } else {
+            // إرسال لمستخدمين محددين بناءً على الـ ID الخاص بهم في قاعدة البيانات
+            $externalUserIds = $users->pluck('id')->map(function($id) {
+                return (string) $id; // OneSignal يطلب الـ ID كنص (String)
+            })->toArray();
+
+            if (!empty($externalUserIds)) {
+                $payload['include_external_user_ids'] = $externalUserIds;
+            }
+        }
+
+        // إرسال الطلب إلى سيرفرات OneSignal
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic ' . $apiKey,
+            'Content-Type'  => 'application/json',
+            'Accept'        => 'application/json',
+        ])->post('https://onesignal.com/api/v1/notifications', $payload);
+
+        // تسجيل الخطأ في حال فشل OneSignal لكي لا يتعطل النظام
+        if (!$response->successful()) {
+            Log::error('OneSignal Error: ' . $response->body());
         }
     }
 }
