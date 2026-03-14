@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+
 class AdminNotificationController extends Controller
 {
     public function index()
@@ -30,7 +31,7 @@ class AdminNotificationController extends Controller
     }
 
     // الدالة الجديدة لإرسال الإشعارات الجماعية
-public function broadcast(Request $request)
+    public function broadcast(Request $request)
     {
         $request->validate([
             'target'  => 'required|in:all,students,teachers',
@@ -71,7 +72,6 @@ public function broadcast(Request $request)
             $this->sendOneSignalNotification($target, $users, $request->title, $request->message, $data);
 
             return back()->with('success', 'تم إرسال الإشعار بنجاح إلى الفئة المحددة.');
-
         } catch (\Throwable $e) {
             Log::error('Broadcast Notification Error: ' . $e->getMessage());
             return back()->with('error', 'حدث خطأ أثناء إرسال الإشعار.');
@@ -99,7 +99,7 @@ public function broadcast(Request $request)
             $payload['included_segments'] = ['Subscribed Users'];
         } else {
             // إرسال لمستخدمين محددين بناءً على الـ ID الخاص بهم في قاعدة البيانات
-            $externalUserIds = $users->pluck('id')->map(function($id) {
+            $externalUserIds = $users->pluck('id')->map(function ($id) {
                 return (string) $id; // OneSignal يطلب الـ ID كنص (String)
             })->toArray();
 

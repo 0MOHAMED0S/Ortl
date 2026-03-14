@@ -45,7 +45,8 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        body.loading-locked, body.nav-locked {
+        body.loading-locked,
+        body.nav-locked {
             overflow: hidden !important;
             height: 100vh;
         }
@@ -558,7 +559,10 @@
         .pricing-section::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0; height: 100px;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
             background: linear-gradient(to bottom, #ffffff, transparent);
         }
 
@@ -574,7 +578,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
             overflow: hidden;
             z-index: 1;
         }
@@ -582,7 +586,10 @@
         .pkg-card::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 5px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
             background: var(--primary-medium);
             transition: 0.3s;
             z-index: 0;
@@ -667,7 +674,7 @@
 
         .pkg-card ul li {
             padding-bottom: 12px;
-            border-bottom: 1px solid rgba(0,0,0,0.03);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.03);
         }
 
         .pkg-card ul li:last-child {
@@ -696,8 +703,11 @@
         .btn-3d::after {
             content: '';
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2), transparent);
             z-index: -1;
         }
 
@@ -705,21 +715,21 @@
             background: linear-gradient(to bottom, #dec288, var(--gold-main));
             color: #ffffff;
             box-shadow: 0 6px 0 #b3893f, 0 15px 20px rgba(212, 167, 83, 0.4);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .btn-3d.green {
             background: linear-gradient(to bottom, var(--primary-medium), var(--primary-dark));
             color: #ffffff;
             box-shadow: 0 6px 0 #185242, 0 15px 20px rgba(45, 138, 116, 0.3);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .btn-3d.outline {
             background: linear-gradient(to bottom, #ffffff, #f9f9f9);
             color: var(--primary-dark);
             border: 2px solid var(--primary-medium);
-            box-shadow: 0 6px 0 #e2e8f0, 0 10px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 6px 0 #e2e8f0, 0 10px 15px rgba(0, 0, 0, 0.05);
         }
 
         .btn-3d:active {
@@ -1290,6 +1300,97 @@
             color: #fff;
         }
     </style>
+
+<style>
+    /* =========================================
+           FLOATING MOCKUP ADS CAROUSEL (EXACT MATCH)
+           ========================================= */
+        .promotions-section {
+            background-color: #f3f4f6; /* خلفية رمادية فاتحة جداً لتبرز البطاقة البيضاء */
+            padding: 70px 0 50px;
+            position: relative;
+        }
+
+        .ad-banner-link {
+            display: block;
+            text-decoration: none;
+            outline: none;
+            padding: 20px; /* مسافة ضرورية جداً ليظهر الظل براحته دون أن يُقطع */
+        }
+
+        .ad-banner-wrapper {
+            background-color: #ffffff; /* لون أبيض نقي للبطاقة */
+            border-radius: 24px; /* زوايا دائرية واضحة كما في صورتك */
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            height: 250px; /* Professional banner height */
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02); /* الظل الناعم المتطابق مع صورتك */
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .ad-banner-link:hover .ad-banner-wrapper {
+            transform: translateY(-8px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .ad-banner-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* هذا ما سيجعل الصورة تظهر كاملة وتندمج مع الخلفية البيضاء */
+            background-color: #ffffff; /* دمج لون الصورة مع لون البطاقة */
+            transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .ad-banner-link:hover .ad-banner-img {
+            transform: scale(1.02); /* زووم خفيف جداً وأنيق */
+        }
+
+        /* أيقونة الرابط */
+        .ad-overlay-icon {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: #ffffff;
+            color: var(--primary-dark);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            opacity: 0;
+            transform: scale(0.8) translateY(10px);
+            transition: all 0.4s ease;
+            z-index: 2;
+        }
+
+        .ad-banner-link:hover .ad-overlay-icon {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            color: var(--gold-main);
+        }
+
+        /* 📱 مقاسات مخصصة للموبايل لتحافظ على نفس الشكل */
+        @media (max-width: 768px) {
+            .ad-banner-wrapper {
+                height: 200px;
+                border-radius: 16px;
+            }
+            .promotions-section {
+                padding: 40px 0 20px;
+            }
+            .ad-banner-link {
+                padding: 15px 10px; /* تقليل البادينج في الموبايل */
+            }
+        }
+</style>
 </head>
 
 <body>
@@ -1383,35 +1484,6 @@
         </div>
     </section>
 
-    <!-- @if (isset($ads) && $ads->count() > 0)
-    <section class="ads-section py-5">
-        <div class="container">
-            <div class="owl-carousel ads-carousel owl-theme">
-                @foreach ($ads as $ad)
-                <div class="item">
-                    <div class="ad-banner" style="background: {{ $ad->bg_color ?? 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-medium) 100%)' }}; border-radius: 20px; overflow: hidden; position: relative; padding: 40px; color: white;">
-                        <div class="row align-items-center position-relative z-1">
-                            <div class="col-md-7">
-                                <h3 class="fw-bold mb-3" style="font-size: 2rem;">{{ $ad->title }}</h3>
-                                @if ($ad->subtitle)
-                                <p class="mb-0 fs-5 opacity-75">{{ $ad->subtitle }}</p>
-                                @endif
-                            </div>
-                            @if ($ad->image)
-                            <div class="col-md-5 text-center mt-4 mt-md-0">
-                                <img src="{{ asset('storage/' . $ad->image) }}" class="img-fluid" style="max-height: 200px; width: auto; display: inline-block; border-radius:15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);" alt="Ad Image">
-                            </div>
-                            @endif
-                        </div>
-                        <div style="position: absolute; top: 0; right: 0; width: 100%; height: 100%; background: radial-gradient(circle at top right, rgba(255,255,255,0.1) 0%, transparent 60%); z-index: 0; pointer-events: none;"></div>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-        </div>
-    </section>
-    @endif -->
-
     <section id="stats" class="stats-section">
         <div class="stats-bg-pattern"></div>
         <div class="container">
@@ -1477,44 +1549,45 @@
         </div>
     </section>
 
-    <section id="tracks" class="section-padding" style="background-color: #fcfcfc;">
+    @if(isset($ads) && $ads->where('status', 'active')->count() > 0)
+    <section id="promotions" class="promotions-section">
         <div class="container">
-            <div class="section-header" data-aos="fade-up">
-                <span class="section-tag">مسارات التعلم</span>
-                <h2 class="section-title">برامج تعليمية شاملة ومخصصة</h2>
-                <p class="section-desc">صممنا مسارات تعليمية متنوعة لتناسب جميع المستويات والأعمار، سواء كنت مبتدئاً أو
-                    متقناً، ستجد المسار الذي يحقق هدفك.</p>
+            <div class="section-header text-center mb-2" data-aos="fade-up">
+                <span class="section-tag">حصرياً لك</span>
+                <h2 class="section-title">أحدث العروض والفعاليات</h2>
             </div>
 
-            <div class="owl-carousel tracks-carousel owl-theme py-3">
-                @foreach ($tracks as $index => $track)
-                <div class="item px-2 px-md-3" data-aos="fade-up" data-aos-delay="{{ ($index + 1) * 100 }}">
-                    <div class="track-card-pro">
-                        <div class="track-header">
-                            <div class="track-icon-lg">{!! $track->icon ?? '<i class="fa-solid fa-book-open"></i>' !!}</div>
-                            <h4 class="fw-bold mb-2">{{ $track->name }}</h4>
-                            <span class="badge bg-light text-dark border fw-normal px-3 py-2 rounded-pill">{{ $track->target_group }}</span>
-                        </div>
-                        <div class="track-body">
-                            <p class="text-muted small text-center mb-0">
-                                {{ $track->description }}
-                            </p>
-                            @if($track->marketing_value)
-                            <ul class="track-features mt-3 mb-0">
-                                <li><i class="fa-solid fa-circle-check"></i> {{ $track->marketing_value }}</li>
-                            </ul>
-                            @else
-                            <ul class="track-features mt-3 mb-0">
-                                <li><i class="fa-solid fa-circle-check"></i> خطة حفظ فردية مخصصة</li>
-                            </ul>
-                            @endif
-                        </div>
+            <div class="owl-carousel ads-carousel owl-theme" data-aos="fade-up" data-aos-delay="100">
+                @foreach($ads->where('status', 'active') as $ad)
+                    <div class="item">
+                        @if($ad->link)
+                            <a href="{{ $ad->link }}" target="_blank" class="ad-banner-link">
+                        @else
+                            <div class="ad-banner-link" style="cursor: default;">
+                        @endif
+
+                            <div class="ad-banner-wrapper">
+                                <img src="{{ asset('storage/' . $ad->image) }}" alt="إعلان ترويجي" class="ad-banner-img">
+
+                                @if($ad->link)
+                                    <div class="ad-overlay-icon">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </div>
+                                @endif
+                            </div>
+
+                        @if($ad->link)
+                            </a>
+                        @else
+                            </div>
+                        @endif
                     </div>
-                </div>
                 @endforeach
             </div>
         </div>
     </section>
+    @endif
+    
     <section id="about" class="py-5" style="background: var(--primary-light);">
         <div class="container py-4">
             <div class="row align-items-center g-5">
@@ -1551,254 +1624,256 @@
             </div>
         </div>
     </section>
-<style>
     <style>
-/* --- Premium Pricing Design --- */
-.pricing-section {
-    background-color: #f8fafc;
-    padding: 100px 0;
-}
+        <style>
 
-.premium-pkg-card {
-    background: #ffffff;
-    border-radius: 30px;
-    padding: 40px 30px;
-    position: relative;
-    border: 1px solid #e2e8f0;
-    transition: all 0.4s ease;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-}
+        /* --- Premium Pricing Design --- */
+        .pricing-section {
+            background-color: #f8fafc;
+            padding: 100px 0;
+        }
 
-.premium-pkg-card:hover {
-    transform: translateY(-15px);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
-    border-color: var(--primary-dark);
-}
+        .premium-pkg-card {
+            background: #ffffff;
+            border-radius: 30px;
+            padding: 40px 30px;
+            position: relative;
+            border: 1px solid #e2e8f0;
+            transition: all 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
 
-/* Featured & VIP Styles */
-.premium-pkg-card.is-featured {
-    border: 2px solid var(--primary-dark);
-}
+        .premium-pkg-card:hover {
+            transform: translateY(-15px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+            border-color: var(--primary-dark);
+        }
 
-.premium-pkg-card.is-vip {
-    background: linear-gradient(180deg, #ffffff 0%, #fffcf5 100%);
-    border-color: #d4a753;
-}
+        /* Featured & VIP Styles */
+        .premium-pkg-card.is-featured {
+            border: 2px solid var(--primary-dark);
+        }
 
-/* Badge */
-.pkg-badge {
-    position: absolute;
-    top: 20px;
-    right: -35px;
-    background: #ef4444;
-    color: white;
-    padding: 6px 40px;
-    font-size: 0.8rem;
-    font-weight: 800;
-    transform: rotate(45deg);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
+        .premium-pkg-card.is-vip {
+            background: linear-gradient(180deg, #ffffff 0%, #fffcf5 100%);
+            border-color: #d4a753;
+        }
 
-/* Header Sections */
-.pkg-top {
-    text-align: center;
-    margin-bottom: 25px;
-}
+        /* Badge */
+        .pkg-badge {
+            position: absolute;
+            top: 20px;
+            right: -35px;
+            background: #ef4444;
+            color: white;
+            padding: 6px 40px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            transform: rotate(45deg);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
 
-.pkg-title {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: #1e293b;
-    margin-bottom: 15px;
-}
+        /* Header Sections */
+        .pkg-top {
+            text-align: center;
+            margin-bottom: 25px;
+        }
 
-.mins-num {
-    font-size: 3.5rem;
-    font-weight: 900;
-    color: var(--primary-dark);
-    line-height: 1;
-}
+        .pkg-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 15px;
+        }
 
-.mins-unit {
-    display: block;
-    color: #64748b;
-    font-weight: 700;
-    font-size: 1rem;
-}
+        .mins-num {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: var(--primary-dark);
+            line-height: 1;
+        }
 
-.pkg-bonus {
-    display: inline-block;
-    background: #f0fdf4;
-    color: #16a34a;
-    padding: 5px 15px;
-    border-radius: 50px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    margin-top: 10px;
-}
+        .mins-unit {
+            display: block;
+            color: #64748b;
+            font-weight: 700;
+            font-size: 1rem;
+        }
 
-/* Content & Features */
-.pkg-content {
-    flex-grow: 1;
-    padding: 20px 0;
-}
+        .pkg-bonus {
+            display: inline-block;
+            background: #f0fdf4;
+            color: #16a34a;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-top: 10px;
+        }
 
-.pkg-features-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
+        /* Content & Features */
+        .pkg-content {
+            flex-grow: 1;
+            padding: 20px 0;
+        }
 
-.pkg-features-list li {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: #475569;
-    font-size: 0.95rem;
-    margin-bottom: 15px;
-}
+        .pkg-features-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
 
-.pkg-features-list li i {
-    color: #10b981;
-    font-size: 1.1rem;
-}
+        .pkg-features-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #475569;
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+        }
 
-/* Bottom & Pricing */
-.price-box {
-    text-align: center;
-    margin-bottom: 25px;
-}
+        .pkg-features-list li i {
+            color: #10b981;
+            font-size: 1.1rem;
+        }
 
-.price-old {
-    display: block;
-    text-decoration: line-through;
-    color: #94a3b8;
-    font-size: 1.1rem;
-    margin-bottom: -5px;
-}
+        /* Bottom & Pricing */
+        .price-box {
+            text-align: center;
+            margin-bottom: 25px;
+        }
 
-.price-current {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 2px;
-    color: #0f172a;
-}
+        .price-old {
+            display: block;
+            text-decoration: line-through;
+            color: #94a3b8;
+            font-size: 1.1rem;
+            margin-bottom: -5px;
+        }
 
-.price-current .currency {
-    font-size: 1.5rem;
-    font-weight: 800;
-    margin-top: 10px;
-}
+        .price-current {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 2px;
+            color: #0f172a;
+        }
 
-.price-current .amount {
-    font-size: 3rem;
-    font-weight: 900;
-}
+        .price-current .currency {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-top: 10px;
+        }
 
-/* Button */
-.pkg-action-btn {
-    width: 100%;
-    background: var(--primary-dark);
-    color: white;
-    border: none;
-    padding: 18px;
-    border-radius: 20px;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    transition: 0.3s;
-    cursor: pointer;
-}
+        .price-current .amount {
+            font-size: 3rem;
+            font-weight: 900;
+        }
 
-.pkg-action-btn:hover {
-    background: #1a4d2e;
-    gap: 20px;
-}
+        /* Button */
+        .pkg-action-btn {
+            width: 100%;
+            background: var(--primary-dark);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 20px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
 
-.is-vip .pkg-action-btn {
-    background: #d4a753;
-}
-</style>
-</style>
-<section id="packages" class="pricing-section">
-    <div class="container">
-        <div class="section-header text-center mb-5" data-aos="fade-up">
-            <span class="section-tag">باقات الدقائق</span>
-            <h2 class="section-title">اختر خطتك التعليمية</h2>
-        </div>
+        .pkg-action-btn:hover {
+            background: #1a4d2e;
+            gap: 20px;
+        }
 
-        <div class="owl-carousel packages-carousel owl-theme py-4">
-            @foreach ($packages as $package)
-                @php
-                    $hasDiscount = $package->discount > 0;
-                    $isVip = str_contains(strtolower($package->name), 'vip');
-                    $finalPrice = $package->price;
-                    $originalPrice = $hasDiscount ? ($finalPrice / (1 - ($package->discount / 100))) : $finalPrice;
-                @endphp
+        .is-vip .pkg-action-btn {
+            background: #d4a753;
+        }
+    </style>
+    </style>
+    <section id="packages" class="pricing-section">
+        <div class="container">
+            <div class="section-header text-center mb-5" data-aos="fade-up">
+                <span class="section-tag">باقات الدقائق</span>
+                <h2 class="section-title">اختر خطتك التعليمية</h2>
+            </div>
 
-                <div class="item px-3" data-aos="{{ $hasDiscount ? 'zoom-in' : 'fade-up' }}">
-                    <div class="premium-pkg-card {{ $hasDiscount ? 'is-featured' : '' }} {{ $isVip ? 'is-vip' : '' }}">
+            <div class="owl-carousel packages-carousel owl-theme py-4">
+                @foreach ($packages as $package)
+                    @php
+                        $hasDiscount = $package->discount > 0;
+                        $isVip = str_contains(strtolower($package->name), 'vip');
+                        $finalPrice = $package->price;
+                        $originalPrice = $hasDiscount ? $finalPrice / (1 - $package->discount / 100) : $finalPrice;
+                    @endphp
 
-                        @if ($hasDiscount)
-                            <div class="pkg-badge">خصم {{ round($package->discount) }}%</div>
-                        @endif
+                    <div class="item px-3" data-aos="{{ $hasDiscount ? 'zoom-in' : 'fade-up' }}">
+                        <div
+                            class="premium-pkg-card {{ $hasDiscount ? 'is-featured' : '' }} {{ $isVip ? 'is-vip' : '' }}">
 
-                        <div class="pkg-top">
-                            <h4 class="pkg-title">{{ $package->name }}</h4>
-                            <div class="pkg-minutes">
-                                <span class="mins-num">{{ $package->base_minutes }}</span>
-                                <span class="mins-unit">دقيقة</span>
-                                @if ($package->bonus_minutes > 0)
-                                    <div class="pkg-bonus">
-                                        + {{ $package->bonus_minutes }} دقيقة هدية
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
+                            @if ($hasDiscount)
+                                <div class="pkg-badge">خصم {{ round($package->discount) }}%</div>
+                            @endif
 
-                        <div class="pkg-content">
-                            <ul class="pkg-features-list">
-                                <li>
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    <span>صلاحية {{ $package->validity_days }} يوم</span>
-                                </li>
-                                @if ($package->description)
-                                    <li>
-                                        <i class="fa-solid fa-circle-check"></i>
-                                        <span>{{ $package->description }}</span>
-                                    </li>
-                                @endif
-                            </ul>
-                        </div>
-
-                        <div class="pkg-bottom">
-                            <div class="price-box">
-                                @if ($hasDiscount)
-                                    <span class="price-old">${{ number_format($originalPrice, 2) }}</span>
-                                @endif
-                                <div class="price-current">
-                                    <span class="currency">$</span>
-                                    <span class="amount">{{ number_format($finalPrice, 2) }}</span>
+                            <div class="pkg-top">
+                                <h4 class="pkg-title">{{ $package->name }}</h4>
+                                <div class="pkg-minutes">
+                                    <span class="mins-num">{{ $package->base_minutes }}</span>
+                                    <span class="mins-unit">دقيقة</span>
+                                    @if ($package->bonus_minutes > 0)
+                                        <div class="pkg-bonus">
+                                            + {{ $package->bonus_minutes }} دقيقة هدية
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
 
-                            {{-- <button class="pkg-action-btn">
+                            <div class="pkg-content">
+                                <ul class="pkg-features-list">
+                                    <li>
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>صلاحية {{ $package->validity_days }} يوم</span>
+                                    </li>
+                                    @if ($package->description)
+                                        <li>
+                                            <i class="fa-solid fa-circle-check"></i>
+                                            <span>{{ $package->description }}</span>
+                                        </li>
+                                    @endif
+                                </ul>
+                            </div>
+
+                            <div class="pkg-bottom">
+                                <div class="price-box">
+                                    @if ($hasDiscount)
+                                        <span class="price-old">${{ number_format($originalPrice, 2) }}</span>
+                                    @endif
+                                    <div class="price-current">
+                                        <span class="currency">$</span>
+                                        <span class="amount">{{ number_format($finalPrice, 2) }}</span>
+                                    </div>
+                                </div>
+
+                                {{-- <button class="pkg-action-btn">
                                 <span>اشترك الآن</span>
                                 <i class="fa-solid fa-arrow-left"></i>
                             </button> --}}
+                            </div>
                         </div>
                     </div>
-                </div>
-            @endforeach
+                @endforeach
+            </div>
         </div>
-    </div>
-</section>
+    </section>
 
     <section id="teachers" class="py-5">
         <div class="container py-4">
@@ -1809,20 +1884,22 @@
             </div>
             <div class="owl-carousel teachers-carousel owl-theme">
                 @foreach ($teachers as $teacher)
-                <div class="item">
-                    <div class="teacher-slide">
-                        <div class="teacher-card">
-                            <div class="teacher-img">
-                                <img src="{{ $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : asset('images/default-avatar.png') }}"
-                                     alt="{{ $teacher->user->name ?? 'Sheikh' }}"
-                                     onerror="this.src='{{ asset('images/a1.jpg.webp') }}'">
+                    <div class="item">
+                        <div class="teacher-slide">
+                            <div class="teacher-card">
+                                <div class="teacher-img">
+                                    <img src="{{ $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : asset('images/default-avatar.png') }}"
+                                        alt="{{ $teacher->user->name ?? 'Sheikh' }}"
+                                        onerror="this.src='{{ asset('images/a1.jpg.webp') }}'">
+                                </div>
+                                <h5 class="fw-bold mb-1">{{ $teacher->user->name ?? 'معلم' }}</h5>
+                                <p class="text-muted small">{{ $teacher->tracks->first()->name ?? 'القرآن الكريم' }}
+                                </p>
+                                <div class="text-warning small"><i class="fa-solid fa-star"></i>
+                                    {{ $teacher->average_rating ?? '5.0' }}</div>
                             </div>
-                            <h5 class="fw-bold mb-1">{{ $teacher->user->name ?? 'معلم' }}</h5>
-                            <p class="text-muted small">{{ $teacher->tracks->first()->name ?? 'القرآن الكريم' }}</p>
-                            <div class="text-warning small"><i class="fa-solid fa-star"></i> {{ $teacher->average_rating ?? '5.0' }}</div>
                         </div>
                     </div>
-                </div>
                 @endforeach
             </div>
         </div>
@@ -1916,83 +1993,84 @@
                         لا تتردد في مراسلتنا.</p>
 
                     <div class="contact-info-box">
-<div class="contact-item">
-        <div class="contact-icon">
-            <i class="fa-solid fa-envelope"></i>
-        </div>
-        <div>
-            <h6 class="fw-bold mb-1 text-dark">البريد الإلكتروني</h6>
-            {{-- Dynamic Email Link --}}
-            <a href="mailto:{{ $contact->email ?? 'info@wartel.app' }}" class="text-muted text-decoration-none">
-                {{ $contact->email ?? 'info@wartel.app' }}
-            </a>
-        </div>
-    </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="fa-solid fa-envelope"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-dark">البريد الإلكتروني</h6>
+                                {{-- Dynamic Email Link --}}
+                                <a href="mailto:{{ $contact->email ?? 'info@wartel.app' }}"
+                                    class="text-muted text-decoration-none">
+                                    {{ $contact->email ?? 'info@wartel.app' }}
+                                </a>
+                            </div>
+                        </div>
 
-    <div class="contact-item mb-0">
-        <div class="contact-icon">
-            <i class="fa-solid fa-phone-volume"></i>
-        </div>
-        <div>
-            <h6 class="fw-bold mb-1 text-dark">خدمة العملاء</h6>
+                        <div class="contact-item mb-0">
+                            <div class="contact-icon">
+                                <i class="fa-solid fa-phone-volume"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-dark">خدمة العملاء</h6>
 
-            {{--
+                                {{--
                 Dynamic WhatsApp Link
                 We use str_replace to remove '+' or spaces for the URL,
                 but keep the original format for display.
             --}}
-            @php
-                $phoneDisplay = $contact->phone ?? '+201110562097';
-                // Clean phone for URL (remove non-numeric chars)
-                $phoneUrl = preg_replace('/[^0-9]/', '', $phoneDisplay);
-            @endphp
+                                @php
+                                    $phoneDisplay = $contact->phone ?? '+201110562097';
+                                    // Clean phone for URL (remove non-numeric chars)
+                                    $phoneUrl = preg_replace('/[^0-9]/', '', $phoneDisplay);
+                                @endphp
 
-            <a
-                href="https://wa.me/{{ $phoneUrl }}?text=مرحبًا%20فريق%20ورتل%2C%20لدي%20استفسار%20حول%20التطبيق"
-                target="_blank"
-                class="text-muted text-decoration-none"
-                dir="ltr"
-            >
-                +{{ $phoneDisplay }}
-            </a>
+                                <a href="https://wa.me/{{ $phoneUrl }}?text=مرحبًا%20فريق%20ورتل%2C%20لدي%20استفسار%20حول%20التطبيق"
+                                    target="_blank" class="text-muted text-decoration-none" dir="ltr">
+                                    +{{ $phoneDisplay }}
+                                </a>
 
-        </div>
-    </div>
-</div>
+                            </div>
+                        </div>
+                    </div>
 
                 </div>
 
                 <div class="col-lg-7" data-aos="fade-right">
                     <div class="contact-form">
                         <h4 class="fw-bold mb-4 text-dark">أرسل لنا رسالة</h4>
-<form id="contactForm">
-    @csrf {{-- Still needed for AJAX headers --}}
+                        <form id="contactForm">
+                            @csrf {{-- Still needed for AJAX headers --}}
 
-    {{-- Success/Error Message Container --}}
-    <div id="formMessage" class="alert d-none mb-3"></div>
+                            {{-- Success/Error Message Container --}}
+                            <div id="formMessage" class="alert d-none mb-3"></div>
 
-    <div class="row">
-        <div class="col-md-6">
-            <input type="text" name="name" class="form-control" placeholder="الاسم الكامل" required>
-        </div>
-        <div class="col-md-6">
-            <input type="email" name="email" class="form-control" placeholder="البريد الإلكتروني" required>
-        </div>
-        <div class="col-12">
-            <input type="text" name="subject" class="form-control" placeholder="موضوع الرسالة" required>
-        </div>
-        <div class="col-12">
-            <textarea name="message" class="form-control" rows="5" placeholder="اكتب رسالتك هنا..." required></textarea>
-        </div>
-        <div class="col-12">
-            <button type="submit" class="btn-submit" id="submitBtn">
-                <span class="btn-text">إرسال الرسالة</span>
-                <i class="fa-solid fa-paper-plane ms-2"></i>
-                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-            </button>
-        </div>
-    </div>
-</form>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <input type="text" name="name" class="form-control"
+                                        placeholder="الاسم الكامل" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="email" name="email" class="form-control"
+                                        placeholder="البريد الإلكتروني" required>
+                                </div>
+                                <div class="col-12">
+                                    <input type="text" name="subject" class="form-control"
+                                        placeholder="موضوع الرسالة" required>
+                                </div>
+                                <div class="col-12">
+                                    <textarea name="message" class="form-control" rows="5" placeholder="اكتب رسالتك هنا..." required></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn-submit" id="submitBtn">
+                                        <span class="btn-text">إرسال الرسالة</span>
+                                        <i class="fa-solid fa-paper-plane ms-2"></i>
+                                        <span class="spinner-border spinner-border-sm d-none" role="status"
+                                            aria-hidden="true"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -2006,8 +2084,10 @@
                     <p class="footer-desc">ورتل.. رفيقك في رحلة تعلم القرآن الكريم. نسعى لربط المسلمين بكتاب الله عبر
                         تقنيات حديثة وكوادر تعليمية مؤهلة.</p>
                     <div class="social-icons">
-                        <a href="https://www.facebook.com/share/1HZASt1L9h/?mibextid=wwXIfr" target="_blank"><i class="fa-brands fa-facebook-f"></i></a>
-                        <a href="https://www.instagram.com/wartil20?igsh=MWxidnk0cjl4YXpwNw==" target="_blank"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="https://www.facebook.com/share/1HZASt1L9h/?mibextid=wwXIfr" target="_blank"><i
+                                class="fa-brands fa-facebook-f"></i></a>
+                        <a href="https://www.instagram.com/wartil20?igsh=MWxidnk0cjl4YXpwNw==" target="_blank"><i
+                                class="fa-brands fa-instagram"></i></a>
                     </div>
                 </div>
 
@@ -2122,7 +2202,17 @@
                 autoplayTimeout: 4000,
                 autoplayHoverPause: true,
                 smartSpeed: 800,
-                items: 1
+                responsive: {
+                    0: {
+                        items: 1
+                    },
+                    768: {
+                        items: 2
+                    },
+                    992: {
+                        items: 3
+                    }
+                }
             });
 
             // Init Tracks Carousel
@@ -2137,10 +2227,18 @@
                 autoplayHoverPause: true,
                 smartSpeed: 800,
                 responsive: {
-                    0: { items: 1 },
-                    768: { items: 2 },
-                    992: { items: 3 },
-                    1200: { items: 4 }
+                    0: {
+                        items: 1
+                    },
+                    768: {
+                        items: 2
+                    },
+                    992: {
+                        items: 3
+                    },
+                    1200: {
+                        items: 4
+                    }
                 }
             });
 
@@ -2156,9 +2254,15 @@
                 autoplayHoverPause: true,
                 smartSpeed: 800,
                 responsive: {
-                    0: { items: 1 },
-                    768: { items: 2 },
-                    992: { items: 3 }
+                    0: {
+                        items: 1
+                    },
+                    768: {
+                        items: 2
+                    },
+                    992: {
+                        items: 3
+                    }
                 }
             });
 
@@ -2204,23 +2308,23 @@
             const $body = $('body');
 
             // 1. Lock/Unlock Scroll when navbar toggles
-            $navbarCollapse.on('show.bs.collapse', function () {
+            $navbarCollapse.on('show.bs.collapse', function() {
                 $body.addClass('nav-locked');
             });
 
-            $navbarCollapse.on('hide.bs.collapse', function () {
+            $navbarCollapse.on('hide.bs.collapse', function() {
                 $body.removeClass('nav-locked');
             });
 
             // 2. Close navbar when clicking any link
-            $('.navbar-nav .nav-link, .nav-link-teacher, .btn-nav-cta').on('click', function(){
+            $('.navbar-nav .nav-link, .nav-link-teacher, .btn-nav-cta').on('click', function() {
                 if ($('.navbar-toggler').is(':visible')) {
                     $navbarCollapse.collapse('hide');
                 }
             });
 
             // 3. Close navbar when clicking outside
-            $(document).on('click', function (event) {
+            $(document).on('click', function(event) {
                 const clickOver = $(event.target);
                 const _opened = $navbarCollapse.hasClass('show');
                 if (_opened === true && !clickOver.closest('.navbar').length) {
@@ -2238,44 +2342,44 @@
             const spinner = btn.querySelector('.spinner-border');
 
             btn.disabled = true;
-            if(spinner) spinner.classList.remove('d-none');
+            if (spinner) spinner.classList.remove('d-none');
             msgBox.classList.add('d-none');
 
             const formData = new FormData(form);
 
             fetch("{{ route('contact.send') }}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
-                    'Accept': 'application/json'
-                },
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                btn.disabled = false;
-                if(spinner) spinner.classList.add('d-none');
-                msgBox.classList.remove('d-none', 'alert-success', 'alert-danger');
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    btn.disabled = false;
+                    if (spinner) spinner.classList.add('d-none');
+                    msgBox.classList.remove('d-none', 'alert-success', 'alert-danger');
 
-                if (data.status === 'success') {
-                    msgBox.classList.add('alert-success');
-                    msgBox.innerText = data.message;
-                    form.reset();
-                } else if (data.errors) {
+                    if (data.status === 'success') {
+                        msgBox.classList.add('alert-success');
+                        msgBox.innerText = data.message;
+                        form.reset();
+                    } else if (data.errors) {
+                        msgBox.classList.add('alert-danger');
+                        msgBox.innerText = Object.values(data.errors)[0][0];
+                    } else {
+                        msgBox.classList.add('alert-danger');
+                        msgBox.innerText = data.message || 'حدث خطأ غير متوقع.';
+                    }
+                })
+                .catch(error => {
+                    btn.disabled = false;
+                    if (spinner) spinner.classList.add('d-none');
+                    msgBox.classList.remove('d-none', 'alert-success');
                     msgBox.classList.add('alert-danger');
-                    msgBox.innerText = Object.values(data.errors)[0][0];
-                } else {
-                    msgBox.classList.add('alert-danger');
-                    msgBox.innerText = data.message || 'حدث خطأ غير متوقع.';
-                }
-            })
-            .catch(error => {
-                btn.disabled = false;
-                if(spinner) spinner.classList.add('d-none');
-                msgBox.classList.remove('d-none', 'alert-success');
-                msgBox.classList.add('alert-danger');
-                msgBox.innerText = 'فشل الاتصال بالخادم.';
-            });
+                    msgBox.innerText = 'فشل الاتصال بالخادم.';
+                });
         });
     </script>
 </body>
