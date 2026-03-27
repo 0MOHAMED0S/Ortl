@@ -36,6 +36,9 @@
         .search-box input:focus { border-color: #2d8a74; box-shadow: 0 0 0 3px rgba(45, 138, 116, 0.1); outline: none; }
         .search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
 
+        /* تلميح البحث الذكي */
+        .search-hint { font-size: 0.75rem; position: absolute; bottom: -20px; right: 10px; font-weight: 600; transition: 0.3s; }
+
         /* --- ننسيق حقول الإدخال --- */
         .form-label { font-weight: 600; color: #475569; font-size: 0.85rem; margin-bottom: 0.4rem; }
         .form-control:focus, .form-select:focus { border-color: #2d8a74; box-shadow: 0 0 0 3px rgba(45, 138, 116, 0.1); }
@@ -153,6 +156,11 @@
         .stats-summary-card { background: linear-gradient(135deg, #2d8a74 0%, #1e5e4f 100%); color: white; border-radius: 24px; padding: 30px; position: relative; overflow: hidden; }
         .stats-summary-card::after { content: "\f501"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; right: -20px; bottom: -20px; font-size: 150px; opacity: 0.1; }
         .stats-filter-box { background: white; border-radius: 20px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+        /* Loader Overlay for AJAX */
+        .card-wrapper-relative { position: relative; }
+        #table-loading { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.7); z-index: 10; justify-content: center; align-items: center; border-radius: 16px;}
+        .spinner-border { width: 3rem; height: 3rem; color: #2d8a74; }
     </style>
 @endsection
 
@@ -218,12 +226,12 @@
         </div>
     </div>
 
-    {{-- الفلاتر (Responsive Scroll) --}}
-    <div class="filter-scroll-wrapper mb-4">
-        <button class="filter-badge active" onclick="filterBy('all', this)">الكل</button>
-        <button class="filter-badge" onclick="filterBy('gift', this)">باقات هدايا 🎁</button>
+    {{-- الفلاتر (Responsive Scroll) - تم ربطها بالAJAX --}}
+    <div class="filter-scroll-wrapper mb-4" id="filterButtons">
+        <button class="filter-badge active" data-filter="all">الكل</button>
+        <button class="filter-badge" data-filter="gift">باقات هدايا 🎁</button>
         @foreach($allPackages as $pkg)
-            <button class="filter-badge" onclick="filterBy('pkg-{{ $pkg->name }}', this)">{{ $pkg->name }}</button>
+            <button class="filter-badge" data-filter="pkg-{{ $pkg->name }}">{{ $pkg->name }}</button>
         @endforeach
     </div>
 
@@ -231,84 +239,95 @@
     <div class="filter-container filter-container-wrapper">
         <div class="d-flex align-items-center gap-2">
             <h5 class="fw-bold m-0 text-dark">قائمة الطلاب</h5>
-            <span class="badge bg-soft-primary text-primary rounded-pill px-3" id="resultsCount">{{ $students->count() }} نتيجة</span>
+            <span class="badge bg-soft-primary text-primary rounded-pill px-3" id="resultsCount">{{ method_exists($students, 'total') ? $students->total() : $students->count() }} نتيجة</span>
         </div>
 
         <div class="d-flex align-items-center gap-2 flex-wrap flex-md-nowrap w-100 w-md-auto">
-            <select id="countryFilter" class="form-select form-select-sm rounded-pill border-0 shadow-sm px-3 py-2" style="width: 150px;" onchange="searchTable()">
+            <select id="countryFilter" class="form-select form-select-sm rounded-pill border-0 shadow-sm px-3 py-2" style="width: 150px;">
                 <option value="all">كل الدول</option>
                 @foreach($countries as $c) <option value="{{ $c->name }}">{{ $c->name }}</option> @endforeach
             </select>
-            <input type="date" id="joinDateFilter" class="form-control form-control-sm rounded-pill border-0 shadow-sm px-3 py-2" style="width: 160px;" onchange="searchTable()">
+            <input type="date" id="joinDateFilter" class="form-control form-control-sm rounded-pill border-0 shadow-sm px-3 py-2" style="width: 160px;">
             <div class="search-box flex-grow-1">
-                <i class="fa-solid fa-search search-icon"></i>
-                <input type="text" id="searchInput" class="form-control rounded-pill bg-white" placeholder="بحث بالاسم، البريد، الهاتف..." onkeyup="searchTable()">
+                <div id="searchIcon" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); z-index:10; color: #94a3b8;">
+                    <i class="fa-solid fa-search"></i>
+                </div>
+                <input type="text" id="searchInput" class="form-control rounded-pill bg-white" placeholder="بحث بالاسم، البريد، الهاتف...">
+                <div id="searchHint" class="search-hint" style="display: none;"></div>
             </div>
         </div>
     </div>
 
-    {{-- الجدول (Responsive Wrapper) --}}
-    <div class="card table-card border-0 shadow-sm mb-5">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" id="studentsTable" style="min-width: 800px;">
-                    <thead class="bg-light">
-                        <tr>
-                            <th class="p-3 text-muted small fw-bold border-0 text-start">الطالب</th>
-                            <th class="p-3 text-muted small fw-bold border-0 text-start">الاتصال</th>
-                            <th class="p-3 text-muted small fw-bold border-0 text-start">الباقة</th>
-                            <th class="p-3 text-muted small fw-bold border-0 text-center">الرصيد الكلي</th>
-                            <th class="p-3 text-muted small fw-bold border-0 text-end">إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="studentsTableBody">
-                        @forelse($students as $student)
-                        @php
-                            $extraPackages = count($student->all_packages) > 1 ? ' +'.(count($student->all_packages) - 1) : '';
-                            $hasGift = collect($student->all_packages)->contains('is_gift', true);
-                            $isNewToday = \Carbon\Carbon::parse($student->created_at)->isToday();
-                        @endphp
-                        <tr class="student-row"
-                            data-search="{{ $student->name }} {{ $student->email }} {{ $student->phone }}"
-                            data-country="{{ $student->country_name }}"
-                            data-package="pkg-{{ $student->package_name }}"
-                            data-gift="{{ $hasGift ? 'true' : 'false' }}"
-                            data-date="{{ \Carbon\Carbon::parse($student->created_at)->format('Y-m-d') }}">
-                            <td class="p-3 border-bottom-0 text-start">
-                                <div class="d-flex align-items-center">
-                                    @if($student->profile_image) <img src="{{ $student->profile_image }}" class="student-avatar rounded-circle me-3 border shadow-sm">
-                                    @else <div class="student-avatar rounded-circle me-3">{{ $student->avatar_initials }}</div> @endif
-                                    <div class="mx-2 text-start">
-                                        <h6 class="m-0 fw-bold text-dark d-flex align-items-center" style="font-size: 0.9rem;">
-                                            {{ $student->name }} @if($isNewToday) <span class="badge-new">جديد</span> @endif
-                                        </h6>
-                                        <small class="text-muted" style="font-size: 0.75rem;">ID: #{{ 1000 + $student->id }} | {{ $student->country_name }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="p-3 border-bottom-0 text-start"><div class="d-flex flex-column text-start"><small class="mb-1 text-muted"><i class="fa-solid fa-envelope me-1"></i> {{ $student->email }}</small><small class="text-muted"><i class="fa-solid fa-phone me-1"></i> {{ $student->phone }}</small></div></td>
-                            <td class="p-3 border-bottom-0 text-start"><span class="badge {{ $student->package_name == 'لا يوجد باقة' ? 'bg-secondary' : 'bg-success' }} bg-opacity-10 {{ $student->package_name == 'لا يوجد باقة' ? 'text-secondary' : 'text-success' }} px-3 py-2 rounded-pill fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-box-open me-1"></i> {{ $student->package_name }}{{ $extraPackages }}</span></td>
-                            <td class="p-3 border-bottom-0 text-center"><span class="fw-bold {{ $student->total_minutes > 0 ? 'text-dark' : 'text-danger' }}">{{ number_format($student->total_minutes) }}</span><small class="text-muted d-block" style="font-size: 10px">دقيقة</small></td>
-                            <td class="p-3 border-bottom-0 text-end">
-                                <div class="d-flex justify-content-end gap-1">
-                                    <button type="button" class="action-btn text-muted" onclick="showStudentDetails({{ json_encode($student) }})" title="عرض التفاصيل"><i class="fa-solid fa-eye"></i></button>
-                                    <button type="button" class="action-btn text-primary" onclick="showEditModal({{ json_encode($student) }})" title="تعديل"><i class="fa-solid fa-pen"></i></button>
-                                    <button type="button" class="action-btn text-warning" onclick="showGiftModal({{ $student->id }}, '{{ $student->name }}')" title="إهداء باقة"><i class="fa-solid fa-gift"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        @endforelse
-                        <tr id="noResultsRow" style="display: none;"><td colspan="5" class="text-center py-5 text-muted"><i class="fa-solid fa-magnifying-glass fs-2 mb-3 d-block opacity-25"></i><h6 class="fw-bold">لا يوجد نتائج تطابق بحثك</h6></td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="p-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <small class="text-muted">عرض {{ $students->firstItem() }} - {{ $students->lastItem() }} من {{ $students->total() }} طالب</small>
-                <div class="laravel-pagination">{{ $students->links() }}</div>
+    {{-- حاوية AJAX لتحديث الجدول والمودلز --}}
+    <div id="data-wrapper">
+        {{-- الجدول (Responsive Wrapper) --}}
+        <div class="card-wrapper-relative">
+            <div id="table-loading"><div class="spinner-border" role="status"></div></div>
+            <div class="card table-card border-0 shadow-sm mb-5">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="studentsTable" style="min-width: 800px;">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="p-3 text-muted small fw-bold border-0 text-start">الطالب</th>
+                                    <th class="p-3 text-muted small fw-bold border-0 text-start">الاتصال</th>
+                                    <th class="p-3 text-muted small fw-bold border-0 text-start">الباقة</th>
+                                    <th class="p-3 text-muted small fw-bold border-0 text-center">الرصيد الكلي</th>
+                                    <th class="p-3 text-muted small fw-bold border-0 text-end">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsTableBody">
+                                @forelse($students as $student)
+                                @php
+                                    $extraPackages = count($student->all_packages) > 1 ? ' +'.(count($student->all_packages) - 1) : '';
+                                    $hasGift = collect($student->all_packages)->contains('is_gift', true);
+                                    $isNewToday = \Carbon\Carbon::parse($student->created_at)->isToday();
+                                @endphp
+                                <tr class="student-row">
+                                    <td class="p-3 border-bottom-0 text-start">
+                                        <div class="d-flex align-items-center">
+                                            @if($student->profile_image) <img src="{{ $student->profile_image }}" class="student-avatar rounded-circle me-3 border shadow-sm">
+                                            @else <div class="student-avatar rounded-circle me-3">{{ $student->avatar_initials }}</div> @endif
+                                            <div class="mx-2 text-start">
+                                                <h6 class="m-0 fw-bold text-dark d-flex align-items-center" style="font-size: 0.9rem;">
+                                                    {{ $student->name }} @if($isNewToday) <span class="badge-new">جديد</span> @endif
+                                                </h6>
+                                                <small class="text-muted" style="font-size: 0.75rem;">ID: #{{ 1000 + $student->id }} | {{ $student->country_name }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-3 border-bottom-0 text-start"><div class="d-flex flex-column text-start"><small class="mb-1 text-muted"><i class="fa-solid fa-envelope me-1"></i> {{ $student->email }}</small><small class="text-muted"><i class="fa-solid fa-phone me-1"></i> {{ $student->phone }}</small></div></td>
+                                    <td class="p-3 border-bottom-0 text-start"><span class="badge {{ $student->package_name == 'لا يوجد باقة' ? 'bg-secondary' : 'bg-success' }} bg-opacity-10 {{ $student->package_name == 'لا يوجد باقة' ? 'text-secondary' : 'text-success' }} px-3 py-2 rounded-pill fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-box-open me-1"></i> {{ $student->package_name }}{{ $extraPackages }}</span></td>
+                                    <td class="p-3 border-bottom-0 text-center"><span class="fw-bold {{ $student->total_minutes > 0 ? 'text-dark' : 'text-danger' }}">{{ number_format($student->total_minutes) }}</span><small class="text-muted d-block" style="font-size: 10px">دقيقة</small></td>
+                                    <td class="p-3 border-bottom-0 text-end">
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <button type="button" class="action-btn text-muted" onclick="showStudentDetails({{ json_encode($student) }})" title="عرض التفاصيل"><i class="fa-solid fa-eye"></i></button>
+                                            <button type="button" class="action-btn text-primary" onclick="showEditModal({{ json_encode($student) }})" title="تعديل"><i class="fa-solid fa-pen"></i></button>
+                                            <button type="button" class="action-btn text-warning" onclick="showGiftModal({{ $student->id }}, '{{ $student->name }}')" title="إهداء باقة"><i class="fa-solid fa-gift"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="5" class="text-center py-5 text-muted"><i class="fa-solid fa-magnifying-glass fs-2 mb-3 d-block opacity-25"></i><h6 class="fw-bold">لا يوجد نتائج تطابق بحثك</h6></td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        @if(method_exists($students, 'firstItem') && method_exists($students, 'lastItem'))
+                            <small class="text-muted">عرض {{ $students->firstItem() }} - {{ $students->lastItem() }} من {{ $students->total() }} طالب</small>
+                        @endif
+                        <div class="laravel-pagination">
+                            @if(method_exists($students, 'links'))
+                                {{ $students->links('pagination::bootstrap-5') }}
+                            @endif
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+    {{-- نهاية حاوية AJAX --}}
 
     {{-- قسم إحصائيات تسجيل الطلاب --}}
     <div class="row g-4 mb-5">
@@ -527,12 +546,9 @@
 
 @section('scripts')
 <script>
-    let currentFilterType = 'all';
-
-    // بيانات الطلاب الممرة من السيرفر (مصفوفة تواريخ انضمام الطلاب)
+    // --- دوال إحصائيات التسجيل (لم يتم تغييرها) ---
     const ORIGINAL_STUDENT_DATES = @json($allStudentDates ?? []);
 
-    // دالة لتنظيف التواريخ ومقارنتها بدقة (تجاهل التوقيت)
     function isDateInRange(targetDateStr, fromDateStr, toDateStr) {
         if (!targetDateStr) return false;
         const target = new Date(targetDateStr); target.setHours(0, 0, 0, 0);
@@ -548,9 +564,7 @@
 
         let count = 0;
         ORIGINAL_STUDENT_DATES.forEach(dateStr => {
-            if (isDateInRange(dateStr, fromInput, toInput)) {
-                count++;
-            }
+            if (isDateInRange(dateStr, fromInput, toInput)) count++;
         });
 
         document.getElementById('filteredStudentsDisplay').innerHTML = `${count.toLocaleString()} <small class="fs-4">طالب</small>`;
@@ -592,48 +606,6 @@
         document.getElementById('statsFromDate').value = fromStr;
         document.getElementById('statsToDate').value = toStr;
         calculatePeriodStats();
-    }
-
-    // --- دوال الجدول والبحث ---
-    function updateResultsCount() {
-        const rows = document.querySelectorAll('.student-row');
-        const noResultsRow = document.getElementById('noResultsRow');
-        let visibleCount = 0;
-        rows.forEach(row => { if (row.style.display !== 'none') visibleCount++; });
-        if (noResultsRow) noResultsRow.style.display = (visibleCount === 0) ? '' : 'none';
-        const countElement = document.getElementById('resultsCount');
-        if (countElement) countElement.innerText = `${visibleCount} نتيجة`;
-    }
-
-    function searchTable() {
-        const input = document.getElementById('searchInput').value.toLowerCase();
-        const country = document.getElementById('countryFilter').value;
-        const dateFilter = document.getElementById('joinDateFilter').value;
-        const rows = document.querySelectorAll('.student-row');
-
-        rows.forEach(row => {
-            const searchText = row.dataset.search.toLowerCase();
-            const rowCountry = row.dataset.country;
-            const rowDate = row.dataset.date;
-
-            const matchesSearch = searchText.includes(input);
-            const matchesCountry = (country === 'all' || rowCountry === country);
-            const matchesDate = (!dateFilter || rowDate === dateFilter);
-
-            let matchesFilter = true;
-            if (currentFilterType === 'gift') matchesFilter = row.dataset.gift === 'true';
-            else if (currentFilterType !== 'all') matchesFilter = row.dataset.package === currentFilterType;
-
-            row.style.display = (matchesSearch && matchesCountry && matchesDate && matchesFilter) ? '' : 'none';
-        });
-        updateResultsCount();
-    }
-
-    function filterBy(type, element) {
-        currentFilterType = type;
-        document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
-        element.classList.add('active');
-        searchTable();
     }
 
     // --- تحديث المودالات ---
@@ -704,14 +676,167 @@
         new bootstrap.Modal(document.getElementById('giftPackageModal')).show();
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        updateResultsCount();
+    // ========================================================
+    // كود الـ AJAX الذكي والبحث الشامل (Smart Search via AJAX)
+    // ========================================================
+    let searchTimer;
+    let currentFilterType = new URLSearchParams(window.location.search).get('filter') || 'all';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // إخفاء الـ Toasts بعد 5 ثواني
         setTimeout(() => {
             document.querySelectorAll('.custom-toast').forEach(toast => {
                 toast.style.animation = "slideOutRight 0.5s ease-in forwards";
                 setTimeout(() => toast.remove(), 500);
             });
         }, 5000);
+
+        // استعادة بارامترات البحث من الرابط
+        let params = new URLSearchParams(window.location.search);
+        if(params.get('search')) document.getElementById('searchInput').value = params.get('search');
+        if(params.get('country')) document.getElementById('countryFilter').value = params.get('country');
+        if(params.get('date')) document.getElementById('joinDateFilter').value = params.get('date');
+
+        // تحديد زر الفلتر المفعل حالياً
+        document.querySelectorAll('.filter-badge').forEach(b => {
+            b.classList.remove('active');
+            if (b.getAttribute('data-filter') === currentFilterType) {
+                b.classList.add('active');
+            }
+        });
+
+        // ربط أحداث الإدخال بدالة الـ AJAX
+        document.getElementById('searchInput').addEventListener('keyup', searchTableAjax);
+        document.getElementById('countryFilter').addEventListener('change', searchTableAjax);
+        document.getElementById('joinDateFilter').addEventListener('change', searchTableAjax);
+
+        // ربط أزرار الفلترة
+        document.querySelectorAll('.filter-badge').forEach(btn => {
+            btn.addEventListener('click', function() {
+                currentFilterType = this.getAttribute('data-filter');
+                document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                searchTableAjax();
+            });
+        });
+    });
+
+    // الاستماع لتغيير الرابط بالمتصفح (Back/Forward)
+    window.addEventListener('popstate', function() {
+        let params = new URLSearchParams(window.location.search);
+        document.getElementById('searchInput').value = params.get('search') || '';
+        document.getElementById('countryFilter').value = params.get('country') || 'all';
+        document.getElementById('joinDateFilter').value = params.get('date') || '';
+        currentFilterType = params.get('filter') || 'all';
+
+        document.querySelectorAll('.filter-badge').forEach(b => {
+            b.classList.remove('active');
+            if (b.getAttribute('data-filter') === currentFilterType) b.classList.add('active');
+        });
+
+        fetchServerData(
+            document.getElementById('searchInput').value,
+            document.getElementById('countryFilter').value,
+            document.getElementById('joinDateFilter').value,
+            currentFilterType,
+            params.get('page') || 1,
+            false // لا تقم بدفع الـ State لتجنب التكرار
+        );
+    });
+
+    // دالة البحث الذكي (Debounced AJAX)
+    function searchTableAjax() {
+        clearTimeout(searchTimer);
+
+        let search = document.getElementById('searchInput').value.trim();
+        let country = document.getElementById('countryFilter').value;
+        let date = document.getElementById('joinDateFilter').value;
+        let hintBox = document.getElementById('searchHint');
+
+        // التلميح الذكي
+        if (search.length > 0) {
+            hintBox.style.display = 'block';
+            if (search.includes('@')) {
+                hintBox.innerHTML = '<i class="fa-solid fa-envelope text-primary ms-1"></i> بحث بالبريد الإلكتروني...';
+                hintBox.className = 'search-hint text-primary';
+            } else if (/^\d+$/.test(search)) {
+                hintBox.innerHTML = '<i class="fa-solid fa-phone text-success ms-1"></i> بحث برقم الهاتف...';
+                hintBox.className = 'search-hint text-success';
+            } else {
+                hintBox.innerHTML = '<i class="fa-solid fa-user text-info ms-1"></i> بحث بالاسم...';
+                hintBox.className = 'search-hint text-info';
+            }
+        } else {
+            hintBox.style.display = 'none';
+        }
+
+        searchTimer = setTimeout(() => {
+            fetchServerData(search, country, date, currentFilterType, 1);
+        }, 500);
+    }
+
+    // الدالة الرئيسية لجلب البيانات بـ AJAX
+    function fetchServerData(search, country, date, filter, page = 1, pushState = true) {
+        let url = new URL(window.location.href);
+
+        if (search) url.searchParams.set('search', search); else url.searchParams.delete('search');
+        if (country && country !== 'all') url.searchParams.set('country', country); else url.searchParams.delete('country');
+        if (date) url.searchParams.set('date', date); else url.searchParams.delete('date');
+        if (filter && filter !== 'all') url.searchParams.set('filter', filter); else url.searchParams.delete('filter');
+
+        url.searchParams.set('page', page);
+
+        if(pushState) {
+            window.history.pushState({}, '', url);
+        }
+
+        const wrapper = document.getElementById('data-wrapper');
+        const loader = document.getElementById('table-loading');
+        const searchIcon = document.getElementById('searchIcon');
+
+        if(loader) loader.style.display = 'flex';
+        wrapper.style.opacity = '0.5';
+        if(searchIcon) searchIcon.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-primary"></i>';
+
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const newWrapper = doc.getElementById('data-wrapper');
+            if (newWrapper) wrapper.innerHTML = newWrapper.innerHTML;
+
+            const newCount = doc.getElementById('resultsCount');
+            if (newCount) document.getElementById('resultsCount').innerText = newCount.innerText;
+
+            if(loader) loader.style.display = 'none';
+            wrapper.style.opacity = '1';
+            if(searchIcon) searchIcon.innerHTML = '<i class="fa-solid fa-search"></i>';
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+            if(loader) loader.style.display = 'none';
+            wrapper.style.opacity = '1';
+            if(searchIcon) searchIcon.innerHTML = '<i class="fa-solid fa-search"></i>';
+        });
+    }
+
+    // تفعيل Pagination بـ AJAX
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('.laravel-pagination a');
+        if (link) {
+            e.preventDefault();
+            let page = new URL(link.href).searchParams.get('page');
+            let search = document.getElementById('searchInput').value.trim();
+            let country = document.getElementById('countryFilter').value;
+            let date = document.getElementById('joinDateFilter').value;
+
+            fetchServerData(search, country, date, currentFilterType, page);
+
+            const cardBox = document.querySelector('.table-card');
+            if(cardBox) window.scrollTo({ top: cardBox.offsetTop - 30, behavior: 'smooth' });
+        }
     });
 </script>
 @endsection

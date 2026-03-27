@@ -4,16 +4,12 @@ namespace App\Http\Controllers\web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ApproveTeacherRequest;
-use App\Mail\TeacherApprovedMail;
-use App\Models\Teacher;
 use App\Models\Teacher_application;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 
 class TeacherController extends Controller
 {
