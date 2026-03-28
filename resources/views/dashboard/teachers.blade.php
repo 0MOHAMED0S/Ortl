@@ -90,24 +90,16 @@
             transform: translateY(-50%);
             z-index: 10;
             color: #94a3b8;
+            background: none;
+            border: none;
+            outline: none;
+            padding: 0;
             transition: 0.3s;
         }
+        .search-icon-wrapper:hover { color: var(--primary-dark); cursor: pointer; }
         .search-input { padding-right: 40px !important; border-radius: 20px; transition: 0.3s; border: 1px solid #e2e8f0; }
         .search-input:focus { box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); border-color: var(--primary-dark); }
         .search-hint { font-size: 0.75rem; position: absolute; bottom: -20px; right: 10px; font-weight: 600; transition: 0.3s; }
-
-        /* Loader Overlay */
-        #table-loading {
-            display: none;
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.6);
-            backdrop-filter: blur(2px);
-            z-index: 20;
-            justify-content: center;
-            align-items: center;
-        }
-        .spinner-border { width: 2.5rem; height: 2.5rem; color: var(--primary-dark); }
     </style>
 @endsection
 
@@ -167,12 +159,12 @@
             </div>
         @endif
 
-        {{-- Stats Grid --}}
+        {{-- Stats Grid (الارقام يتم استرجاعها مباشرة من الـ Controller بناءً على البحث) --}}
         <div class="row g-3 mb-4" id="stats-wrapper">
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-purple">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">إجمالي المعروض</h6>
+                        <h6 class="text-muted small fw-bold mb-1">إجمالي النتائج (لبحثك)</h6>
                         <h3 class="fw-bold m-0 text-dark" id="totalCount">{{ method_exists($teachers, 'total') ? $teachers->total() : $teachers->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-folder-open"></i></div>
@@ -181,7 +173,7 @@
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-orange">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">قيد المراجعة</h6>
+                        <h6 class="text-muted small fw-bold mb-1">قيد المراجعة بالصفحة</h6>
                         <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->where('status', 'pending')->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-clock"></i></div>
@@ -190,7 +182,7 @@
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-green">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">تم القبول</h6>
+                        <h6 class="text-muted small fw-bold mb-1">مقبول بالصفحة</h6>
                         <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->where('status', 'approved')->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-check-circle"></i></div>
@@ -199,7 +191,7 @@
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-red">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">مرفوض / غير مفعل</h6>
+                        <h6 class="text-muted small fw-bold mb-1">مرفوض/غير مفعل بالصفحة</h6>
                         <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->whereIn('status', ['rejected', 'not_active'])->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-ban"></i></div>
@@ -207,35 +199,33 @@
             </div>
         </div>
 
-        {{-- Filters & Smart Search --}}
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start mb-4 gap-3">
+        {{-- Filters & Smart Search Form (Standard Request) --}}
+        <form action="{{ url()->current() }}" method="GET" id="searchFilterForm" class="d-flex flex-column flex-md-row justify-content-between align-items-md-start mb-4 gap-3">
+
+            {{-- حقل مخفي لحفظ حالة الفلتر --}}
+            <input type="hidden" name="status" id="statusInput" value="{{ request('status', 'all') }}">
+
             <div class="d-flex w-100 overflow-auto pb-2 pb-md-0 mt-2" id="filterButtons">
-                <button class="filter-btn active" onclick="filterTable('all', this)">الكل</button>
-                <button class="filter-btn" onclick="filterTable('pending', this)">قيد المراجعة</button>
-                <button class="filter-btn" onclick="filterTable('approved', this)">مقبول</button>
-                <button class="filter-btn" onclick="filterTable('not_active', this)">غير مفعل</button>
-                <button class="filter-btn" onclick="filterTable('rejected', this)">مرفوض</button>
+                <button type="button" class="filter-btn {{ request('status', 'all') == 'all' ? 'active' : '' }}" onclick="submitFilter('all')">الكل</button>
+                <button type="button" class="filter-btn {{ request('status') == 'pending' ? 'active' : '' }}" onclick="submitFilter('pending')">قيد المراجعة</button>
+                <button type="button" class="filter-btn {{ request('status') == 'approved' ? 'active' : '' }}" onclick="submitFilter('approved')">مقبول</button>
+                <button type="button" class="filter-btn {{ request('status') == 'not_active' ? 'active' : '' }}" onclick="submitFilter('not_active')">غير مفعل</button>
+                <button type="button" class="filter-btn {{ request('status') == 'rejected' ? 'active' : '' }}" onclick="submitFilter('rejected')">مرفوض</button>
             </div>
 
             {{-- حقل البحث الذكي --}}
             <div class="w-100 w-md-auto search-container" style="min-width: 300px;">
-                <div class="search-icon-wrapper" id="searchIcon">
+                <button type="submit" class="search-icon-wrapper" id="searchIcon" title="بحث">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                </div>
-                <input type="text" id="searchInput" class="form-control search-input" placeholder="اكتب للبحث في السيرفر بالكامل..." onkeyup="searchTable()">
+                </button>
+                <input type="text" name="search" id="searchInput" class="form-control search-input" placeholder="اكتب للبحث واضغط Enter..." value="{{ request('search') }}">
                 <div id="searchHint" class="search-hint" style="display: none;"></div>
             </div>
-        </div>
+        </form>
 
-        {{-- حاوية ديناميكية لعمل التحديث بدون تغيير هيكل الصفحة (AJAX Wrapper) --}}
         <div id="data-wrapper">
             {{-- Table --}}
             <div class="card-box">
-                {{-- شريط التحميل الشفاف --}}
-                <div id="table-loading">
-                    <div class="spinner-border" role="status"></div>
-                </div>
-
                 <div class="table-responsive">
                     <table class="table custom-table mb-0 text-nowrap align-middle" id="teachersTable">
                         <thead class="table-light">
@@ -322,7 +312,7 @@
                 @endif
             </div>
 
-            {{-- MODALS - يتم تحديثها مع بيانات الـ AJAX --}}
+            {{-- MODALS --}}
             @foreach ($teachers as $teacher)
                 @php
                     $modalName = optional(optional($teacher->profile)->user)->name ?? $teacher->full_name;
@@ -601,7 +591,6 @@
                 </div>
             @endforeach
         </div>
-        {{-- نهاية حاوية AJAX --}}
 
     </div>
 @endsection
@@ -623,168 +612,35 @@
         }
 
         // ===============================================
-        // نظام الفلترة والبحث الذكي بـ AJAX الحقيقي (Server-Side ONLY)
+        // إرسال البحث والفلترة عن طريق Standard Request (بدون AJAX)
         // ===============================================
-        let searchTimer;
-        let currentStatus = new URLSearchParams(window.location.search).get('status') || 'all';
 
-        // تهيئة المتصفح عند التحميل
-        document.addEventListener('DOMContentLoaded', () => {
-            let params = new URLSearchParams(window.location.search);
-            let searchVal = params.get('search');
-            if(searchVal) {
-                document.getElementById('searchInput').value = searchVal;
-            }
-
-            document.querySelectorAll('.filter-btn').forEach(b => {
-                b.classList.remove('active');
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${currentStatus}'`)) {
-                    b.classList.add('active');
-                }
-            });
-        });
-
-        // الاستماع لأزرار التراجع/التقدم في المتصفح
-        window.addEventListener('popstate', function() {
-            let params = new URLSearchParams(window.location.search);
-            let searchVal = params.get('search') || '';
-            let statusVal = params.get('status') || 'all';
-            let pageVal = params.get('page') || 1;
-
-            document.getElementById('searchInput').value = searchVal;
-            currentStatus = statusVal;
-
-            document.querySelectorAll('.filter-btn').forEach(b => {
-                b.classList.remove('active');
-                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${statusVal}'`)) {
-                    b.classList.add('active');
-                }
-            });
-
-            fetchServerData(searchVal, statusVal, pageVal, false);
-        });
-
-        // دالة الاتصال الرئيسية بالسيرفر (AJAX)
-        function fetchServerData(search, status, page = 1, pushState = true) {
-            let url = new URL(window.location.href);
-
-            if (search) url.searchParams.set('search', search);
-            else url.searchParams.delete('search');
-
-            if (status && status !== 'all') url.searchParams.set('status', status);
-            else url.searchParams.delete('status');
-
-            url.searchParams.set('page', page);
-
-            if(pushState) {
-                window.history.pushState({}, '', url);
-            }
-
-            // إظهار اللودر
-            const wrapper = document.getElementById('data-wrapper');
-            const loader = document.getElementById('table-loading');
-            const searchIcon = document.getElementById('searchIcon');
-
-            if(loader) loader.style.display = 'flex';
-            wrapper.style.opacity = '0.5';
-
-            if(searchIcon) {
-                searchIcon.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-primary"></i>';
-            }
-
-            // تنفيذ الطلب
-            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(response => response.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-
-                // تحديث الجدول والمودلز
-                const newWrapper = doc.getElementById('data-wrapper');
-                if (newWrapper) wrapper.innerHTML = newWrapper.innerHTML;
-
-                // تحديث الإحصائيات (مثل 61 من 61)
-                const newStats = doc.getElementById('stats-wrapper');
-                if (newStats) document.getElementById('stats-wrapper').innerHTML = newStats.innerHTML;
-
-                // إرجاع الواجهة لوضعها الطبيعي
-                if(loader) loader.style.display = 'none';
-                wrapper.style.opacity = '1';
-
-                if(searchIcon) {
-                    searchIcon.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                if(loader) loader.style.display = 'none';
-                wrapper.style.opacity = '1';
-                if(searchIcon) searchIcon.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>';
-            });
+        // دالة الفلترة وإرسال الفورم (تعمل عند النقر على الأزرار)
+        function submitFilter(status) {
+            document.getElementById('statusInput').value = status;
+            document.getElementById('searchFilterForm').submit();
         }
 
-        // دالة البحث الذكية (Smart Search) تعتمد على السيرفر فقط!
-        function searchTable() {
-            let search = document.getElementById('searchInput').value.trim();
+        // إظهار التلميح الذكي أثناء الكتابة في حقل البحث
+        document.getElementById('searchInput').addEventListener('keyup', function(e) {
+            let search = this.value.trim();
             let hintBox = document.getElementById('searchHint');
 
-            // --- التلميح المرئي للمستخدم ---
             if (search.length > 0) {
                 hintBox.style.display = 'block';
                 if (search.includes('@')) {
-                    hintBox.innerHTML = '<i class="fa-solid fa-envelope text-primary ms-1"></i> يتم البحث في الداتابيز بالإيميل...';
+                    hintBox.innerHTML = '<i class="fa-solid fa-envelope text-primary ms-1"></i> اضغط Enter للبحث بالبريد...';
                     hintBox.className = 'search-hint text-primary';
                 } else if (/^\d+$/.test(search)) {
-                    hintBox.innerHTML = '<i class="fa-solid fa-phone text-success ms-1"></i> يتم البحث في الداتابيز بالرقم...';
+                    hintBox.innerHTML = '<i class="fa-solid fa-phone text-success ms-1"></i> اضغط Enter للبحث بالرقم...';
                     hintBox.className = 'search-hint text-success';
                 } else {
-                    hintBox.innerHTML = '<i class="fa-solid fa-database text-info ms-1"></i> يتم البحث الشامل في جميع الصفحات...';
+                    hintBox.innerHTML = '<i class="fa-solid fa-user text-info ms-1"></i> اضغط Enter للبحث بالاسم...';
                     hintBox.className = 'search-hint text-info';
                 }
             } else {
                 hintBox.style.display = 'none';
             }
-
-            // إرسال الطلب للسيرفر للبحث في كل الصفحات (بدون إخفاء محلي يخرب النتائج)
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => {
-                fetchServerData(search, currentStatus, 1);
-            }, 600);
-        }
-
-        // الفلتر من الأزرار العلوية
-        function filterTable(status, btn) {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            currentStatus = status;
-            let search = document.getElementById('searchInput').value.trim();
-
-            fetchServerData(search, currentStatus, 1);
-        }
-
-        // تفعيل التنقل بين الصفحات (Pagination) بنظام AJAX
-        document.addEventListener('click', function(e) {
-            const link = e.target.closest('.pagination a');
-            if (link) {
-                e.preventDefault();
-                let page = new URL(link.href).searchParams.get('page');
-                let search = document.getElementById('searchInput').value.trim();
-
-                fetchServerData(search, currentStatus, page);
-
-                // رفع الشاشة لأعلى الجدول بسلاسة
-                const cardBox = document.querySelector('.card-box');
-                if(cardBox) {
-                    window.scrollTo({ top: cardBox.offsetTop - 30, behavior: 'smooth' });
-                }
-            }
-        });
-
-        // إصلاح الشاشة السوداء في حالة إغلاق مودال تم جلبه بـ AJAX
-        $(document).on('hidden.bs.modal', '.details-modal', function () {
-            $('.modal-backdrop').remove();
-            $('body').removeClass('modal-open').css('overflow', 'auto').css('padding-right', '0');
         });
     </script>
 @endsection

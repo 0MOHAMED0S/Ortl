@@ -13,12 +13,33 @@ use Illuminate\Support\Facades\Mail;
 
 class TeacherController extends Controller
 {
-public function index()
+public function index(Request $request)
     {
-        // تم تغيير get() إلى paginate(10) لتعمل مع الترقيم في واجهة العرض
-        $teachers = Teacher_application::with(['tracks', 'profile.user'])
-            ->latest()
-            ->paginate(10);
+        // بناء الاستعلام الأساسي
+        $query = \App\Models\Teacher_application::with(['tracks', 'profile.user'])->latest();
+
+        // 1. فلترة حسب حالة الحساب (Status) من الـ Request
+        if ($request->has('status') && $request->status !== 'all' && $request->status != '') {
+            $query->where('status', $request->status);
+        }
+
+        // 2. البحث (Search) الشامل في قاعدة البيانات
+        if ($request->has('search') && $request->search != '') {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', '%' . $search . '%')
+                  ->orWhere('email', 'like', '%' . $search . '%')
+                  ->orWhere('phone', 'like', '%' . $search . '%')
+                  ->orWhere('origin_country', 'like', '%' . $search . '%')
+                  ->orWhereHas('profile.user', function ($qu) use ($search) {
+                      $qu->where('name', 'like', '%' . $search . '%')
+                         ->orWhere('email', 'like', '%' . $search . '%');
+                  });
+            });
+        }
+
+        // 3. جلب البيانات مع الترقيم والاحتفاظ بالبحث في الرابط (withQueryString)
+        $teachers = $query->paginate(10)->withQueryString();
 
         return view('dashboard.teachers', compact('teachers'));
     }
