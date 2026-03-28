@@ -70,17 +70,15 @@ class StudentTeacherController extends Controller
 
         return $stats;
     }
-    public function index(Request $request)
+public function index(Request $request)
     {
         try {
             $perPage = $request->get('per_page', 10);
-
             $teachersPaginator = Teacher_application::where('status', 'approved')
                 ->with([
                     'profile' => function ($query) {
                         $query->withAvg('ratings', 'rating')
                             ->withCount('ratings')
-                            // 🚀 جلب التقييمات مع بيانات الطالب لتجنب بطء الاستعلامات
                             ->with('ratings.user');
                     },
                     'profile.user',
@@ -100,11 +98,10 @@ class StudentTeacherController extends Controller
                 $photoUrl = $photoPath
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
-
-                // 🚀 استدعاء الإحصائيات بسطر واحد فقط
                 $stats = $this->getTeacherStats($teacherId);
 
                 return [
+                    // --- البيانات الأصلية (لم يتم تعديلها أو حذفها) ---
                     'id'               => $teacherId,
                     'application_id'   => $application->id,
                     'name'             => $name,
@@ -125,8 +122,6 @@ class StudentTeacherController extends Controller
                     'experience_years' => $application->experience_years,
                     'specialties'      => $application->tracks->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
                     'about'            => $application->ijazas_text,
-
-                    // 🌟 إضافة تفاصيل التقييمات هنا تماماً كما في دالة show
                     'reviews_details'  => optional($profile)->ratings ? $profile->ratings->map(function ($rate) {
                         return [
                             'id'           => $rate->id,
@@ -139,6 +134,20 @@ class StudentTeacherController extends Controller
 
                     'user_data'        => $user,
                     'profile_data'     => $profile,
+
+                    // --- البيانات الجديدة المضافة من الـ Migration بناءً على طلبك ---
+                    'gender'             => $application->gender,
+                    'email'              => $application->email,
+                    'phone'              => $application->phone,
+                    'residence_location' => $application->residence_location,
+                    'work_hours'         => $application->work_hours,
+                    'online_experience'  => $application->online_experience,
+                    'internet_quality'   => $application->internet_quality,
+                    'tech_skills'        => $application->tech_skills,
+                    'cv_pdf_url'         => $application->cv_pdf_path ? asset('storage/' . $application->cv_pdf_path) : null,
+                    'status'             => $application->status,
+                    'created_at'         => $application->created_at ? $application->created_at->format('Y-m-d H:i:s') : null,
+                    'updated_at'         => $application->updated_at ? $application->updated_at->format('Y-m-d H:i:s') : null,
                 ];
             });
 
