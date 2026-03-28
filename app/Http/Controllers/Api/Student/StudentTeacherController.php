@@ -211,6 +211,7 @@ public function show($id)
                     'tech_skills'        => $application->tech_skills ?? null,
                     'cv_pdf_url'         => $application->cv_pdf_path ? asset('storage/' . $application->cv_pdf_path) : null,
                     'application_status' => $application->status ?? null,
+                    'ijazas_text' => $application->ijazas_text ?? null,
                     // -------------------------------------------------------------------
 
                     // Specialties (ID و Name فقط)
