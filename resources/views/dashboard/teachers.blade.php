@@ -222,7 +222,7 @@
                 <div class="search-icon-wrapper" id="searchIcon">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </div>
-                <input type="text" id="searchInput" class="form-control search-input" placeholder="اكتب للبحث السريع في كل الصفحات..." onkeyup="searchTable()">
+                <input type="text" id="searchInput" class="form-control search-input" placeholder="اكتب للبحث في السيرفر بالكامل..." onkeyup="searchTable()">
                 <div id="searchHint" class="search-hint" style="display: none;"></div>
             </div>
         </div>
@@ -258,7 +258,7 @@
                                     $minutes = optional($teacher->profile)->minutes ?? 0;
                                 @endphp
 
-                                <tr class="teacher-row" data-status="{{ $teacher->status }}" data-name="{{ $userName }} {{ $userEmail }} {{ $teacher->phone }}">
+                                <tr class="teacher-row">
                                     <td>
                                         <div class="teacher-profile">
                                             <img src="{{ $imagePath ? asset('storage/' . $imagePath) : 'https://ui-avatars.com/api/?name=' . urlencode($userName) . '&background=1a4d2e&color=fff' }}"
@@ -300,25 +300,16 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr id="noResultsRow">
+                                <tr>
                                     <td colspan="7" class="text-center py-5 text-muted">
                                         <div class="mb-3">
                                             <i class="fa-solid fa-search fs-1 text-muted opacity-25"></i>
                                         </div>
                                         <h6 class="fw-bold">لم يتم العثور على بيانات!</h6>
-                                        <p class="small">جرب استخدام كلمات بحث أخرى أو تغيير الفلتر.</p>
+                                        <p class="small">لا توجد نتائج تطابق بحثك في قاعدة البيانات.</p>
                                     </td>
                                 </tr>
                             @endforelse
-                            {{-- صف للنتائج المفلترة بالجافاسكربت --}}
-                            <tr id="jsNoResultsRow" style="display: none;">
-                                <td colspan="7" class="text-center py-5 text-muted">
-                                    <div class="mb-3">
-                                        <i class="fa-solid fa-search fs-1 text-muted opacity-25"></i>
-                                    </div>
-                                    <h6 class="fw-bold">لا يوجد نتائج تطابق بحثك الحالي</h6>
-                                </td>
-                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -632,7 +623,7 @@
         }
 
         // ===============================================
-        // نظام الفلترة والبحث الذكي
+        // نظام الفلترة والبحث الذكي بـ AJAX الحقيقي (Server-Side ONLY)
         // ===============================================
         let searchTimer;
         let currentStatus = new URLSearchParams(window.location.search).get('status') || 'all';
@@ -708,11 +699,11 @@
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
 
-                // تحديث الجدول
+                // تحديث الجدول والمودلز
                 const newWrapper = doc.getElementById('data-wrapper');
                 if (newWrapper) wrapper.innerHTML = newWrapper.innerHTML;
 
-                // تحديث الإحصائيات
+                // تحديث الإحصائيات (مثل 61 من 61)
                 const newStats = doc.getElementById('stats-wrapper');
                 if (newStats) document.getElementById('stats-wrapper').innerHTML = newStats.innerHTML;
 
@@ -723,9 +714,6 @@
                 if(searchIcon) {
                     searchIcon.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>';
                 }
-
-                // إعادة تشغيل دالة الفلترة المحلية (للبحث اللحظي داخل الصفحة)
-                applyLocalFilter();
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -735,36 +723,7 @@
             });
         }
 
-        // دالة الفلترة المباشرة داخل الـ DOM (Front-end Filtering)
-        function applyLocalFilter() {
-            let search = document.getElementById('searchInput').value.trim().toLowerCase();
-            const rows = document.querySelectorAll('.teacher-row');
-            const jsNoResultsRow = document.getElementById('jsNoResultsRow');
-            let visibleCount = 0;
-
-            rows.forEach(row => {
-                const text = row.dataset.name.toLowerCase();
-                const statusMatch = (currentStatus === 'all' || row.dataset.status === currentStatus);
-
-                if (text.includes(search) && statusMatch) {
-                    row.style.display = '';
-                    visibleCount++;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-
-            // إظهار أو إخفاء رسالة "لا توجد نتائج"
-            if (jsNoResultsRow) {
-                if (visibleCount === 0 && rows.length > 0) {
-                    jsNoResultsRow.style.display = '';
-                } else {
-                    jsNoResultsRow.style.display = 'none';
-                }
-            }
-        }
-
-        // دالة البحث الذكية (Smart Search)
+        // دالة البحث الذكية (Smart Search) تعتمد على السيرفر فقط!
         function searchTable() {
             let search = document.getElementById('searchInput').value.trim();
             let hintBox = document.getElementById('searchHint');
@@ -773,23 +732,20 @@
             if (search.length > 0) {
                 hintBox.style.display = 'block';
                 if (search.includes('@')) {
-                    hintBox.innerHTML = '<i class="fa-solid fa-envelope text-primary ms-1"></i> يتم البحث عن طريق البريد...';
+                    hintBox.innerHTML = '<i class="fa-solid fa-envelope text-primary ms-1"></i> يتم البحث في الداتابيز بالإيميل...';
                     hintBox.className = 'search-hint text-primary';
                 } else if (/^\d+$/.test(search)) {
-                    hintBox.innerHTML = '<i class="fa-solid fa-phone text-success ms-1"></i> يتم البحث برقم الهاتف...';
+                    hintBox.innerHTML = '<i class="fa-solid fa-phone text-success ms-1"></i> يتم البحث في الداتابيز بالرقم...';
                     hintBox.className = 'search-hint text-success';
                 } else {
-                    hintBox.innerHTML = '<i class="fa-solid fa-user text-info ms-1"></i> يتم البحث بالاسم...';
+                    hintBox.innerHTML = '<i class="fa-solid fa-database text-info ms-1"></i> يتم البحث الشامل في جميع الصفحات...';
                     hintBox.className = 'search-hint text-info';
                 }
             } else {
                 hintBox.style.display = 'none';
             }
 
-            // 1. تطبيق الفلترة المباشرة على الجدول الحالي (للاستجابة السريعة)
-            applyLocalFilter();
-
-            // 2. إرسال الطلب للـ AJAX للبحث في كل الصفحات (مع Debounce)
+            // إرسال الطلب للسيرفر للبحث في كل الصفحات (بدون إخفاء محلي يخرب النتائج)
             clearTimeout(searchTimer);
             searchTimer = setTimeout(() => {
                 fetchServerData(search, currentStatus, 1);
