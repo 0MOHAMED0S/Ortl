@@ -66,7 +66,7 @@
             border: 1px solid #eee;
             overflow: hidden;
             transition: opacity 0.3s;
-            position: relative; /* لعمل Overlay للتحميل */
+            position: relative;
         }
         .teacher-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
         .teacher-profile { display: flex; align-items: center; gap: 10px; }
@@ -217,7 +217,7 @@
                 <button class="filter-btn" onclick="filterTable('rejected', this)">مرفوض</button>
             </div>
 
-            {{-- حقل البحث الذكي الجديد --}}
+            {{-- حقل البحث الذكي --}}
             <div class="w-100 w-md-auto search-container" style="min-width: 300px;">
                 <div class="search-icon-wrapper" id="searchIcon">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -258,7 +258,7 @@
                                     $minutes = optional($teacher->profile)->minutes ?? 0;
                                 @endphp
 
-                                <tr class="teacher-row" data-status="{{ $teacher->status }}" data-name="{{ $userName }} {{ $userEmail }}">
+                                <tr class="teacher-row" data-status="{{ $teacher->status }}" data-name="{{ $userName }} {{ $userEmail }} {{ $teacher->phone }}">
                                     <td>
                                         <div class="teacher-profile">
                                             <img src="{{ $imagePath ? asset('storage/' . $imagePath) : 'https://ui-avatars.com/api/?name=' . urlencode($userName) . '&background=1a4d2e&color=fff' }}"
@@ -300,7 +300,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr>
+                                <tr id="noResultsRow">
                                     <td colspan="7" class="text-center py-5 text-muted">
                                         <div class="mb-3">
                                             <i class="fa-solid fa-search fs-1 text-muted opacity-25"></i>
@@ -310,6 +310,15 @@
                                     </td>
                                 </tr>
                             @endforelse
+                            {{-- صف للنتائج المفلترة بالجافاسكربت --}}
+                            <tr id="jsNoResultsRow" style="display: none;">
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <div class="mb-3">
+                                        <i class="fa-solid fa-search fs-1 text-muted opacity-25"></i>
+                                    </div>
+                                    <h6 class="fw-bold">لا يوجد نتائج تطابق بحثك الحالي</h6>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -623,12 +632,12 @@
         }
 
         // ===============================================
-        // نظام الفلترة والبحث الذكي بـ AJAX
+        // نظام الفلترة والبحث الذكي
         // ===============================================
         let searchTimer;
         let currentStatus = new URLSearchParams(window.location.search).get('status') || 'all';
 
-        // تهيئة المتصفح عند التحميل (استرجاع الفلتر والبحث إن وجد)
+        // تهيئة المتصفح عند التحميل
         document.addEventListener('DOMContentLoaded', () => {
             let params = new URLSearchParams(window.location.search);
             let searchVal = params.get('search');
@@ -644,7 +653,7 @@
             });
         });
 
-        // الاستماع لأزرار التراجع/التقدم في المتصفح (للحفاظ على حالة الـ AJAX)
+        // الاستماع لأزرار التراجع/التقدم في المتصفح
         window.addEventListener('popstate', function() {
             let params = new URLSearchParams(window.location.search);
             let searchVal = params.get('search') || '';
@@ -661,10 +670,10 @@
                 }
             });
 
-            fetchServerData(searchVal, statusVal, pageVal, false); // false يعني لا تقم بتحديث الرابط مجدداً
+            fetchServerData(searchVal, statusVal, pageVal, false);
         });
 
-        // دالة الاتصال الرئيسية بالسيرفر
+        // دالة الاتصال الرئيسية بالسيرفر (AJAX)
         function fetchServerData(search, status, page = 1, pushState = true) {
             let url = new URL(window.location.href);
 
@@ -703,7 +712,7 @@
                 const newWrapper = doc.getElementById('data-wrapper');
                 if (newWrapper) wrapper.innerHTML = newWrapper.innerHTML;
 
-                // تحديث الإحصائيات (الأرقام)
+                // تحديث الإحصائيات
                 const newStats = doc.getElementById('stats-wrapper');
                 if (newStats) document.getElementById('stats-wrapper').innerHTML = newStats.innerHTML;
 
@@ -714,6 +723,9 @@
                 if(searchIcon) {
                     searchIcon.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>';
                 }
+
+                // إعادة تشغيل دالة الفلترة المحلية (للبحث اللحظي داخل الصفحة)
+                applyLocalFilter();
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -723,34 +735,65 @@
             });
         }
 
-        // دالة البحث الذكية (Smart Search) مع Debounce
-        function searchTable() {
-            clearTimeout(searchTimer);
+        // دالة الفلترة المباشرة داخل الـ DOM (Front-end Filtering)
+        function applyLocalFilter() {
+            let search = document.getElementById('searchInput').value.trim().toLowerCase();
+            const rows = document.querySelectorAll('.teacher-row');
+            const jsNoResultsRow = document.getElementById('jsNoResultsRow');
+            let visibleCount = 0;
 
+            rows.forEach(row => {
+                const text = row.dataset.name.toLowerCase();
+                const statusMatch = (currentStatus === 'all' || row.dataset.status === currentStatus);
+
+                if (text.includes(search) && statusMatch) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // إظهار أو إخفاء رسالة "لا توجد نتائج"
+            if (jsNoResultsRow) {
+                if (visibleCount === 0 && rows.length > 0) {
+                    jsNoResultsRow.style.display = '';
+                } else {
+                    jsNoResultsRow.style.display = 'none';
+                }
+            }
+        }
+
+        // دالة البحث الذكية (Smart Search)
+        function searchTable() {
             let search = document.getElementById('searchInput').value.trim();
             let hintBox = document.getElementById('searchHint');
 
-            // --- النظام الذكي لمعرفة نوع البيانات (تلميح مرئي للمستخدم) ---
+            // --- التلميح المرئي للمستخدم ---
             if (search.length > 0) {
                 hintBox.style.display = 'block';
                 if (search.includes('@')) {
-                    hintBox.innerHTML = '<i class="fa-solid fa-envelope text-primary ms-1"></i> يتم البحث عن طريق البريد الإلكتروني...';
+                    hintBox.innerHTML = '<i class="fa-solid fa-envelope text-primary ms-1"></i> يتم البحث عن طريق البريد...';
                     hintBox.className = 'search-hint text-primary';
                 } else if (/^\d+$/.test(search)) {
                     hintBox.innerHTML = '<i class="fa-solid fa-phone text-success ms-1"></i> يتم البحث برقم الهاتف...';
                     hintBox.className = 'search-hint text-success';
                 } else {
-                    hintBox.innerHTML = '<i class="fa-solid fa-user text-info ms-1"></i> يتم البحث بالاسم أو الدولة...';
+                    hintBox.innerHTML = '<i class="fa-solid fa-user text-info ms-1"></i> يتم البحث بالاسم...';
                     hintBox.className = 'search-hint text-info';
                 }
             } else {
                 hintBox.style.display = 'none';
             }
 
-            // تأخير الطلب نصف ثانية لعدم الضغط على السيرفر
+            // 1. تطبيق الفلترة المباشرة على الجدول الحالي (للاستجابة السريعة)
+            applyLocalFilter();
+
+            // 2. إرسال الطلب للـ AJAX للبحث في كل الصفحات (مع Debounce)
+            clearTimeout(searchTimer);
             searchTimer = setTimeout(() => {
                 fetchServerData(search, currentStatus, 1);
-            }, 500);
+            }, 600);
         }
 
         // الفلتر من الأزرار العلوية

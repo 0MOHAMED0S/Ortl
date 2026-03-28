@@ -160,7 +160,7 @@ class StudentTeacherController extends Controller
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
-public function show($id)
+    public function show($id)
     {
         try {
             $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
