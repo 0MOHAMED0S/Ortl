@@ -159,12 +159,13 @@
             </div>
         @endif
 
-        {{-- Stats Grid (الارقام يتم استرجاعها مباشرة من الـ Controller بناءً على البحث) --}}
+        {{-- 🟢 Stats Grid (يتم قراءة المتغيرات الجديدة من الكنترولر لحساب كل البيانات في قاعدة البيانات) --}}
         <div class="row g-3 mb-4" id="stats-wrapper">
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-purple">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">إجمالي النتائج (لبحثك)</h6>
+                        <h6 class="text-muted small fw-bold mb-1">نتائج البحث الحالي</h6>
+                        {{-- إجمالي نتائج البحث فقط (باستخدام total من الـ pagination) --}}
                         <h3 class="fw-bold m-0 text-dark" id="totalCount">{{ method_exists($teachers, 'total') ? $teachers->total() : $teachers->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-folder-open"></i></div>
@@ -173,8 +174,9 @@
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-orange">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">قيد المراجعة بالصفحة</h6>
-                        <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->where('status', 'pending')->count() }}</h3>
+                        <h6 class="text-muted small fw-bold mb-1">قيد المراجعة (الكل)</h6>
+                        {{-- يعرض جميع الطلبات قيد المراجعة في قاعدة البيانات بغض النظر عن الصفحة --}}
+                        <h3 class="fw-bold m-0 text-dark">{{ $pendingCount ?? \App\Models\Teacher_application::where('status', 'pending')->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-clock"></i></div>
                 </div>
@@ -182,8 +184,9 @@
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-green">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">مقبول بالصفحة</h6>
-                        <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->where('status', 'approved')->count() }}</h3>
+                        <h6 class="text-muted small fw-bold mb-1">مقبول (الكل)</h6>
+                        {{-- يعرض جميع المعلمين المقبولين في قاعدة البيانات بالكامل --}}
+                        <h3 class="fw-bold m-0 text-dark">{{ $approvedCount ?? \App\Models\Teacher_application::where('status', 'approved')->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-check-circle"></i></div>
                 </div>
@@ -191,8 +194,9 @@
             <div class="col-6 col-xl-3">
                 <div class="stat-card stat-red">
                     <div>
-                        <h6 class="text-muted small fw-bold mb-1">مرفوض/غير مفعل بالصفحة</h6>
-                        <h3 class="fw-bold m-0 text-dark">{{ collect($teachers->items())->whereIn('status', ['rejected', 'not_active'])->count() }}</h3>
+                        <h6 class="text-muted small fw-bold mb-1">مرفوض/غير مفعل (الكل)</h6>
+                        {{-- يعرض كل المرفوضين في قاعدة البيانات بالكامل --}}
+                        <h3 class="fw-bold m-0 text-dark">{{ $rejectedCount ?? \App\Models\Teacher_application::whereIn('status', ['rejected', 'not_active'])->count() }}</h3>
                     </div>
                     <div class="stat-icon-box"><i class="fa-solid fa-ban"></i></div>
                 </div>

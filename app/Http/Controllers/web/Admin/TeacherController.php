@@ -38,10 +38,15 @@ public function index(Request $request)
             });
         }
 
-        // 3. جلب البيانات مع الترقيم والاحتفاظ بالبحث في الرابط (withQueryString)
+        // 3. حساب الإحصائيات (العدادات) لجميع البيانات في قاعدة البيانات (وليس صفحة واحدة)
+        $pendingCount = \App\Models\Teacher_application::where('status', 'pending')->count();
+        $approvedCount = \App\Models\Teacher_application::where('status', 'approved')->count();
+        $rejectedCount = \App\Models\Teacher_application::whereIn('status', ['rejected', 'not_active'])->count();
+
+        // 4. جلب البيانات مع الترقيم والاحتفاظ بالبحث في الرابط (withQueryString)
         $teachers = $query->paginate(10)->withQueryString();
 
-        return view('dashboard.teachers', compact('teachers'));
+        return view('dashboard.teachers', compact('teachers', 'pendingCount', 'approvedCount', 'rejectedCount'));
     }
     public function approve(ApproveTeacherRequest $request, $id)
     {
