@@ -70,15 +70,17 @@ class StudentTeacherController extends Controller
 
         return $stats;
     }
-public function index(Request $request)
+    public function index(Request $request)
     {
         try {
             $perPage = $request->get('per_page', 10);
+
             $teachersPaginator = Teacher_application::where('status', 'approved')
                 ->with([
                     'profile' => function ($query) {
                         $query->withAvg('ratings', 'rating')
                             ->withCount('ratings')
+                            // 🚀 جلب التقييمات مع بيانات الطالب لتجنب بطء الاستعلامات
                             ->with('ratings.user');
                     },
                     'profile.user',
@@ -98,10 +100,11 @@ public function index(Request $request)
                 $photoUrl = $photoPath
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
+
+                // 🚀 استدعاء الإحصائيات بسطر واحد فقط
                 $stats = $this->getTeacherStats($teacherId);
 
                 return [
-                    // --- البيانات الأصلية (لم يتم تعديلها أو حذفها) ---
                     'id'               => $teacherId,
                     'application_id'   => $application->id,
                     'name'             => $name,
@@ -122,6 +125,8 @@ public function index(Request $request)
                     'experience_years' => $application->experience_years,
                     'specialties'      => $application->tracks->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
                     'about'            => $application->ijazas_text,
+
+                    // 🌟 إضافة تفاصيل التقييمات هنا تماماً كما في دالة show
                     'reviews_details'  => optional($profile)->ratings ? $profile->ratings->map(function ($rate) {
                         return [
                             'id'           => $rate->id,
@@ -134,20 +139,6 @@ public function index(Request $request)
 
                     'user_data'        => $user,
                     'profile_data'     => $profile,
-
-                    // --- البيانات الجديدة المضافة من الـ Migration بناءً على طلبك ---
-                    'gender'             => $application->gender,
-                    'email'              => $application->email,
-                    'phone'              => $application->phone,
-                    'residence_location' => $application->residence_location,
-                    'work_hours'         => $application->work_hours,
-                    'online_experience'  => $application->online_experience,
-                    'internet_quality'   => $application->internet_quality,
-                    'tech_skills'        => $application->tech_skills,
-                    'cv_pdf_url'         => $application->cv_pdf_path ? asset('storage/' . $application->cv_pdf_path) : null,
-                    'status'             => $application->status,
-                    'created_at'         => $application->created_at ? $application->created_at->format('Y-m-d H:i:s') : null,
-                    'updated_at'         => $application->updated_at ? $application->updated_at->format('Y-m-d H:i:s') : null,
                 ];
             });
 
@@ -169,7 +160,7 @@ public function index(Request $request)
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
-    public function show($id)
+public function show($id)
     {
         try {
             $teacher = Teacher::with(['user', 'application.tracks', 'ratings.user'])
@@ -188,6 +179,7 @@ public function index(Request $request)
                 'status'  => true,
                 'message' => 'Teacher profile retrieved successfully.',
                 'data'    => [
+                    // --- البيانات الأصلية (لم يتم تغييرها) ---
                     'id'               => $teacher->id,
                     'application_id'   => $teacher->teacher_application_id,
                     'name'             => $teacher->user->name ?? $application->full_name,
@@ -196,16 +188,30 @@ public function index(Request $request)
                     'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
                     'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
 
-                    // الإحصائيات
+                    // الإحصائيات الأصلية
                     'students_count'   => $stats['students_count'],
                     'calls_count'      => $stats['calls_count'],
                     'slots_count'      => $stats['slots_count'],
                     'sessions_count'   => $stats['sessions_count'],
 
+                    // البيانات الأساسية الأصلية
                     'qualification'    => $application->qualification ?? null,
                     'country'          => $application->origin_country ?? null,
                     'languages'        => $application->languages ?? [],
                     'experience_years' => $application->experience_years ?? 0,
+
+                    // --- 🟢 البيانات الجديدة المضافة بناءً على طلبك (من جدول الطلبات) ---
+                    'gender'             => $application->gender ?? null,
+                    'email'              => $application->email ?? null,
+                    'phone'              => $application->phone ?? null,
+                    'residence_location' => $application->residence_location ?? null,
+                    'work_hours'         => $application->work_hours ?? null,
+                    'online_experience'  => $application->online_experience ?? null,
+                    'internet_quality'   => $application->internet_quality ?? null,
+                    'tech_skills'        => $application->tech_skills ?? null,
+                    'cv_pdf_url'         => $application->cv_pdf_path ? asset('storage/' . $application->cv_pdf_path) : null,
+                    'application_status' => $application->status ?? null,
+                    // -------------------------------------------------------------------
 
                     // Specialties (ID و Name فقط)
                     'specialties'      => collect($application->tracks ?? [])->map(fn($t) => [
@@ -215,7 +221,7 @@ public function index(Request $request)
 
                     'about'            => $application->ijazas_text ?? null,
 
-                    // المراجعات
+                    // المراجعات الأصلية
                     'reviews_details'  => $teacher->ratings->map(fn($rate) => [
                         'id'           => $rate->id,
                         'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
@@ -229,7 +235,7 @@ public function index(Request $request)
                 ]
             ]);
         } catch (\Exception $e) {
-            Log::error('Show Teacher Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Show Teacher Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
         }
     }
