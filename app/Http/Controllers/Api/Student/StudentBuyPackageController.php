@@ -215,7 +215,7 @@ class StudentBuyPackageController extends Controller
     }
 
     // 3️⃣ Frontend Redirect
-    public function handleResponse(Request $request)
+public function handleResponse(Request $request)
     {
         $data = $request->all();
 
@@ -224,13 +224,21 @@ class StudentBuyPackageController extends Controller
         $cartId  = $data['cartId'] ?? null;
         $tranRef = $data['tranRef'] ?? null;
 
+        // 🟢 تم التعديل هنا لترجع JSON بدلاً من View
         if ($status === 'A') {
-            return view('payments.success');
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'تمت عملية الدفع بنجاح',
+                'data'    => [
+                    'order_id'       => $cartId,
+                    'transaction_id' => $tranRef
+                ]
+            ], 200);
         }
 
         return response()->json([
-            'status' => 'error',
-            'message' => 'Payment failed or cancelled',
+            'status'          => 'error',
+            'message'         => 'فشلت عملية الدفع أو تم إلغاؤها',
             'received_status' => $status
         ], 400);
     }
