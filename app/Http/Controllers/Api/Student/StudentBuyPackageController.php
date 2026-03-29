@@ -119,7 +119,6 @@ class StudentBuyPackageController extends Controller
                 'error' => 'فشل في إنشاء طلب الدفع عبر بوابات الدفع',
                 'debug' => $payment
             ], 400);
-
         } catch (\Throwable $e) {
             Log::error('PayTabs Purchase Error: ' . $e->getMessage());
             return response()->json(['error' => 'حدث خطأ غير متوقع أثناء معالجة الطلب.'], 500);
@@ -127,7 +126,7 @@ class StudentBuyPackageController extends Controller
     }
 
     // 2️⃣ PayTabs Server Callback (IMPORTANT)
-// 2️⃣ PayTabs Server Callback (IMPORTANT)
+    // 2️⃣ PayTabs Server Callback (IMPORTANT)
     public function handleCallback(Request $request)
     {
         $payload = $request->all();
@@ -215,7 +214,7 @@ class StudentBuyPackageController extends Controller
     }
 
     // 3️⃣ Frontend Redirect
-public function handleResponse(Request $request)
+    public function handleResponse(Request $request)
     {
         $data = $request->all();
 

@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Api\Gifts;
+
 use App\Http\Controllers\Controller;
 use App\Models\GiftCard;
 use App\Models\Order;
@@ -87,7 +88,6 @@ class GiftController extends Controller
                     'debug' => $payment
                 ], 400);
             });
-
         } catch (\Throwable $e) {
             Log::error('PayTabs Gift Purchase Error: ' . $e->getMessage());
             return response()->json(['error' => 'حدث خطأ غير متوقع أثناء تجهيز الهدية'], 500);
@@ -135,8 +135,6 @@ class GiftController extends Controller
         return response('OK');
     }
 
-    // 3️⃣ Frontend Redirect (WebView / Browser)
-// 3️⃣ تحديث دالة الاستجابة (لتجهيز رابط البطاقة الساحر)
     public function handleResponse(Request $request)
     {
         $data = $request->all();
@@ -151,17 +149,30 @@ class GiftController extends Controller
 
                 $couponCode = $giftCard->coupon_code;
 
-                // 🌟 هنا السحر: توليد الرابط الذي يعرض البطاقة بكامل بياناتها
+                // 🌟 توليد الرابط الذي يعرض البطاقة بكامل بياناتها (يمكن استخدامه في الفرونت اند)
                 $cardLink = route('web.gifts.card.show', ['code' => $couponCode]);
 
                 // رسالة واتساب جاهزة تحتوي على الرابط
                 $whatsappMessage = urlencode("أهديتك باقة دقائق في التطبيق! 🎁 اضغط على الرابط لفتح هديتك واستلامها: \n {$cardLink}");
                 $whatsappLink = "https://wa.me/?text={$whatsappMessage}";
 
-                return view('payments.gift_success', compact('couponCode', 'whatsappLink', 'cardLink'));
+                return response()->json([
+                    'status'  => 'success',
+                    'message' => 'تمت عملية الدفع بنجاح وتم إنشاء الهدية',
+                    'data'    => [
+                        'coupon_code'   => $couponCode,
+                        'card_link'     => $cardLink,
+                        'whatsapp_link' => $whatsappLink
+                    ]
+                ], 200);
             }
         }
-        return view('payments.failed');
+
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'فشلت عملية الدفع أو تم إلغاؤها',
+            'received_status' => $status
+        ], 400);
     }
 
     // 🌟 5️⃣ الدالة الجديدة: عرض البطاقة للمستلم (عندما يضغط على رابط الواتساب)
@@ -253,7 +264,6 @@ class GiftController extends Controller
                     'message'     => $giftCard->message
                 ]
             ]);
-
         } catch (\Throwable $e) {
             Log::error('Claim Gift Error: ' . $e->getMessage());
             return response()->json(['error' => 'حدث خطأ غير متوقع أثناء استلام الهدية'], 500);
@@ -282,7 +292,6 @@ class GiftController extends Controller
                         'share_link'     => url("/gifts/card/" . $gift->coupon_code), // رابط المشاركة لو أراد نسخه مجدداً
                     ];
                 });
-
             // 🎁 2. الهدايا التي استلمها هذا الطالب (Received Gifts)
             $receivedGifts = GiftCard::with('sender:id,name') // جلب بيانات الصديق الذي أرسلها
                 ->where('claimed_by_user_id', $user->id)
@@ -298,7 +307,6 @@ class GiftController extends Controller
                         'claimed_at'  => $gift->claimed_at->format('Y-m-d h:i A'),
                     ];
                 });
-
             return response()->json([
                 'status' => true,
                 'message' => 'تم جلب سجل الهدايا بنجاح',
@@ -307,7 +315,6 @@ class GiftController extends Controller
                     'received' => $receivedGifts,
                 ]
             ]);
-
         } catch (\Throwable $e) {
             Log::error('Get My Gifts Error: ' . $e->getMessage());
             return response()->json(['error' => 'حدث خطأ غير متوقع أثناء جلب الهدايا'], 500);
