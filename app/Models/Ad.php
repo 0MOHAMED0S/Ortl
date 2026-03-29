@@ -15,8 +15,8 @@ class Ad extends Model
         'image',    // Optional if using background colors
         'bg_color', // Added for background color
         'status',
-            'coupon_id', // Added for the coupon association
-
+        'coupon_id', // Added for the coupon association
+        'link'
     ];
     public function coupon()
     {
