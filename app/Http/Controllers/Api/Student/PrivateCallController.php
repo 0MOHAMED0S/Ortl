@@ -207,39 +207,30 @@ public function endCall(Request $request, $callId)
 
         if (!empty($call->agora_sid) && !empty($call->agora_resource_id)) {
             $recorderUid = 999999;
-            $fileName = $this->agoraService->stop(
+
+            // نقوم بإيقاف التسجيل في Agora
+            $this->agoraService->stop(
                 $call->agora_resource_id,
                 $call->agora_sid,
                 $call->channel_name,
                 $recorderUid
             );
 
-            // 🟢 الإصلاح السحري هنا:
-            // إذا كان اسم الملف الراجع صحيحاً (ليس unknown.mp4 وليس فارغاً)
-            if (!empty($fileName) && !str_contains($fileName, 'unknown.mp4')) {
-                $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL');
-                if (!empty($publicUrl)) {
-                    $recordingUrl = rtrim($publicUrl, '/') . '/' . ltrim($fileName, '/');
-                } else {
-                    $endpoint = env('AGORA_STORAGE_ENDPOINT');
-                    $bucket   = env('AGORA_STORAGE_BUCKET');
-                    $recordingUrl = "https://{$endpoint}/{$bucket}/{$fileName}";
-                }
+            // 🟢 بناء مسار الملف الصحيح والمضمون (بدون الاعتماد على دالة stop التي تعيد unknown.mp4)
+            // مسار Agora المعتمد هو: Prefix / SID _ ChannelName .m3u8
+            $expectedFileName = "records/sessions/{$call->agora_sid}_{$call->channel_name}.m3u8";
+
+            $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL');
+
+            if (!empty($publicUrl)) {
+                // تكوين الرابط المباشر من Cloudflare R2
+                $recordingUrl = rtrim($publicUrl, '/') . '/' . $expectedFileName;
             } else {
-                // 🟢 في حال أرجع Agora "unknown.mp4" (بسبب عدم جاهزية مصفوفة fileList)
-                // نقوم بإنشاء اسم الملف الصحيح بناءً على خوارزمية Agora الافتراضية
-                $expectedFileName = "{$call->agora_sid}_{$call->channel_name}.mp4";
-
-                $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL');
-                if (!empty($publicUrl)) {
-                    $recordingUrl = rtrim($publicUrl, '/') . '/' . $expectedFileName;
-                } else {
-                    $endpoint = env('AGORA_STORAGE_ENDPOINT');
-                    $bucket   = env('AGORA_STORAGE_BUCKET');
-                    $recordingUrl = "https://{$endpoint}/{$bucket}/{$expectedFileName}";
-                }
-
-                Log::warning("Agora Stop returned unknown.mp4 for Call ID: {$call->id}. Using predicted URL: {$recordingUrl}");
+                // Fallback في حال لم يتم تحديد Cloudflare R2
+                $endpoint = env('AGORA_STORAGE_ENDPOINT');
+                $bucket   = env('AGORA_STORAGE_BUCKET');
+                $cleanEndpoint = preg_replace('#^https?://#', '', $endpoint); // تنظيف الرابط
+                $recordingUrl = "https://{$cleanEndpoint}/{$bucket}/{$expectedFileName}";
             }
         }
 
@@ -277,7 +268,7 @@ public function endCall(Request $request, $callId)
                 'ended_at'         => $now,
                 'duration_minutes' => $actualDeduction,
                 'status'           => 'ended',
-                'recording_url'    => $recordingUrl // 🟢 الآن سيتم تخزين الرابط الصحيح (بدون unknown.mp4)
+                'recording_url'    => $recordingUrl // 🟢 تخزين الرابط الصحيح هنا
             ]);
 
             DB::commit();
@@ -290,7 +281,7 @@ public function endCall(Request $request, $callId)
                 'data'    => [
                     'call_duration_minutes'     => $actualDeduction,
                     'student_remaining_minutes' => (int) $studentRemainingMinutes,
-                    'recording_url'             => $recordingUrl // 🟢 إرجاع الرابط الصحيح للتطبيق
+                    'recording_url'             => $recordingUrl // 🟢 سيرجع الرابط الصحيح الآن
                 ]
             ]);
         } catch (\Throwable $e) {
