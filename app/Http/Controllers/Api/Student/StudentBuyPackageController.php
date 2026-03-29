@@ -227,7 +227,7 @@ public function handleResponse(Request $request)
         // 🟢 تم التعديل هنا لترجع JSON بدلاً من View
         if ($status === 'A') {
             return response()->json([
-                'status'  => 'success',
+                'status'  => 'true',
                 'message' => 'تمت عملية الدفع بنجاح',
                 'data'    => [
                     'order_id'       => $cartId,
@@ -237,7 +237,7 @@ public function handleResponse(Request $request)
         }
 
         return response()->json([
-            'status'          => 'error',
+            'status'          => 'false',
             'message'         => 'فشلت عملية الدفع أو تم إلغاؤها',
             'received_status' => $status
         ], 400);
