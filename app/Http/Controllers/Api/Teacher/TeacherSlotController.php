@@ -227,7 +227,7 @@ class TeacherSlotController extends Controller
             ], 500);
         }
     }
-    public function cancelSlotByTeacher(Request $request)
+public function cancelSlotByTeacher(Request $request)
     {
         $request->validate([
             'slot_id' => 'required|exists:teacher_slots,id'
@@ -248,6 +248,7 @@ class TeacherSlotController extends Controller
             if (!$slot) {
                 return response()->json(['status' => false, 'message' => 'الموعد غير موجود.'], 404);
             }
+
             $slotStartDateTime = \Carbon\Carbon::parse($slot->date . ' ' . $slot->start_time);
             $now = \Carbon\Carbon::now();
             $hoursUntilSession = $now->diffInHours($slotStartDateTime, false);
@@ -259,7 +260,6 @@ class TeacherSlotController extends Controller
                 ], 400);
             }
 
-            // 3️⃣ بدء الترانزاكشن بعد التحقق من الوقت لضمان الأداء
             \Illuminate\Support\Facades\DB::beginTransaction();
 
             if (!$slot->is_booked) {
@@ -267,7 +267,6 @@ class TeacherSlotController extends Controller
                 return response()->json(['status' => false, 'message' => 'هذا الموعد غير محجوز مسبقاً.'], 400);
             }
 
-            // 4️⃣ جلب الحجز وتجهيز الاسترداد (Refund)
             $booking = \App\Models\SlotBooking::where('teacher_slot_id', $slot->id)
                 ->where('status', 'scheduled')
                 ->lockForUpdate()
@@ -280,7 +279,6 @@ class TeacherSlotController extends Controller
                 $studentId = $booking->user_id;
                 $refundMinutes = $booking->deducted_minutes;
 
-                // استرجاع الدقائق للطالب
                 if ($refundMinutes > 0) {
                     $userPackage = \App\Models\UserPackage::where('user_id', $studentId)
                         ->where('status', 'active')
@@ -293,24 +291,12 @@ class TeacherSlotController extends Controller
                 }
 
                 $booking->update(['status' => 'cancelled']);
-
-                // حذف جلسة المكالمة
-                \App\Models\CallSession::where('teacher_id', $teacher->id)
-                    ->where('student_id', $studentId)
-                    ->where('started_at', $slotStartDateTime)
-                    ->whereIn('status', ['scheduled', 'initiated'])
-                    ->delete();
             }
 
-            // 5️⃣ تحرير الموعد
-            $slot->update([
-                'is_booked'  => false,
-                'student_id' => null
-            ]);
+            $slot->update(['is_booked' => false]);
 
             \Illuminate\Support\Facades\DB::commit();
 
-            // 6️⃣ إرسال الإشعارات (خارج الترانزاكشن)
             if ($studentId) {
                 $this->notifyStudentCancellation($studentId, $teacherUser->name, $slot, $refundMinutes);
             }
@@ -327,6 +313,7 @@ class TeacherSlotController extends Controller
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء الإلغاء.'], 500);
         }
     }
+
     private function notifyStudentCancellation($studentId, $teacherName, $slot, $refundMinutes)
     {
         try {

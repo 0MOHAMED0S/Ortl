@@ -187,7 +187,7 @@ class PrivateCallController extends Controller
             ]
         ]);
     }
-public function endCall(Request $request, $callId)
+    public function endCall(Request $request, $callId)
     {
         $call = CallSession::findOrFail($callId);
 

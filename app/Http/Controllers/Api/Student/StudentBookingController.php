@@ -196,11 +196,10 @@ class StudentBookingController extends Controller
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء جلب السجل.'], 500);
         }
     }
-    public function joinBookedSession(Request $request)
+public function joinBookedSession(Request $request)
     {
-        // 1. التحقق الأولي من المدخلات
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'call_session_id' => 'required|exists:call_sessions,id'
+            'call_session_id' => 'required|exists:slot_bookings,id'
         ], [
             'call_session_id.required' => 'معرف الجلسة مطلوب.',
             'call_session_id.exists'   => 'عذراً، هذه الجلسة غير موجودة في سجلاتنا.'
@@ -213,31 +212,20 @@ class StudentBookingController extends Controller
         $user = auth()->user();
 
         try {
-            // 2. جلب البيانات مع العلاقات اللازمة
-            $call = CallSession::with('teacher.user')->findOrFail($request->call_session_id);
+            $booking = \App\Models\SlotBooking::with('slot.teacher.user')->findOrFail($request->call_session_id);
+            $slot = $booking->slot;
 
-            // 3. سلسلة التحققات الأمنية والزمنية (Guard Clauses)
-
-            // التحقق من الملكية
-            if ($call->student_id !== $user->id) {
+            if ($booking->user_id !== $user->id) {
                 return response()->json(['status' => false, 'message' => 'غير مصرح لك بالدخول إلى هذه الجلسة.'], 403);
             }
 
-            // التحقق من نوع القناة
-            if (!str_contains($call->channel_name, 'scheduled')) {
-                return response()->json(['status' => false, 'message' => 'هذا المسار مخصص للمواعيد المجدولة فقط.'], 400);
+            if (in_array($booking->status, ['completed', 'cancelled', 'missed'])) {
+                return response()->json(['status' => false, 'message' => 'انتهت هذه الجلسة بالفعل ولا يمكن الانضمام إليها.'], 400);
             }
 
-            // التحقق من حالة الجلسة
-            if ($call->status === 'ended') {
-                return response()->json(['status' => false, 'message' => 'انتهت هذه الجلسة بالفعل ولا يمكن الانضمام إليها مجدداً.'], 400);
-            }
+            $now = \Carbon\Carbon::now();
+            $startTime = \Carbon\Carbon::parse($slot->date . ' ' . $slot->start_time);
 
-            // 4. التحقق من الوقت (السيناريو الذي طلبته)
-            $now = Carbon::now();
-            $startTime = Carbon::parse($call->started_at);
-
-            // إذا كان الموعد لم يحن بعد (أكثر من 5 دقائق متبقية)
             if ($now->lessThan($startTime->copy()->subMinutes(5))) {
                 $waitMinutes = $now->diffInMinutes($startTime);
                 return response()->json([
@@ -247,37 +235,35 @@ class StudentBookingController extends Controller
                         'start_time' => $startTime->format('h:i A'),
                         'wait_minutes' => $waitMinutes - 5
                     ]
-                ], 425); // 425 Too Early
+                ], 425);
             }
 
-            // 5. تحديث حالة الجلسة وتوليد التوكن
-            if (in_array($call->status, ['initiated', 'scheduled'])) {
-                $call->update(['status' => 'ongoing']);
+            // تسجيل وقت دخول الطالب للمرة الأولى (لحفظ الحقوق)
+            if (is_null($booking->student_joined_at)) {
+                $booking->update(['student_joined_at' => $now]);
             }
 
-            $token = $this->agoraService->generateToken($call->channel_name, $user->id, 'publisher');
+            if ($booking->status === 'scheduled') {
+                $booking->update(['status' => 'ongoing']);
+            }
 
-            // 6. إرسال الإشعارات (في كتلة منفصلة لضمان عدم توقف العملية في حال فشل الإشعار)
-            $this->notifyTeacherOfJoin($call, $user->name);
+            $token = $this->agoraService->generateToken($booking->channel_name, $user->id, 'publisher');
 
-            // 7. الرد النهائي الناجح
+            $this->notifyTeacherOfJoin($booking, $user->name);
+
             return response()->json([
                 'status'  => true,
                 'message' => 'تم الاتصال بالخادم، جاري دخول الغرفة..',
                 'data'    => [
-                    'call_session_id' => $call->id,
-                    'channel_name'    => $call->channel_name,
+                    'call_session_id' => $booking->id,
+                    'channel_name'    => $booking->channel_name,
                     'agora_token'     => $token,
                     'uid'             => (int) $user->id,
-                    'teacher_name'    => optional($call->teacher->user)->name
+                    'teacher_name'    => optional(optional($slot->teacher)->user)->name
                 ]
             ], 200);
         } catch (\Exception $e) {
-            Log::error('Professional Join Session Error: ' . $e->getMessage(), [
-                'user_id' => $user->id,
-                'call_id' => $request->call_session_id
-            ]);
-
+            \Illuminate\Support\Facades\Log::error('Professional Join Session Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ تقني أثناء محاولة الانضمام، يرجى المحاولة مرة أخرى.',
@@ -286,21 +272,18 @@ class StudentBookingController extends Controller
         }
     }
 
-    /**
-     * دالة فرعية للتعامل مع إشعارات المعلم لضمان نظافة الكود
-     */
-    private function notifyTeacherOfJoin($call, $studentName)
+    private function notifyTeacherOfJoin($booking, $studentName)
     {
         try {
-            $teacherUser = $call->teacher->user;
+            $teacherUser = optional($booking->slot->teacher)->user;
             if ($teacherUser) {
                 $notificationData = [
-                    'call_session_id' => $call->id,
-                    'channel_name'    => $call->channel_name,
+                    'call_session_id' => $booking->id,
+                    'channel_name'    => $booking->channel_name,
                     'student_name'    => $studentName,
                 ];
 
-                broadcast(new \App\Events\StudentJoinedSession($call->teacher_id, $notificationData));
+                broadcast(new \App\Events\StudentJoinedSession($booking->slot->teacher_id, $notificationData));
 
                 $teacherUser->notify(new \App\Notifications\DynamicNotification(
                     'الطالب في انتظارك ⏳',
@@ -310,50 +293,49 @@ class StudentBookingController extends Controller
                 ));
             }
         } catch (\Exception $e) {
-            Log::warning('Silent Notification Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('Silent Notification Error: ' . $e->getMessage());
         }
     }
-    public function leaveBookedSession(Request $request)
+
+public function leaveBookedSession(Request $request)
     {
         $request->validate([
-            'call_session_id' => 'required|exists:call_sessions,id'
+            'call_session_id' => 'required|exists:slot_bookings,id'
         ]);
 
         $user = auth()->user();
 
         try {
-            $call = CallSession::with('teacher.user')->findOrFail($request->call_session_id);
-            if ($call->student_id !== $user->id) {
+            $booking = \App\Models\SlotBooking::with('slot.teacher.user')->findOrFail($request->call_session_id);
+
+            if ($booking->user_id !== $user->id) {
                 return response()->json(['status' => false, 'message' => 'غير مصرح لك.'], 403);
             }
-            if ($call->status === 'ended') {
+            if (in_array($booking->status, ['completed', 'cancelled', 'missed'])) {
                 return response()->json(['status' => true, 'message' => 'الجلسة منتهية بالفعل.']);
             }
+
             try {
-                $teacherUser = $call->teacher->user;
+                $teacherUser = optional($booking->slot->teacher)->user;
                 if ($teacherUser) {
                     $notificationData = [
-                        'call_session_id' => $call->id,
+                        'call_session_id' => $booking->id,
                         'student_name'    => $user->name,
                         'event'           => 'student_left'
                     ];
-                    broadcast(new \App\Events\StudentLeftSession($call->teacher_id, $notificationData));
+                    broadcast(new \App\Events\StudentLeftSession($booking->slot->teacher_id, $notificationData));
                 }
             } catch (\Exception $e) {
-                Log::error('Teacher Leave Notification Error: ' . $e->getMessage());
+                \Illuminate\Support\Facades\Log::error('Teacher Leave Notification Error: ' . $e->getMessage());
             }
-            // ==========================================
 
             return response()->json([
                 'status'  => true,
                 'message' => 'تمت المغادرة بنجاح. يمكنك العودة للجلسة طالما أنها مستمرة.',
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Leave Booked Session Error: ' . $e->getMessage());
-            return response()->json([
-                'status'  => false,
-                'message' => 'حدث خطأ أثناء محاولة المغادرة.'
-            ], 500);
+            \Illuminate\Support\Facades\Log::error('Leave Booked Session Error: ' . $e->getMessage());
+            return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء محاولة المغادرة.'], 500);
         }
     }
 }

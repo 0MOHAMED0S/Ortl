@@ -203,56 +203,70 @@ class TeacherBookingController extends Controller
             ] : null
         ];
     }
-    public function startBookedSession(Request $request)
+
+public function startBookedSession(Request $request)
     {
-        $request->validate(['call_session_id' => 'required|exists:call_sessions,id']);
+        $request->validate(['call_session_id' => 'required|exists:slot_bookings,id']);
         $user = auth()->user();
 
         try {
-            $call = CallSession::with('teacher')->findOrFail($request->call_session_id);
+            $booking = \App\Models\SlotBooking::with('slot.teacher')->findOrFail($request->call_session_id);
+            $slot = $booking->slot;
 
-            if ($call->teacher->user_id !== $user->id) {
+            if ($slot->teacher->user_id !== $user->id) {
                 return response()->json(['status' => false, 'message' => 'غير مصرح لك.'], 403);
             }
 
-            if ($call->status === 'ended') {
+            if (in_array($booking->status, ['completed', 'cancelled', 'missed'])) {
                 return response()->json(['status' => false, 'message' => 'هذه المكالمة انتهت بالفعل.'], 400);
             }
-            if (Carbon::now()->addMinutes(5)->lessThan(Carbon::parse($call->started_at))) {
+
+            $startTime = \Carbon\Carbon::parse($slot->date . ' ' . $slot->start_time);
+            if (\Carbon\Carbon::now()->addMinutes(5)->lessThan($startTime)) {
                 return response()->json(['status' => false, 'message' => 'لا يمكنك بدء الجلسة الآن، انتظر حتى يحين الموعد.'], 400);
             }
 
-            $token = $this->agoraService->generateToken($call->channel_name, $user->id, 'publisher');
+            $token = $this->agoraService->generateToken($booking->channel_name, $user->id, 'publisher');
             $resourceId = null;
             $sid = null;
-            if (empty($call->agora_sid)) {
+
+            if (empty($booking->agora_sid)) {
                 $recorderUid = 999999;
                 $recorderToken = $this->agoraService->generateToken(
-                    $call->channel_name,
+                    $booking->channel_name,
                     $recorderUid,
                     'publisher'
                 );
-                $resourceId = $this->agoraService->acquire($call->channel_name, $recorderUid);
+                $resourceId = $this->agoraService->acquire($booking->channel_name, $recorderUid);
                 if ($resourceId) {
-                    $sid = $this->agoraService->start($resourceId, $call->channel_name, $recorderToken, $recorderUid);
+                    $sid = $this->agoraService->start($resourceId, $booking->channel_name, $recorderToken, $recorderUid);
                     if (!$sid) {
-                        Log::error("Agora Recording Start Failed for Scheduled Call ID: {$call->id}");
+                        \Illuminate\Support\Facades\Log::error("Agora Recording Start Failed for Scheduled Call ID: {$booking->id}");
                     }
                 } else {
-                    Log::error("Agora Recording Acquire Failed for Scheduled Call ID: {$call->id}");
+                    \Illuminate\Support\Facades\Log::error("Agora Recording Acquire Failed for Scheduled Call ID: {$booking->id}");
                 }
             }
-            $call->update([
+
+            $updateData = [
                 'status' => 'ongoing',
-                'agora_resource_id' => $resourceId ?? $call->agora_resource_id,
-                'agora_sid' => $sid ?? $call->agora_sid,
-            ]);
+                'agora_resource_id' => $resourceId ?? $booking->agora_resource_id,
+                'agora_sid' => $sid ?? $booking->agora_sid,
+            ];
+
+            // تسجيل دخول المعلم
+            if (is_null($booking->teacher_joined_at)) {
+                $updateData['teacher_joined_at'] = \Carbon\Carbon::now();
+            }
+
+            $booking->update($updateData);
+
             try {
-                $student = \App\Models\User::find($call->student_id);
+                $student = \App\Models\User::find($booking->user_id);
                 if ($student) {
                     $notificationData = [
-                        'call_session_id' => $call->id,
-                        'channel_name'    => $call->channel_name,
+                        'call_session_id' => $booking->id,
+                        'channel_name'    => $booking->channel_name,
                         'teacher_name'    => $user->name,
                     ];
 
@@ -266,91 +280,91 @@ class TeacherBookingController extends Controller
                     ));
                 }
             } catch (\Exception $e) {
-                Log::error('Student Notify Error (Start Session): ' . $e->getMessage());
+                \Illuminate\Support\Facades\Log::error('Student Notify Error (Start Session): ' . $e->getMessage());
             }
+
             return response()->json([
                 'status' => true,
                 'data' => [
                     'token' => $token,
-                    'channel' => $call->channel_name,
+                    'channel' => $booking->channel_name,
                     'uid' => $user->id,
                     'is_recording' => !empty($sid)
                 ]
             ]);
         } catch (\Throwable $e) {
-            Log::error('Start Booked Session Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Start Booked Session Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'خطأ في بدء الجلسة.'], 500);
         }
     }
-    public function endBookedSession(Request $request)
+public function endBookedSession(Request $request)
     {
-        $request->validate(['call_session_id' => 'required|exists:call_sessions,id'], [
+        $request->validate(['call_session_id' => 'required|exists:slot_bookings,id'], [
             'call_session_id.required' => 'معرف الجلسة مطلوب.',
             'call_session_id.exists'   => 'الجلسة غير موجودة.'
         ]);
 
         $user = auth()->user();
 
-        DB::beginTransaction();
+        \Illuminate\Support\Facades\DB::beginTransaction();
         try {
-            $call = CallSession::with('teacher')->lockForUpdate()->findOrFail($request->call_session_id);
-            if ($call->teacher->user_id !== $user->id) {
+            $booking = \App\Models\SlotBooking::with('slot.teacher')->lockForUpdate()->findOrFail($request->call_session_id);
+            $slot = $booking->slot;
+
+            if ($slot->teacher->user_id !== $user->id) {
                 return response()->json(['status' => false, 'message' => 'غير مصرح لك بإنهاء هذه الجلسة.'], 403);
             }
 
-            if ($call->status === 'ended') {
+            if ($booking->status === 'completed') {
                 return response()->json(['status' => true, 'message' => 'هذه الجلسة منتهية مسبقاً.']);
             }
 
-            $now = Carbon::now();
-            $actualDuration = (int) ceil(Carbon::parse($call->started_at)->diffInMinutes($now));
-            $recordingUrl = $call->recording_url;
+            $now = \Carbon\Carbon::now();
+            $startTime = \Carbon\Carbon::parse($booking->started_at ?? $slot->date . ' ' . $slot->start_time);
+            $actualDuration = (int) ceil($startTime->diffInMinutes($now));
 
-            if (!empty($call->agora_sid) && !empty($call->agora_resource_id)) {
+            $recordingUrl = $booking->recording_url;
+
+            if (!empty($booking->agora_sid) && !empty($booking->agora_resource_id)) {
                 try {
                     $recorderUid = 999999;
-                    $fileName = $this->agoraService->stop(
-                        $call->agora_resource_id,
-                        $call->agora_sid,
-                        $call->channel_name,
+                    $this->agoraService->stop(
+                        $booking->agora_resource_id,
+                        $booking->agora_sid,
+                        $booking->channel_name,
                         $recorderUid
                     );
 
-                    if ($fileName) {
-                        $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL') ?? "https://" . env('AGORA_STORAGE_ENDPOINT') . "/" . env('AGORA_STORAGE_BUCKET');
-                        $recordingUrl = rtrim($publicUrl, '/') . '/' . ltrim($fileName, '/');
+                    $expectedFileName = "records/sessions/{$booking->agora_sid}_{$booking->channel_name}.m3u8";
+                    $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL');
+
+                    if (!empty($publicUrl)) {
+                        $recordingUrl = rtrim($publicUrl, '/') . '/' . $expectedFileName;
+                    } else {
+                        $endpoint = env('AGORA_STORAGE_ENDPOINT');
+                        $bucket   = env('AGORA_STORAGE_BUCKET');
+                        $cleanEndpoint = preg_replace('#^https?://#', '', $endpoint);
+                        $recordingUrl = "https://{$cleanEndpoint}/{$bucket}/{$expectedFileName}";
                     }
                 } catch (\Exception $e) {
-                    Log::error("Agora Stop Recording Error: " . $e->getMessage());
+                    \Illuminate\Support\Facades\Log::error("Agora Stop Recording Error: " . $e->getMessage());
                 }
             }
 
-            $call->update([
+            $booking->update([
                 'ended_at' => $now,
-                'duration_minutes' => $actualDuration,
-                'status' => 'ended',
+                'actual_duration' => $actualDuration,
+                'status' => 'completed',
                 'recording_url' => $recordingUrl
             ]);
 
-            $slot = TeacherSlot::where('teacher_id', $call->teacher_id)
-                ->where('date', Carbon::parse($call->started_at)->toDateString())
-                ->where('start_time', Carbon::parse($call->started_at)->toTimeString())
-                ->first();
+            $slot->teacher->increment('minutes', $booking->deducted_minutes);
+            \Illuminate\Support\Facades\Log::info("Session ended: {$booking->deducted_minutes} minutes added to teacher {$slot->teacher_id}");
 
-            if ($slot) {
-                $booking = SlotBooking::where('teacher_slot_id', $slot->id)
-                    ->where('status', 'scheduled')
-                    ->first();
+            \Illuminate\Support\Facades\DB::commit();
 
-                if ($booking) {
-                    $booking->update(['status' => 'completed']);
-                    $call->teacher->increment('minutes', $booking->deducted_minutes);
-                    Log::info("Session ended: {$booking->deducted_minutes} minutes added to teacher {$call->teacher_id}");
-                }
-            }
+            $this->notifyStudentSessionEnded($booking, $user->name, $actualDuration);
 
-            DB::commit();
-            $this->notifyStudentSessionEnded($call, $user->name, $actualDuration);
             return response()->json([
                 'status' => true,
                 'message' => 'تم إنهاء الجلسة بنجاح وتوثيق أرباحك.',
@@ -360,18 +374,19 @@ class TeacherBookingController extends Controller
                 ]
             ]);
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('End Session Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('End Session Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'حدث خطأ تقني أثناء إنهاء الجلسة.'], 500);
         }
     }
-    private function notifyStudentSessionEnded($call, $teacherName, $duration)
+
+    private function notifyStudentSessionEnded($booking, $teacherName, $duration)
     {
         try {
-            $student = \App\Models\User::find($call->student_id);
+            $student = \App\Models\User::find($booking->user_id);
             if ($student) {
                 $data = [
-                    'call_session_id' => $call->id,
+                    'call_session_id' => $booking->id,
                     'duration' => $duration,
                     'teacher_name' => $teacherName,
                 ];
@@ -384,7 +399,8 @@ class TeacherBookingController extends Controller
                 ));
             }
         } catch (\Exception $e) {
-            Log::error('Notification Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Notification Error: ' . $e->getMessage());
         }
     }
+
 }

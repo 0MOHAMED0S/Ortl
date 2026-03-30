@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
+Schedule::command('bookings:check-missed')->everyTenMinutes()->withoutOverlapping();
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
@@ -42,3 +43,4 @@ Schedule::call(function () {
         Log::error("Cron Job Error (Expired Sessions): " . $e->getMessage());
     }
 })->everyFifteenMinutes();
+
