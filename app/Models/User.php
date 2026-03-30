@@ -36,7 +36,7 @@ class User extends Authenticatable
     ];
 
     /* =======================
-       Role Helpers (Clean)
+        Role Helpers (Clean)
     ======================== */
 
     public function isAdmin(): bool
@@ -57,12 +57,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(Teacher::class, 'user_id');
     }
-
     public function studentProfile()
     {
         return $this->hasOne(Student::class);
     }
-    // Get the Original Application Data
     public function teacherApplication()
     {
         return $this->hasOneThrough(Teacher_application::class, Teacher::class, 'user_id', 'id', 'id', 'teacher_application_id');
@@ -78,12 +76,10 @@ class User extends Authenticatable
     }
     public function teacher()
     {
-        // هذا سيعمل كاختصار لـ teacherProfile
         return $this->hasOne(Teacher::class, 'user_id');
     }
     public function country()
     {
-        // هذه العلاقة تعني: ابحث عن الدولة من خلال جدول الطلاب
         return $this->hasOneThrough(
             Country::class,
             Student::class,

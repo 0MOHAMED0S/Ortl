@@ -70,17 +70,48 @@ class StudentTeacherController extends Controller
 
         return $stats;
     }
-    public function index(Request $request)
+
+
+
+
+public function index(Request $request)
     {
         try {
             $perPage = $request->get('per_page', 10);
 
-            $teachersPaginator = Teacher_application::where('status', 'approved')
-                ->with([
+            // 1. جلب بيانات الطالب الحالي
+            $user = auth()->user();
+            $student = $user ? $user->student : null;
+
+            // 2. تجهيز الاستعلام الأساسي
+            $query = Teacher_application::where('status', 'approved');
+
+            // 3. تطبيق منطق العمر والجنس (Business Logic)
+            if ($student) {
+                // إذا كان العمر مسجلاً (ويفترض أنك تحفظه كرقم في age_group أو أي حقل آخر، سنفترض أنه رقم أو يمكن تحويله)
+                // يرجى تعديل 'age_group' إلى الحقل الفعلي الذي يخزن العمر كـ Integer إذا لزم الأمر
+                $age = (int) $student->age_group;
+                $studentGender = strtolower($student->gender); // 'male' or 'female'
+
+                // القاعدة 1: إذا كان العمر 10 أو أقل -> نعرض كل المعلمين (لا نضيف شرط على الجنس)
+                if ($age > 0 && $age <= 10) {
+                    // لا تفعل شيئاً (اعرض الكل)
+                }
+                // القاعدة 2: إذا كان العمر أكبر من 10، أو لم يتم إدخال عمر (0) -> الفلترة حسب الجنس
+                else {
+                    if ($studentGender === 'female' || $studentGender === 'girl') {
+                        $query->where('gender', 'female');
+                    } elseif ($studentGender === 'male' || $studentGender === 'boy') {
+                        $query->where('gender', 'male');
+                    }
+                }
+            }
+
+            // 4. استكمال الاستعلام مع العلاقات والـ Pagination
+            $teachersPaginator = $query->with([
                     'profile' => function ($query) {
                         $query->withAvg('ratings', 'rating')
                             ->withCount('ratings')
-                            // 🚀 جلب التقييمات مع بيانات الطالب لتجنب بطء الاستعلامات
                             ->with('ratings.user');
                     },
                     'profile.user',
@@ -89,6 +120,7 @@ class StudentTeacherController extends Controller
                 ->latest()
                 ->paginate($perPage);
 
+            // 5. تحويل البيانات (Transformer) - لم يتم تغيير أي شيء هنا
             $teachersPaginator->getCollection()->transform(function ($application) {
                 $profile = $application->profile;
                 $user = optional($profile)->user;
@@ -101,7 +133,7 @@ class StudentTeacherController extends Controller
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
-                // 🚀 استدعاء الإحصائيات بسطر واحد فقط
+                // نفترض أن دالة getTeacherStats موجودة في الكنترولر
                 $stats = $this->getTeacherStats($teacherId);
 
                 return [
@@ -126,7 +158,6 @@ class StudentTeacherController extends Controller
                     'specialties'      => $application->tracks->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
                     'about'            => $application->ijazas_text,
 
-                    // 🌟 إضافة تفاصيل التقييمات هنا تماماً كما في دالة show
                     'reviews_details'  => optional($profile)->ratings ? $profile->ratings->map(function ($rate) {
                         return [
                             'id'           => $rate->id,
@@ -155,11 +186,15 @@ class StudentTeacherController extends Controller
                     ]
                 ]
             ]);
-        } catch (Exception $e) {
-            Log::error('Index Teachers Error: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Index Teachers Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
+
+
+
+
     public function show($id)
     {
         try {

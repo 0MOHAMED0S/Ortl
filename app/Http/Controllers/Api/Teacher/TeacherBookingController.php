@@ -402,5 +402,4 @@ public function endBookedSession(Request $request)
             \Illuminate\Support\Facades\Log::error('Notification Error: ' . $e->getMessage());
         }
     }
-
 }
