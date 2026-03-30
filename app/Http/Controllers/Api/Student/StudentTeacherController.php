@@ -517,13 +517,18 @@ public function cancelBookingByStudent(Request $request)
             return response()->json(['status' => false, 'message' => 'حدث خطأ تقني أثناء محاولة إلغاء الحجز، يرجى المحاولة لاحقاً.'], 500);
         }
     }
+
     public function featuredTeachers(Request $request)
     {
         try {
             $perPage = $request->query('per_page', 5);
             $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
 
-            // جلب طلبات المعلمين المعتمدين الذين لديهم ملفات شخصية مكتملة
+            // 1. جلب بيانات الطالب الحالي لتطبيق الشروط
+            $user = auth()->user();
+            $student = $user ? $user->student : null;
+
+            // 2. بناء الاستعلام الأساسي للمعلمين المعتمدين والذين يمتلكون بروفايل
             $teachersQuery = Teacher_application::where('status', 'approved')
                 ->whereHas('profile')
                 ->with([
@@ -534,17 +539,36 @@ public function cancelBookingByStudent(Request $request)
                     },
                     'profile.user',
                     'tracks'
-                ])
-                ->get()
-                // الترتيب حسب متوسط التقييم أولاً، ثم سنوات الخبرة
+                ]);
+
+            // 3. تطبيق منطق العمر والجنس (نفس منطق دالة index)
+            if ($student) {
+                // استخراج العمر (ويفترض أنه رقم أو نص يمثل رقماً)
+                $age = (int) $student->age_group;
+                $studentGender = strtolower($student->gender); // 'male' أو 'female'
+
+                // إذا كان العمر أكبر من 10، أو لم يتم إدخال عمر (صفر) -> نقوم بالفلترة حسب الجنس
+                if (!($age > 0 && $age <= 10)) {
+                    if ($studentGender === 'female' || $studentGender === 'girl') {
+                        $teachersQuery->where('gender', 'female');
+                    } elseif ($studentGender === 'male' || $studentGender === 'boy') {
+                        $teachersQuery->where('gender', 'male');
+                    }
+                }
+            }
+
+            // 4. تنفيذ الاستعلام والترتيب بناءً على متوسط التقييم وسنوات الخبرة
+            $allTeachers = $teachersQuery->get()
                 ->sortByDesc(function ($application) {
                     return optional($application->profile)->ratings_avg_rating ?? $application->experience_years ?? 0;
                 })
                 ->values();
 
-            $total = $teachersQuery->count();
-            $paginatedItems = $teachersQuery->slice(($currentPage - 1) * $perPage, $perPage)->values();
+            // 5. عملية تقسيم الصفحات (Pagination) يدوياً
+            $total = $allTeachers->count();
+            $paginatedItems = $allTeachers->slice(($currentPage - 1) * $perPage, $perPage)->values();
 
+            // 6. تشكيل البيانات (Transformation)
             $formattedTeachers = $paginatedItems->map(function ($application) {
                 $profile = $application->profile;
                 $user = optional($profile)->user;
@@ -558,6 +582,7 @@ public function cancelBookingByStudent(Request $request)
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
+                // نفترض وجود هذه الدالة في الـ Controller لحساب الإحصائيات
                 $stats = $this->getTeacherStats($teacherId);
                 $rating = (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', '');
 
@@ -618,7 +643,7 @@ public function cancelBookingByStudent(Request $request)
                 ]
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Featured Teachers Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Featured Teachers Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ تقني أثناء استرجاع بيانات المعلمين المتميزين، يرجى المحاولة لاحقاً.'
