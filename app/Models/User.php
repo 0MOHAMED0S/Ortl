@@ -23,6 +23,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'privacy_agree',
     ];
 
     /**
@@ -99,6 +100,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'privacy_agree' => 'boolean',
         ];
     }
     public function callSessions()

@@ -21,6 +21,10 @@ class CompleteRegistrationRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
 
+            // 🟢 الحقل الجديد للموافقة على سياسة الخصوصية
+            // نستخدم accepted لضمان إرسال ('yes', 'on', '1', or true)
+            'privacy_agree' => ['required', 'accepted'],
+
             // Student Profile Data
             'phone' => ['required', 'string', 'min:6', 'max:20'],
             'country_id' => ['required', 'exists:countries,id'],
@@ -29,7 +33,7 @@ class CompleteRegistrationRequest extends FormRequest
             'professional_status' => ['nullable', 'string', 'max:255'],
             'gender' => ['required', 'in:male,female'],
 
-            // New Profile Photo Field
+            // Profile Photo Field
             'profile_photo_path' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ];
     }
@@ -49,6 +53,10 @@ class CompleteRegistrationRequest extends FormRequest
             'password.min' => 'يجب ألا تقل كلمة المرور عن 8 أحرف.',
             'password.confirmed' => 'تأكيد كلمة المرور غير مطابق.',
 
+            'privacy_agree.required' => 'يجب الموافقة على شروط الاستخدام وسياسة الخصوصية.',
+            'privacy_agree.accepted' => 'يجب الموافقة على شروط الاستخدام وسياسة الخصوصية.',
+
+
             'phone.required' => 'رقم الهاتف مطلوب.',
             'phone.min' => 'رقم الهاتف قصير جدًا.',
             'phone.max' => 'رقم الهاتف طويل جدًا.',
@@ -63,8 +71,6 @@ class CompleteRegistrationRequest extends FormRequest
             'gender.required' => 'النوع مطلوب.',
             'gender.in' => 'يجب أن يكون النوع ذكر أو أنثى.',
 
-            // Profile Photo Messages
-            'profile_photo_path.required' => 'الصورة الشخصية مطلوبة.',
             'profile_photo_path.image' => 'يجب أن يكون الملف المرفوع صورة.',
             'profile_photo_path.mimes' => 'يجب أن تكون الصورة بصيغة: jpeg, png, jpg, gif.',
             'profile_photo_path.max' => 'يجب ألا يتجاوز حجم الصورة 2 ميجابايت.',
