@@ -52,7 +52,6 @@ Route::prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
         Route::post('settings/toggle-registration', [SettingController::class, 'toggleTeacherRegistration'])->name('settings.toggleRegistration');
         Route::post('/teachers/{id}/update-details', [TeacherController::class, 'updateDetails'])->name('teacher.updateDetails');
-
         Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.logout');
 
         Route::resource('tracks', AdminTrackController::class);
@@ -94,7 +93,6 @@ Route::post('/teacher-apply', [TeacherApplicationController::class, 'store'])
     ->name('teacher.apply');
 
 Route::post('/contact-us', [ContactController::class, 'sendEmail'])->name('contact.send');
-
 
 Route::match(['get', 'post'], '/gifts/payment/response', [GiftController::class, 'handleResponse'])->name('web.gifts.payment.response');
 Route::get('/gifts/card/{code}', [GiftController::class, 'showGiftCard'])->name('web.gifts.card.show');

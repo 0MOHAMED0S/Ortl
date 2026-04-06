@@ -22,7 +22,6 @@ class FavoriteController extends Controller
         if (!$teacherId) return $stats;
 
         try {
-            // 1. حساب المكالمات
             $callStudents = DB::table('call_sessions')
                 ->where('teacher_id', $teacherId)
                 ->where('status', 'ended')
@@ -31,7 +30,6 @@ class FavoriteController extends Controller
 
             $stats['calls_count'] = count($callStudents);
 
-            // 2. حساب المواعيد
             $slotStudents = DB::table('slot_bookings')
                 ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
                 ->where('teacher_slots.teacher_id', $teacherId)
@@ -41,7 +39,6 @@ class FavoriteController extends Controller
 
             $stats['slots_count'] = count($slotStudents);
 
-            // 3. حساب الجلسات
             $sessionStudents = [];
             try {
                 $sessionStudents = DB::table('sessions')
@@ -53,7 +50,6 @@ class FavoriteController extends Controller
                 $stats['sessions_count'] = 0;
             }
 
-            // 4. حساب عدد الطلاب الفعليين
             $allUniqueStudents = array_unique(array_merge($callStudents, $slotStudents, $sessionStudents));
             $stats['students_count'] = count($allUniqueStudents);
         } catch (\Exception $e) {
@@ -65,7 +61,6 @@ class FavoriteController extends Controller
     public function toggle(Request $request)
     {
         try {
-            // 1️⃣ Validation
             $validator = Validator::make($request->all(), [
                 'teacher_id' => 'required|exists:teacher_applications,id',
             ], [
@@ -80,8 +75,6 @@ class FavoriteController extends Controller
                     'errors'  => $validator->errors(),
                 ], 422);
             }
-
-            // 2️⃣ جلب ملف الطالب
             $student = $request->user()->studentProfile;
 
             if (!$student) {
@@ -90,8 +83,6 @@ class FavoriteController extends Controller
                     'message' => 'ملف الطالب غير موجود.',
                 ], 404);
             }
-
-            // 3️⃣ Toggle favorite
             $result = $student->favorites()->toggle($request->teacher_id);
 
             $status  = count($result['attached']) > 0 ? 'added' : 'removed';
@@ -130,8 +121,6 @@ class FavoriteController extends Controller
             }
 
             $perPage = $request->query('per_page', 10);
-
-            // جلب المفضلة مع العلاقات والتقييمات المحسوبة
             $favorites = $student->favorites()
                 ->where('status', 'approved')
                 ->with([
@@ -140,7 +129,7 @@ class FavoriteController extends Controller
                             ->withCount('ratings');
                     },
                     'profile.user',
-                    'tracks' // إضافة المسارات (التخصصات) لتوحيد شكل الكارد
+                    'tracks'
                 ])
                 ->paginate($perPage);
 
@@ -156,21 +145,18 @@ class FavoriteController extends Controller
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
-                // 🚀 استدعاء الإحصائيات للمعلم
                 $stats = $this->getTeacherStats($teacherId);
 
                 return [
-                    'id'               => $teacherId, // مهم جداً أن يكون هذا ID المعلم وليس الـ Application
+                    'id'               => $teacherId,
                     'application_id'   => $application->id,
                     'name'             => $name,
                     'photo_url'        => $photoUrl,
                     'is_online'        => (bool) optional($profile)->is_online,
 
-                    // التقييمات المحسوبة
                     'rating'           => (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', ''),
                     'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
 
-                    // إحصائيات المعلم
                     'students_count'   => $stats['students_count'],
                     'calls_count'      => $stats['calls_count'],
                     'slots_count'      => $stats['slots_count'],

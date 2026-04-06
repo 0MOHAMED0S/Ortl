@@ -22,10 +22,10 @@ class NotificationController extends Controller
                     'id'         => $notification->id,
                     'title'      => $data['title'] ?? 'إشعار جديد',
                     'message'    => $data['message'] ?? '',
-                    'type'       => $data['type'] ?? 'general', // لمعرفة نوع الإشعار في الفلاتر (مثل: incoming_call, gift_claimed)
-                    'payload'    => $data['payload'] ?? null,   // البيانات الإضافية (مثل call_id لفتح شاشة المكالمة فوراً)
+                    'type'       => $data['type'] ?? 'general',
+                    'payload'    => $data['payload'] ?? null,
                     'is_read'    => $notification->read_at !== null,
-                    'created_at' => $notification->created_at->diffForHumans(), // مثال: "منذ 5 دقائق"
+                    'created_at' => $notification->created_at->diffForHumans(),
                     'date'       => $notification->created_at->format('Y-m-d'),
                     'time'       => $notification->created_at->format('h:i A'),
                 ];
@@ -48,22 +48,17 @@ class NotificationController extends Controller
         }
     }
 
-    /**
-     * تحديد الإشعارات كمقروءة (إما إشعار واحد أو الكل)
-     */
     public function markAsRead(Request $request): JsonResponse
     {
         try {
             $user = auth()->user();
 
             if ($request->has('notification_id')) {
-                // تحديد إشعار معين كمقروء
                 $notification = $user->notifications()->where('id', $request->notification_id)->first();
                 if ($notification) {
                     $notification->markAsRead();
                 }
             } else {
-                // تحديد جميع الإشعارات كمقروءة
                 $user->unreadNotifications->markAsRead();
             }
 
@@ -71,7 +66,7 @@ class NotificationController extends Controller
                 'status'  => true,
                 'message' => 'تم تحديث حالة الإشعارات بنجاح.',
                 'data'    => [
-                    'unread_count' => $user->unreadNotifications()->count() // نرسل العداد الجديد ليتحدث في أيقونة الجرس 🔔
+                    'unread_count' => $user->unreadNotifications()->count()
                 ]
             ], 200);
         } catch (\Throwable $e) {

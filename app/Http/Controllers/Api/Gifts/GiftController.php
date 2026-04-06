@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Log;
 
 class GiftController extends Controller
 {
-    // 1️⃣ Start Gift Payment
     public function buyGift(Request $request, PayTabsGiftService $payTabsGiftService)
     {
         $request->validate([
@@ -29,8 +28,6 @@ class GiftController extends Controller
         try {
             $user = auth()->user();
             $package = Package::findOrFail($request->package_id);
-
-            // 1. Determine Currency and Price (Regional Logic - Same as your code)
             $country = $user->country;
 
             if ($country && $country->currency_code) {
@@ -41,11 +38,7 @@ class GiftController extends Controller
                 $currency = config('paytabs.currency', 'USD');
                 $price = $package->price;
             }
-
-            // 🚀 التصحيح هنا: تمرير $payTabsGiftService للـ closure بدلاً من الاسم القديم
             return DB::transaction(function () use ($user, $package, $price, $currency, $request, $payTabsGiftService) {
-
-                // 2. Create the Pending Gift Card
                 $giftCard = GiftCard::create([
                     'sender_id'      => $user->id,
                     'package_id'     => $package->id,
@@ -57,8 +50,6 @@ class GiftController extends Controller
                     'payment_status' => 'pending',
                     'status'         => 'active'
                 ]);
-
-                // 3. Create Pending Order (Linked to the Gift Card)
                 $order = Order::create([
                     'user_id'      => $user->id,
                     'package_id'   => $package->id,
@@ -66,14 +57,10 @@ class GiftController extends Controller
                     'amount'       => $price,
                     'currency'     => strtoupper($currency),
                     'status'       => 'pending',
-                    'is_gift'      => true,          // 👈 تمييز أن هذا الطلب هدية
-                    'gift_card_id' => $giftCard->id, // 👈 ربط الطلب بالهدية
+                    'is_gift'      => true,
+                    'gift_card_id' => $giftCard->id,
                 ]);
-
-                // 4. Request Payment from PayTabs
-                // 🚀 التصحيح هنا: استخدام المتغير الصحيح واسم الدالة الصحيحة
                 $payment = $payTabsGiftService->createGiftPayment($order, $user);
-
                 if (isset($payment['redirect_url'])) {
                     return response()->json([
                         'status'      => true,
@@ -82,7 +69,6 @@ class GiftController extends Controller
                         'data'        => $payment
                     ]);
                 }
-
                 return response()->json([
                     'error' => 'فشل في إنشاء طلب الدفع عبر PayTabs',
                     'debug' => $payment
@@ -94,44 +80,31 @@ class GiftController extends Controller
         }
     }
 
-    // 2️⃣ PayTabs Server Callback (IMPORTANT)
     public function handleCallback(Request $request)
     {
         $payload = $request->all();
-
         $orderId = $payload['cartId'] ?? $payload['cart_id'] ?? null;
         $status  = $payload['respStatus'] ?? $payload['payment_result']['response_status'] ?? null;
-
         if ($status === 'A' && $orderId) {
             $order = Order::with('giftCard')->find($orderId);
-
-            // نتحقق من الطلب، وأنه لم يتم الدفع مسبقاً، وأنه طلب (هدية)
             if ($order && $order->status !== 'paid' && $order->is_gift) {
                 DB::transaction(function () use ($order, $payload) {
-
-                    // A. Update the Order Status
                     $order->update([
                         'status' => 'paid',
                         'transaction_id' => $payload['tranRef'] ?? $payload['tran_ref'] ?? null
                     ]);
-
-                    // B. Generate Coupon and Update Gift Card
                     $giftCard = $order->giftCard;
                     if ($giftCard) {
-                        // توليد كود سري مميز للهدية (مثال: GFT-A1B2C3)
                         $couponCode = 'GFT-' . strtoupper(Str::random(6));
-
                         $giftCard->update([
                             'payment_status' => 'paid',
                             'coupon_code'    => $couponCode,
                         ]);
-
                         Log::info("Gift Order #{$order->id} paid successfully. Gift Code generated: {$couponCode}");
                     }
                 });
             }
         }
-
         return response('OK');
     }
 
@@ -140,22 +113,14 @@ class GiftController extends Controller
         $data = $request->all();
         $status  = $data['respStatus'] ?? null;
         $cartId  = $data['cartId'] ?? null;
-
         if ($status === 'A') {
             $order = Order::with('giftCard')->find($cartId);
             $giftCard = $order ? $order->giftCard : null;
-
             if ($giftCard && $giftCard->coupon_code) {
-
                 $couponCode = $giftCard->coupon_code;
-
-                // 🌟 توليد الرابط الذي يعرض البطاقة بكامل بياناتها (يمكن استخدامه في الفرونت اند)
                 $cardLink = route('web.gifts.card.show', ['code' => $couponCode]);
-
-                // رسالة واتساب جاهزة تحتوي على الرابط
                 $whatsappMessage = urlencode("أهديتك باقة دقائق في التطبيق! 🎁 اضغط على الرابط لفتح هديتك واستلامها: \n {$cardLink}");
                 $whatsappLink = "https://wa.me/?text={$whatsappMessage}";
-
                 return response()->json([
                     'status'  => 'success',
                     'message' => 'تمت عملية الدفع بنجاح وتم إنشاء الهدية',
@@ -167,23 +132,16 @@ class GiftController extends Controller
                 ], 200);
             }
         }
-
         return response()->json([
             'status'  => 'error',
             'message' => 'فشلت عملية الدفع أو تم إلغاؤها',
             'received_status' => $status
         ], 400);
     }
-
-    // 🌟 5️⃣ الدالة الجديدة: عرض البطاقة للمستلم (عندما يضغط على رابط الواتساب)
     public function showGiftCard($code)
     {
-        // جلب الهدية مع بيانات المرسل لكي نظهرها في البطاقة
         $giftCard = GiftCard::with('sender')->where('coupon_code', $code)->firstOrFail();
-
-        // هل تم استلامها مسبقاً؟
         $isClaimed = $giftCard->status === 'claimed';
-
         return view('gifts.card_view', compact('giftCard', 'isClaimed'));
     }
 
@@ -202,7 +160,6 @@ class GiftController extends Controller
                 return response()->json(['error' => 'كود الهدية غير صحيح أو غير موجود.'], 404);
             }
 
-            // 🚫 السطر الجديد: منع المُرسل من استلام هديته بنفسه
             if ($giftCard->sender_id === $user->id) {
                 return response()->json(['error' => 'لا يمكنك استلام الهدية التي قمت بإرسالها بنفسك.'], 400);
             }
@@ -215,7 +172,6 @@ class GiftController extends Controller
                 return response()->json(['error' => 'عذراً، تم استخدام هذه الهدية مسبقاً.'], 400);
             }
 
-            // (اختياري) التأكد من أن المستلم ليس لديه باقة نشطة من نفس النوع
             $hasActive = UserPackage::where('user_id', $user->id)
                 ->where('package_id', $giftCard->package_id)
                 ->where('status', 'active')
@@ -227,16 +183,13 @@ class GiftController extends Controller
             }
 
             DB::transaction(function () use ($giftCard, $user) {
-                // A. تحديث الهدية لتصبح مستلمة ومحترقة
                 $giftCard->update([
                     'status'             => 'claimed',
                     'claimed_by_user_id' => $user->id,
                     'claimed_at'         => now(),
                 ]);
 
-                // B. تفعيل باقة المستلم (بنفس طريقتك الأصلية)
                 $package = Package::find($giftCard->package_id);
-
                 UserPackage::create([
                     'user_id'           => $user->id,
                     'package_id'        => $package->id,
@@ -245,7 +198,6 @@ class GiftController extends Controller
                     'status'            => 'active'
                 ]);
 
-                // C. 🚀 إرسال إشعار للمرسل بأن هديته تم قبولها
                 if ($giftCard->sender) {
                     $giftCard->sender->notify(new DynamicNotification(
                         'تم قبول هديتك! 🎉',
@@ -274,7 +226,7 @@ class GiftController extends Controller
     {
         try {
             $user = auth()->user();
-            $sentGifts = GiftCard::with('claimer:id,name') // جلب بيانات المستلم الفعلي إن وُجد
+            $sentGifts = GiftCard::with('claimer:id,name')
                 ->where('sender_id', $user->id)
                 ->where('payment_status', 'paid')
                 ->orderBy('created_at', 'desc')
@@ -282,18 +234,17 @@ class GiftController extends Controller
                 ->map(function ($gift) {
                     return [
                         'id'             => $gift->id,
-                        'recipient_name' => $gift->recipient_name, // الاسم الذي كتبه عند الشراء
-                        'claimed_by'     => $gift->claimer ? $gift->claimer->name : null, // من استلمها فعلياً بالتطبيق
+                        'recipient_name' => $gift->recipient_name,
+                        'claimed_by'     => $gift->claimer ? $gift->claimer->name : null,
                         'minutes'        => $gift->minutes,
                         'occasion'       => $gift->occasion,
                         'coupon_code'    => $gift->coupon_code,
-                        'status'         => $gift->status, // 'active' (لم تُستلم بعد) أو 'claimed' (تم استلامها)
+                        'status'         => $gift->status,
                         'created_at'     => $gift->created_at->format('Y-m-d h:i A'),
-                        'share_link'     => url("/gifts/card/" . $gift->coupon_code), // رابط المشاركة لو أراد نسخه مجدداً
+                        'share_link'     => url("/gifts/card/" . $gift->coupon_code),
                     ];
                 });
-            // 🎁 2. الهدايا التي استلمها هذا الطالب (Received Gifts)
-            $receivedGifts = GiftCard::with('sender:id,name') // جلب بيانات الصديق الذي أرسلها
+            $receivedGifts = GiftCard::with('sender:id,name')
                 ->where('claimed_by_user_id', $user->id)
                 ->orderBy('claimed_at', 'desc')
                 ->get()

@@ -70,10 +70,6 @@ class StudentTeacherController extends Controller
 
         return $stats;
     }
-
-
-
-
 public function index(Request $request)
     {
         try {
@@ -191,10 +187,6 @@ public function index(Request $request)
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
-
-
-
-
     public function show($id)
     {
         try {
@@ -517,7 +509,6 @@ public function cancelBookingByStudent(Request $request)
             return response()->json(['status' => false, 'message' => 'حدث خطأ تقني أثناء محاولة إلغاء الحجز، يرجى المحاولة لاحقاً.'], 500);
         }
     }
-
     public function featuredTeachers(Request $request)
     {
         try {
@@ -650,19 +641,40 @@ public function cancelBookingByStudent(Request $request)
             ], 500);
         }
     }
-    public function getTeachersByTrack(Request $request, $trackId)
+public function getTeachersByTrack(Request $request, $trackId)
     {
         try {
             $perPage = $request->query('per_page', 10);
             $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
 
-            // 1. جلب طلبات المعلمين المعتمدين المرتبطين بـ track_id معين
+            // 1. جلب بيانات الطالب الحالي لتطبيق الشروط
+            $user = auth()->user();
+            $student = $user ? $user->student : null;
+
+            // 2. بناء الاستعلام الأساسي المرتبط بالمسار (Track)
             $teachersQuery = Teacher_application::where('status', 'approved')
                 ->whereHas('tracks', function ($query) use ($trackId) {
                     $query->where('tracks.id', $trackId);
                 })
-                ->whereHas('profile') // التأكد من وجود ملف شخصي (معلم معتمد نهائياً)
-                ->with([
+                ->whereHas('profile'); // التأكد من وجود ملف شخصي
+
+            // 3. تطبيق منطق العمر والجنس
+            if ($student) {
+                $age = (int) $student->age_group;
+                $studentGender = strtolower($student->gender); // 'male' أو 'female'
+
+                // إذا كان العمر أكبر من 10، أو لم يتم إدخال عمر (صفر) -> يتم الفلترة حسب الجنس
+                if (!($age > 0 && $age <= 10)) {
+                    if ($studentGender === 'female' || $studentGender === 'girl') {
+                        $teachersQuery->where('gender', 'female');
+                    } elseif ($studentGender === 'male' || $studentGender === 'boy') {
+                        $teachersQuery->where('gender', 'male');
+                    }
+                }
+            }
+
+            // 4. استكمال الاستعلام وجلب البيانات مع الترتيب
+            $allTeachers = $teachersQuery->with([
                     'profile' => function ($query) {
                         $query->withAvg('ratings', 'rating')
                             ->withCount('ratings')
@@ -678,12 +690,12 @@ public function cancelBookingByStudent(Request $request)
                 })
                 ->values();
 
-            $total = $teachersQuery->count();
+            $total = $allTeachers->count();
 
-            // 2. تقسيم النتائج (Manual Pagination) لضمان عمل الترتيب البرمجي بشكل صحيح
-            $paginatedItems = $teachersQuery->slice(($currentPage - 1) * $perPage, $perPage)->values();
+            // 5. تقسيم النتائج (Manual Pagination) لضمان عمل الترتيب البرمجي بشكل صحيح
+            $paginatedItems = $allTeachers->slice(($currentPage - 1) * $perPage, $perPage)->values();
 
-            // 3. تنسيق البيانات (نفس التنسيق الموحد في التطبيق)
+            // 6. تنسيق البيانات (نفس التنسيق الموحد في التطبيق بدون أي تغيير)
             $formattedTeachers = $paginatedItems->map(function ($application) {
                 $profile = $application->profile;
                 $user = optional($profile)->user;
@@ -719,7 +731,7 @@ public function cancelBookingByStudent(Request $request)
                 ]
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Filter Teachers by Track Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Filter Teachers by Track Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء تصفية المعلمين حسب المسار.'

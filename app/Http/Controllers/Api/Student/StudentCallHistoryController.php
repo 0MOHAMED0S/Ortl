@@ -7,9 +7,6 @@ use App\Models\CallSession;
 
 class StudentCallHistoryController extends Controller
 {
-    /**
-     * Get list of all calls made by the student with rating summary
-     */
     public function index()
     {
         $studentId = auth()->id();
@@ -51,9 +48,6 @@ class StudentCallHistoryController extends Controller
         ]);
     }
 
-    /**
-     * Get specific details of a single call including full rating details
-     */
     public function show($id)
     {
         $studentId = auth()->id();

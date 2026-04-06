@@ -25,13 +25,13 @@ class PrivateCallController extends Controller
     private function getActivePackages($userId, $lockForUpdate = false)
     {
         $query = UserPackage::where('user_id', $userId)
-            ->where('status', 'active') // Strict check
+            ->where('status', 'active')
             ->where('remaining_minutes', '>', 0)
             ->where(function ($q) {
                 $q->where('expires_at', '>', now())
                     ->orWhereNull('expires_at');
             })
-            ->orderByRaw('expires_at IS NULL ASC, expires_at ASC'); // Non-null (expiring soon) first
+            ->orderByRaw('expires_at IS NULL ASC, expires_at ASC');
 
         if ($lockForUpdate) {
             $query->lockForUpdate();
@@ -72,10 +72,10 @@ class PrivateCallController extends Controller
         }
         $isBusyInCall = CallSession::where('teacher_id', $teacher->id)
             ->where(function ($query) {
-                $query->where('status', 'live') // إذا كانت الحالة عندك ongoing استخدمها بدلاً من live
+                $query->where('status', 'live')
                     ->orWhere(function ($q) {
                         $q->where('status', 'initiated')
-                            ->where('created_at', '>=', now()->subMinutes(2)); // حماية المعلم من التعليق للأبد
+                            ->where('created_at', '>=', now()->subMinutes(2));
                     });
             })
             ->exists();
@@ -208,25 +208,19 @@ class PrivateCallController extends Controller
         if (!empty($call->agora_sid) && !empty($call->agora_resource_id)) {
             $recorderUid = 999999;
 
-            // نقوم بإيقاف التسجيل في Agora
             $this->agoraService->stop(
                 $call->agora_resource_id,
                 $call->agora_sid,
                 $call->channel_name,
                 $recorderUid
             );
-
-            // 🟢 بناء مسار الملف الصحيح والمضمون (بدون الاعتماد على دالة stop التي تعيد unknown.mp4)
-            // مسار Agora المعتمد هو: Prefix / SID _ ChannelName .m3u8
             $expectedFileName = "records/sessions/{$call->agora_sid}_{$call->channel_name}.m3u8";
 
             $publicUrl = env('CLOUDFLARE_R2_PUBLIC_URL');
 
             if (!empty($publicUrl)) {
-                // تكوين الرابط المباشر من Cloudflare R2
                 $recordingUrl = rtrim($publicUrl, '/') . '/' . $expectedFileName;
             } else {
-                // Fallback في حال لم يتم تحديد Cloudflare R2
                 $endpoint = env('AGORA_STORAGE_ENDPOINT');
                 $bucket   = env('AGORA_STORAGE_BUCKET');
                 $cleanEndpoint = preg_replace('#^https?://#', '', $endpoint); // تنظيف الرابط
@@ -268,7 +262,7 @@ class PrivateCallController extends Controller
                 'ended_at'         => $now,
                 'duration_minutes' => $actualDeduction,
                 'status'           => 'ended',
-                'recording_url'    => $recordingUrl // 🟢 تخزين الرابط الصحيح هنا
+                'recording_url'    => $recordingUrl
             ]);
 
             DB::commit();
@@ -281,7 +275,7 @@ class PrivateCallController extends Controller
                 'data'    => [
                     'call_duration_minutes'     => $actualDeduction,
                     'student_remaining_minutes' => (int) $studentRemainingMinutes,
-                    'recording_url'             => $recordingUrl // 🟢 سيرجع الرابط الصحيح الآن
+                    'recording_url'             => $recordingUrl
                 ]
             ]);
         } catch (\Throwable $e) {

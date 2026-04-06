@@ -196,6 +196,7 @@ class StudentBookingController extends Controller
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء جلب السجل.'], 500);
         }
     }
+    
 public function joinBookedSession(Request $request)
     {
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
@@ -237,8 +238,6 @@ public function joinBookedSession(Request $request)
                     ]
                 ], 425);
             }
-
-            // تسجيل وقت دخول الطالب للمرة الأولى (لحفظ الحقوق)
             if (is_null($booking->student_joined_at)) {
                 $booking->update(['student_joined_at' => $now]);
             }
@@ -246,11 +245,8 @@ public function joinBookedSession(Request $request)
             if ($booking->status === 'scheduled') {
                 $booking->update(['status' => 'ongoing']);
             }
-
             $token = $this->agoraService->generateToken($booking->channel_name, $user->id, 'publisher');
-
             $this->notifyTeacherOfJoin($booking, $user->name);
-
             return response()->json([
                 'status'  => true,
                 'message' => 'تم الاتصال بالخادم، جاري دخول الغرفة..',
