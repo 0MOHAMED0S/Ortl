@@ -1,59 +1,263 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Wartil (ورتل) - Quranic E-Learning Platform 📖✨
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+![Laravel](https://img.shields.io/badge/Laravel-v11-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.x-777BB4?style=for-the-badge&logo=php&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-005C84?style=for-the-badge&logo=mysql&logoColor=white)
+![Agora](https://img.shields.io/badge/Agora-WebRTC-099DFD?style=for-the-badge&logo=agora&logoColor=white)
+![PayTabs](https://img.shields.io/badge/PayTabs-Payment-success?style=for-the-badge)
 
-## About Laravel
+## Overview
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Wartil (ورتل)** is a Quranic learning platform that connects students with certified Quran teachers through live sessions, intelligent scheduling, secure package subscriptions, and gift-card based learning packages.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+The platform supports:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Live 1-on-1 Quran recitation sessions  
+- Teacher scheduling and availability management  
+- Secure payment and package subscriptions  
+- Gift-card based session sharing  
+- Cloud recording for session history  
+- Real-time notifications and automated session handling
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+# Mobile App Screenshots
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Upload your images inside:
 
-## Laravel Sponsors
+```bash
+docs/images/
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Then replace the image paths below:
 
-### Premium Partners
+```html
+<div align="center">
+  <img src="docs/images/registration-screen.jpg" width="220"/>
+  <img src="docs/images/home-screen.jpg" width="220"/>
+  <img src="docs/images/session-screen.jpg" width="220"/>
+  <img src="docs/images/profile-screen.jpg" width="220"/>
+</div>
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+---
 
-## Contributing
+# Features
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## For Students
 
-## Code of Conduct
+- Smart teacher discovery
+- Filter by specialization, gender and ratings
+- Flexible session booking
+- Purchase minute-based packages
+- Send gift packages using claim codes
+- View recorded sessions history
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## For Teachers
 
-## Security Vulnerabilities
+- Manage availability
+- Conduct live video/audio sessions
+- Track earnings automatically
+- Control cloud recording sessions
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Core Technical Features
 
-## License
+- Real-time notifications using Pusher / Reverb
+- Database locking with `lockForUpdate()`
+- Double-booking prevention
+- Automatic refund and missed-session handling via Cron jobs
+- Secure minute deduction logic
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+# Tech Stack
+
+## Backend
+
+- Laravel 10/11
+- PHP 8.x
+- MySQL
+
+## Real-Time
+
+- Agora WebRTC
+- Pusher / Laravel Reverb
+
+## Storage
+
+- Cloudflare R2 (S3 Compatible)
+
+## Payments
+
+- PayTabs
+
+## Mobile
+
+- Flutter *(Update if needed)*
+
+---
+
+# Project Structure
+
+```bash
+app/
+routes/
+database/
+resources/
+storage/
+docs/
+```
+
+---
+
+# Installation
+
+## Prerequisites
+
+- PHP >= 8.1
+- Composer
+- MySQL
+- Node.js
+- NPM
+
+## Clone Repository
+
+```bash
+git clone https://github.com/yourusername/wartil-backend.git
+cd wartil-backend
+```
+
+## Install Dependencies
+
+```bash
+composer install
+npm install
+```
+
+## Configure Environment
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+Update `.env`
+
+```dotenv
+APP_NAME=Wartil
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=wartil_db
+DB_USERNAME=root
+DB_PASSWORD=
+
+AGORA_APP_ID=your_agora_app_id
+AGORA_APP_CERTIFICATE=your_certificate
+
+PAYTABS_PROFILE_ID=your_profile_id
+PAYTABS_SERVER_KEY=your_server_key
+
+CLOUDFLARE_R2_PUBLIC_URL=https://your-r2-public-url.dev
+```
+
+## Run Database
+
+```bash
+php artisan migrate --seed
+```
+
+## Start Server
+
+```bash
+php artisan serve
+```
+
+## Start Queue Worker
+
+```bash
+php artisan queue:work
+```
+
+## Start Scheduler
+
+```bash
+php artisan schedule:work
+```
+
+---
+
+# API Response Format
+
+Example:
+
+```json
+{
+  "status": true,
+  "message": "Success",
+  "data": {}
+}
+```
+
+---
+
+# Authentication
+
+Protected using:
+
+- Laravel Sanctum *(or Passport if used)*
+
+Example:
+
+```http
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+---
+
+# Security
+
+- Role-based authorization
+- Secure payment webhooks
+- Privacy consent support
+- Protected recording access
+- Transaction-safe booking logic
+
+---
+
+# Documentation
+
+API documentation can be found inside:
+
+```bash
+/docs
+```
+
+Or via Postman collection (add your link here).
+
+---
+
+# Deployment
+
+Example production commands:
+
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan queue:restart
+```
+
+---
+
+# License
+
+This project is proprietary and confidential.
+
+Unauthorized copying or distribution is prohibited.
+
+---
+
+## Author
+
+Developed for the Wartil Community ❤️
