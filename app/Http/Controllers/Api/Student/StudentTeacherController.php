@@ -29,7 +29,6 @@ class StudentTeacherController extends Controller
         if (!$teacherId) return $stats;
 
         try {
-            // 1. حساب المكالمات والطلاب منها
             $callStudents = DB::table('call_sessions')
                 ->where('teacher_id', $teacherId)
                 ->where('status', 'ended')
@@ -38,63 +37,46 @@ class StudentTeacherController extends Controller
 
             $stats['calls_count'] = count($callStudents);
 
-            // 2. حساب المواعيد والطلاب منها
             $slotStudents = DB::table('slot_bookings')
                 ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
                 ->where('teacher_slots.teacher_id', $teacherId)
-                ->where('slot_bookings.status', '!=', 'cancelled') // تجاهل الملغاة
+                ->where('slot_bookings.status', '!=', 'cancelled')
                 ->pluck('slot_bookings.user_id')
                 ->toArray();
 
             $stats['slots_count'] = count($slotStudents);
-
-            // 3. حساب الجلسات (محمية بـ try-catch داخلي في حال اختلف اسم الجدول)
             $sessionStudents = [];
             try {
-                $sessionStudents = DB::table('sessions') // قم بتغيير اسم الجدول إذا كان مختلفاً
+                $sessionStudents = DB::table('sessions')
                     ->where('teacher_id', $teacherId)
                     ->pluck('student_id')
                     ->toArray();
 
                 $stats['sessions_count'] = count($sessionStudents);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $stats['sessions_count'] = 0;
             }
 
-            // 4. حساب عدد الطلاب الفعليين (بدون تكرار)
             $allUniqueStudents = array_unique(array_merge($callStudents, $slotStudents, $sessionStudents));
             $stats['students_count'] = count($allUniqueStudents);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Stats Error for Teacher {$teacherId}: " . $e->getMessage());
         }
 
         return $stats;
     }
-public function index(Request $request)
+    public function index(Request $request)
     {
         try {
             $perPage = $request->get('per_page', 10);
-
-            // 1. جلب بيانات الطالب الحالي
             $user = auth()->user();
             $student = $user ? $user->student : null;
-
-            // 2. تجهيز الاستعلام الأساسي
             $query = Teacher_application::where('status', 'approved');
-
-            // 3. تطبيق منطق العمر والجنس (Business Logic)
             if ($student) {
-                // إذا كان العمر مسجلاً (ويفترض أنك تحفظه كرقم في age_group أو أي حقل آخر، سنفترض أنه رقم أو يمكن تحويله)
-                // يرجى تعديل 'age_group' إلى الحقل الفعلي الذي يخزن العمر كـ Integer إذا لزم الأمر
                 $age = (int) $student->age_group;
-                $studentGender = strtolower($student->gender); // 'male' or 'female'
-
-                // القاعدة 1: إذا كان العمر 10 أو أقل -> نعرض كل المعلمين (لا نضيف شرط على الجنس)
+                $studentGender = strtolower($student->gender);
                 if ($age > 0 && $age <= 10) {
-                    // لا تفعل شيئاً (اعرض الكل)
-                }
-                // القاعدة 2: إذا كان العمر أكبر من 10، أو لم يتم إدخال عمر (0) -> الفلترة حسب الجنس
-                else {
+                } else {
                     if ($studentGender === 'female' || $studentGender === 'girl') {
                         $query->where('gender', 'female');
                     } elseif ($studentGender === 'male' || $studentGender === 'boy') {
@@ -102,21 +84,17 @@ public function index(Request $request)
                     }
                 }
             }
-
-            // 4. استكمال الاستعلام مع العلاقات والـ Pagination
             $teachersPaginator = $query->with([
-                    'profile' => function ($query) {
-                        $query->withAvg('ratings', 'rating')
-                            ->withCount('ratings')
-                            ->with('ratings.user');
-                    },
-                    'profile.user',
-                    'tracks'
-                ])
+                'profile' => function ($query) {
+                    $query->withAvg('ratings', 'rating')
+                        ->withCount('ratings')
+                        ->with('ratings.user');
+                },
+                'profile.user',
+                'tracks'
+            ])
                 ->latest()
                 ->paginate($perPage);
-
-            // 5. تحويل البيانات (Transformer) - لم يتم تغيير أي شيء هنا
             $teachersPaginator->getCollection()->transform(function ($application) {
                 $profile = $application->profile;
                 $user = optional($profile)->user;
@@ -129,7 +107,6 @@ public function index(Request $request)
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
-                // نفترض أن دالة getTeacherStats موجودة في الكنترولر
                 $stats = $this->getTeacherStats($teacherId);
 
                 return [
@@ -182,8 +159,8 @@ public function index(Request $request)
                     ]
                 ]
             ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Index Teachers Error: ' . $e->getMessage());
+        } catch (Exception $e) {
+            Log::error('Index Teachers Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'Error fetching teachers.'], 500);
         }
     }
@@ -206,7 +183,6 @@ public function index(Request $request)
                 'status'  => true,
                 'message' => 'Teacher profile retrieved successfully.',
                 'data'    => [
-                    // --- البيانات الأصلية (لم يتم تغييرها) ---
                     'id'               => $teacher->id,
                     'application_id'   => $teacher->teacher_application_id,
                     'name'             => $teacher->user->name ?? $application->full_name,
@@ -215,19 +191,16 @@ public function index(Request $request)
                     'rating'           => (float) number_format($teacher->ratings_avg_rating ?? 5.0, 1, '.', ''),
                     'reviews_count'    => (int) ($teacher->ratings_count ?? 0),
 
-                    // الإحصائيات الأصلية
                     'students_count'   => $stats['students_count'],
                     'calls_count'      => $stats['calls_count'],
                     'slots_count'      => $stats['slots_count'],
                     'sessions_count'   => $stats['sessions_count'],
 
-                    // البيانات الأساسية الأصلية
                     'qualification'    => $application->qualification ?? null,
                     'country'          => $application->origin_country ?? null,
                     'languages'        => $application->languages ?? [],
                     'experience_years' => $application->experience_years ?? 0,
 
-                    // --- 🟢 البيانات الجديدة المضافة بناءً على طلبك (من جدول الطلبات) ---
                     'gender'             => $application->gender ?? null,
                     'email'              => $application->email ?? null,
                     'phone'              => $application->phone ?? null,
@@ -239,17 +212,13 @@ public function index(Request $request)
                     'cv_pdf_url'         => $application->cv_pdf_path ? asset('storage/' . $application->cv_pdf_path) : null,
                     'application_status' => $application->status ?? null,
                     'ijazas_text' => $application->ijazas_text ?? null,
-                    // -------------------------------------------------------------------
 
-                    // Specialties (ID و Name فقط)
                     'specialties'      => collect($application->tracks ?? [])->map(fn($t) => [
                         'id'   => $t->id,
                         'name' => $t->name
                     ])->values(),
-
                     'about'            => $application->ijazas_text ?? null,
 
-                    // المراجعات الأصلية
                     'reviews_details'  => $teacher->ratings->map(fn($rate) => [
                         'id'           => $rate->id,
                         'student_name' => optional($rate->user)->name ?? 'طالب مجهول',
@@ -262,8 +231,8 @@ public function index(Request $request)
                     'profile_data'     => $teacher->makeHidden(['application', 'user', 'ratings'])
                 ]
             ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Show Teacher Error: ' . $e->getMessage());
+        } catch (Exception $e) {
+            Log::error('Show Teacher Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'Error fetching profile.'], 500);
         }
     }
@@ -299,7 +268,7 @@ public function index(Request $request)
             return response()->json(['status' => false, 'message' => 'Error fetching slots.'], 500);
         }
     }
-public function bookSlot(Request $request)
+    public function bookSlot(Request $request)
     {
         $request->validate([
             'slot_id' => 'required|exists:teacher_slots,id'
@@ -310,16 +279,16 @@ public function bookSlot(Request $request)
 
         $user = auth()->user();
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-            $slot = \App\Models\TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
+            $slot = TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
 
             if ($slot->is_booked) {
                 return response()->json(['status' => false, 'message' => 'عذراً، هذا الموعد تم حجزه بالفعل.'], 400);
             }
 
-            $slotStart = \Carbon\Carbon::parse($slot->date . ' ' . $slot->start_time);
-            $slotEnd   = \Carbon\Carbon::parse($slot->date . ' ' . $slot->end_time);
+            $slotStart = Carbon::parse($slot->date . ' ' . $slot->start_time);
+            $slotEnd   = Carbon::parse($slot->date . ' ' . $slot->end_time);
 
             if ($slotStart->isPast()) {
                 return response()->json(['status' => false, 'message' => 'لا يمكن حجز مواعد قديمة.'], 400);
@@ -327,7 +296,7 @@ public function bookSlot(Request $request)
 
             $duration = $slotStart->diffInMinutes($slotEnd);
 
-            $activePackages = \App\Models\UserPackage::where('user_id', $user->id)
+            $activePackages = UserPackage::where('user_id', $user->id)
                 ->whereIn('status', ['active', 'Active'])
                 ->where('remaining_minutes', '>', 0)
                 ->where(fn($q) => $q->where('expires_at', '>', now())->orWhereNull('expires_at'))
@@ -356,8 +325,7 @@ public function bookSlot(Request $request)
             $slot->update(['is_booked' => true]);
             $channelName = 'scheduled_' . $user->id . '_' . time();
 
-            // التسجيل الموحد الجديد
-            $booking = \App\Models\SlotBooking::create([
+            $booking = SlotBooking::create([
                 'user_id'          => $user->id,
                 'teacher_slot_id'  => $slot->id,
                 'deducted_minutes' => $duration,
@@ -366,7 +334,7 @@ public function bookSlot(Request $request)
                 'started_at'       => $slotStart
             ]);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
                 $teacher = $slot->teacher;
@@ -389,11 +357,9 @@ public function bookSlot(Request $request)
                         $notificationData
                     ));
                 }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Teacher Booking Notification Error: ' . $e->getMessage());
+            } catch (Exception $e) {
+                Log::error('Teacher Booking Notification Error: ' . $e->getMessage());
             }
-
-            // كائن وهمي مطابق للـ CallSession لكي لا يتوقف تطبيق الموبايل
             $callMock = [
                 'id'           => $booking->id,
                 'student_id'   => $user->id,
@@ -408,13 +374,13 @@ public function bookSlot(Request $request)
                 'message' => "تم الحجز بنجاح. تم خصم $duration دقيقة من رصيدك.",
                 'data'    => ['booking' => $booking, 'call' => $callMock]
             ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            \Illuminate\Support\Facades\Log::error('Booking Error: ' . $e->getMessage());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Booking Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'فشلت عملية الحجز، يرجى المحاولة مرة أخرى.'], 500);
         }
     }
-public function cancelBookingByStudent(Request $request)
+    public function cancelBookingByStudent(Request $request)
     {
         $request->validate([
             'slot_id' => 'required|exists:teacher_slots,id'
@@ -425,11 +391,11 @@ public function cancelBookingByStudent(Request $request)
 
         $studentId = auth()->id();
         $studentName = auth()->user()->name;
-        $now = \Carbon\Carbon::now();
+        $now = Carbon::now();
 
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
-            $booking = \App\Models\SlotBooking::where('teacher_slot_id', $request->slot_id)
+            $booking = SlotBooking::where('teacher_slot_id', $request->slot_id)
                 ->where('user_id', $studentId)
                 ->where('status', 'scheduled')
                 ->lockForUpdate()
@@ -439,8 +405,8 @@ public function cancelBookingByStudent(Request $request)
                 return response()->json(['status' => false, 'message' => 'عذراً، هذا الحجز غير موجود أو تم إلغاؤه مسبقاً.'], 404);
             }
 
-            $slot = \App\Models\TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
-            $slotStartDateTime = \Carbon\Carbon::parse($slot->date . ' ' . $slot->start_time);
+            $slot = TeacherSlot::where('id', $request->slot_id)->lockForUpdate()->first();
+            $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
             $diffInMinutes = $now->diffInMinutes($slotStartDateTime, false);
 
             if ($diffInMinutes < 90) {
@@ -452,7 +418,7 @@ public function cancelBookingByStudent(Request $request)
 
             $refundMinutes = $booking->deducted_minutes;
             if ($refundMinutes > 0) {
-                $packageToRefund = \App\Models\UserPackage::where('user_id', $studentId)
+                $packageToRefund = UserPackage::where('user_id', $studentId)
                     ->where('status', 'active')
                     ->orderBy('expires_at', 'desc')
                     ->first();
@@ -460,7 +426,7 @@ public function cancelBookingByStudent(Request $request)
                 if ($packageToRefund) {
                     $packageToRefund->increment('remaining_minutes', $refundMinutes);
                 } else {
-                    $lastPackage = \App\Models\UserPackage::where('user_id', $studentId)->latest()->first();
+                    $lastPackage = UserPackage::where('user_id', $studentId)->latest()->first();
                     if ($lastPackage) {
                         $lastPackage->update([
                             'remaining_minutes' => $lastPackage->remaining_minutes + $refundMinutes,
@@ -473,7 +439,7 @@ public function cancelBookingByStudent(Request $request)
             $booking->update(['status' => 'cancelled']);
             $slot->update(['is_booked' => false]);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             try {
                 $teacher = $slot->teacher;
@@ -487,7 +453,7 @@ public function cancelBookingByStudent(Request $request)
 
                     broadcast(new \App\Events\SlotBookingCancelled($teacher->id, $notificationData));
 
-                    $timeFormatted = \Carbon\Carbon::parse($slot->start_time)->format('h:i A');
+                    $timeFormatted = Carbon::parse($slot->start_time)->format('h:i A');
                     $teacher->user->notify(new \App\Notifications\DynamicNotification(
                         'إلغاء حجز من قبل طالب ❌',
                         "قام الطالب {$studentName} بإلغاء موعده ليوم {$slot->date} الساعة {$timeFormatted}.",
@@ -495,8 +461,8 @@ public function cancelBookingByStudent(Request $request)
                         $notificationData
                     ));
                 }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Teacher Cancel Booking Notification Error: ' . $e->getMessage());
+            } catch (Exception $e) {
+                Log::error('Teacher Cancel Booking Notification Error: ' . $e->getMessage());
             }
 
             return response()->json([
@@ -504,8 +470,8 @@ public function cancelBookingByStudent(Request $request)
                 'message' => 'تم إلغاء الموعد بنجاح، وتمت إعادة الدقائق إلى رصيدك.'
             ], 200);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            \Illuminate\Support\Facades\Log::error('Student Cancel Booking Error: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Student Cancel Booking Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'حدث خطأ تقني أثناء محاولة إلغاء الحجز، يرجى المحاولة لاحقاً.'], 500);
         }
     }
@@ -514,12 +480,8 @@ public function cancelBookingByStudent(Request $request)
         try {
             $perPage = $request->query('per_page', 5);
             $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
-
-            // 1. جلب بيانات الطالب الحالي لتطبيق الشروط
             $user = auth()->user();
             $student = $user ? $user->student : null;
-
-            // 2. بناء الاستعلام الأساسي للمعلمين المعتمدين والذين يمتلكون بروفايل
             $teachersQuery = Teacher_application::where('status', 'approved')
                 ->whereHas('profile')
                 ->with([
@@ -531,14 +493,9 @@ public function cancelBookingByStudent(Request $request)
                     'profile.user',
                     'tracks'
                 ]);
-
-            // 3. تطبيق منطق العمر والجنس (نفس منطق دالة index)
             if ($student) {
-                // استخراج العمر (ويفترض أنه رقم أو نص يمثل رقماً)
                 $age = (int) $student->age_group;
-                $studentGender = strtolower($student->gender); // 'male' أو 'female'
-
-                // إذا كان العمر أكبر من 10، أو لم يتم إدخال عمر (صفر) -> نقوم بالفلترة حسب الجنس
+                $studentGender = strtolower($student->gender);
                 if (!($age > 0 && $age <= 10)) {
                     if ($studentGender === 'female' || $studentGender === 'girl') {
                         $teachersQuery->where('gender', 'female');
@@ -547,19 +504,13 @@ public function cancelBookingByStudent(Request $request)
                     }
                 }
             }
-
-            // 4. تنفيذ الاستعلام والترتيب بناءً على متوسط التقييم وسنوات الخبرة
             $allTeachers = $teachersQuery->get()
                 ->sortByDesc(function ($application) {
                     return optional($application->profile)->ratings_avg_rating ?? $application->experience_years ?? 0;
                 })
                 ->values();
-
-            // 5. عملية تقسيم الصفحات (Pagination) يدوياً
             $total = $allTeachers->count();
             $paginatedItems = $allTeachers->slice(($currentPage - 1) * $perPage, $perPage)->values();
-
-            // 6. تشكيل البيانات (Transformation)
             $formattedTeachers = $paginatedItems->map(function ($application) {
                 $profile = $application->profile;
                 $user = optional($profile)->user;
@@ -568,12 +519,10 @@ public function cancelBookingByStudent(Request $request)
                 $name = optional($user)->name ?? $application->full_name;
                 $photoPath = optional($profile)->profile_photo_path ?? $application->profile_photo_path;
 
-                // إنشاء رابط الصورة الشخصية أو صورة افتراضية
                 $photoUrl = $photoPath
                     ? asset('storage/' . $photoPath)
                     : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=1a4d2e&color=fff&size=128';
 
-                // نفترض وجود هذه الدالة في الـ Controller لحساب الإحصائيات
                 $stats = $this->getTeacherStats($teacherId);
                 $rating = (float) number_format(optional($profile)->ratings_avg_rating ?? 5.0, 1, '.', '');
 
@@ -587,22 +536,22 @@ public function cancelBookingByStudent(Request $request)
                     'rating'           => $rating,
                     'reviews_count'    => (int) (optional($profile)->ratings_count ?? 0),
 
-                    'students_count'   => $stats['students_count'], // عدد الطلاب
-                    'calls_count'      => $stats['calls_count'],    // عدد المكالمات
-                    'slots_count'      => $stats['slots_count'],    // المواعيد المتاحة
-                    'sessions_count'   => $stats['sessions_count'], // إجمالي الجلسات
+                    'students_count'   => $stats['students_count'],
+                    'calls_count'      => $stats['calls_count'],
+                    'slots_count'      => $stats['slots_count'],
+                    'sessions_count'   => $stats['sessions_count'],
 
-                    'qualification'    => $application->qualification, // المؤهل العلمي
-                    'country'          => $application->origin_country, // بلد الإقامة
-                    'languages'        => $application->languages,      // اللغات
+                    'qualification'    => $application->qualification,
+                    'country'          => $application->origin_country,
+                    'languages'        => $application->languages,
                     'experience_years' => $application->experience_years,
                     'specialties'      => $application->tracks->map(function ($track) {
                         return [
                             'id'   => $track->id,
-                            'name' => $track->name, // مسار التعليم (حفظ، تجويد، إلخ)
+                            'name' => $track->name,
                         ];
                     }),
-                    'about'            => $application->ijazas_text, // نبذة/إجازات
+                    'about'            => $application->ijazas_text,
                     'reviews_details'  => optional($profile)->ratings ? $profile->ratings->map(function ($rate) {
                         return [
                             'id'           => $rate->id,
@@ -634,36 +583,28 @@ public function cancelBookingByStudent(Request $request)
                 ]
             ], 200);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Featured Teachers Error: ' . $e->getMessage());
+            Log::error('Featured Teachers Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ تقني أثناء استرجاع بيانات المعلمين المتميزين، يرجى المحاولة لاحقاً.'
             ], 500);
         }
     }
-public function getTeachersByTrack(Request $request, $trackId)
+    public function getTeachersByTrack(Request $request, $trackId)
     {
         try {
             $perPage = $request->query('per_page', 10);
             $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
-
-            // 1. جلب بيانات الطالب الحالي لتطبيق الشروط
             $user = auth()->user();
             $student = $user ? $user->student : null;
-
-            // 2. بناء الاستعلام الأساسي المرتبط بالمسار (Track)
             $teachersQuery = Teacher_application::where('status', 'approved')
                 ->whereHas('tracks', function ($query) use ($trackId) {
                     $query->where('tracks.id', $trackId);
                 })
-                ->whereHas('profile'); // التأكد من وجود ملف شخصي
-
-            // 3. تطبيق منطق العمر والجنس
+                ->whereHas('profile');
             if ($student) {
                 $age = (int) $student->age_group;
-                $studentGender = strtolower($student->gender); // 'male' أو 'female'
-
-                // إذا كان العمر أكبر من 10، أو لم يتم إدخال عمر (صفر) -> يتم الفلترة حسب الجنس
+                $studentGender = strtolower($student->gender);
                 if (!($age > 0 && $age <= 10)) {
                     if ($studentGender === 'female' || $studentGender === 'girl') {
                         $teachersQuery->where('gender', 'female');
@@ -672,30 +613,23 @@ public function getTeachersByTrack(Request $request, $trackId)
                     }
                 }
             }
-
-            // 4. استكمال الاستعلام وجلب البيانات مع الترتيب
             $allTeachers = $teachersQuery->with([
-                    'profile' => function ($query) {
-                        $query->withAvg('ratings', 'rating')
-                            ->withCount('ratings')
-                            ->with('ratings.user');
-                    },
-                    'profile.user',
-                    'tracks'
-                ])
+                'profile' => function ($query) {
+                    $query->withAvg('ratings', 'rating')
+                        ->withCount('ratings')
+                        ->with('ratings.user');
+                },
+                'profile.user',
+                'tracks'
+            ])
                 ->get()
                 ->sortByDesc(function ($application) {
-                    // الترتيب حسب التقييم لضمان جودة النتائج
                     return optional($application->profile)->ratings_avg_rating ?? 0;
                 })
                 ->values();
 
             $total = $allTeachers->count();
-
-            // 5. تقسيم النتائج (Manual Pagination) لضمان عمل الترتيب البرمجي بشكل صحيح
             $paginatedItems = $allTeachers->slice(($currentPage - 1) * $perPage, $perPage)->values();
-
-            // 6. تنسيق البيانات (نفس التنسيق الموحد في التطبيق بدون أي تغيير)
             $formattedTeachers = $paginatedItems->map(function ($application) {
                 $profile = $application->profile;
                 $user = optional($profile)->user;
@@ -713,7 +647,6 @@ public function getTeachersByTrack(Request $request, $trackId)
                     'country'          => $application->origin_country,
                     'experience_years' => $application->experience_years,
                     'specialties'      => $application->tracks->map(fn($t) => ['id' => $t->id, 'name' => $t->name]),
-                    // يمكنك إضافة المزيد من الحقول هنا إذا كنت بحاجة لها في واجهة الفلترة
                 ];
             });
 
@@ -731,7 +664,7 @@ public function getTeachersByTrack(Request $request, $trackId)
                 ]
             ], 200);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Filter Teachers by Track Error: ' . $e->getMessage());
+            Log::error('Filter Teachers by Track Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء تصفية المعلمين حسب المسار.'

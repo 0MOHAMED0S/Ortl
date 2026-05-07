@@ -14,7 +14,6 @@ class StudentCallHistoryController extends Controller
         $calls = CallSession::where('student_id', $studentId)
             ->with([
                 'teacher.user:id,name',
-                // Eager load the rating specifically for each call session
                 'ratings' => function ($query) use ($studentId) {
                     $query->where('user_id', $studentId);
                 }
@@ -23,7 +22,6 @@ class StudentCallHistoryController extends Controller
             ->paginate(15);
 
         $calls->getCollection()->transform(function ($call) {
-            // Get the first rating (since one call has one rating)
             $rating = $call->ratings->first();
 
             return [
@@ -34,9 +32,7 @@ class StudentCallHistoryController extends Controller
                 'duration_minutes' => $call->duration_minutes,
                 'started_at' => $call->started_at ? $call->started_at->format('Y-m-d H:i:s') : null,
                 'created_at' => $call->created_at->format('Y-m-d H:i:s'),
-                // 🎥 إضافة رابط التسجيل السحابي هنا
                 'recording_url' => $call->recording_url,
-                // Display rating summary in the list
                 'is_rated' => (bool)$rating,
                 'rating_stars' => $rating ? $rating->rating : null,
             ];
@@ -56,7 +52,6 @@ class StudentCallHistoryController extends Controller
             ->with([
                 'teacher.user:id,name',
                 'teacher.application:id,full_name,profile_photo_path,qualification',
-                // Explicitly get the rating for this specific call session
                 'ratings' => function ($query) use ($studentId) {
                     $query->where('user_id', $studentId);
                 }
@@ -81,7 +76,6 @@ class StudentCallHistoryController extends Controller
                 'session_details' => [
                     'channel_name'     => $call->channel_name,
                     'duration_minutes' => $call->duration_minutes,
-                    // 🎥 إضافة رابط التسجيل السحابي هنا للتفاصيل أيضاً
                     'recording_url'    => $call->recording_url,
                     'timeline' => [
                         'requested_at' => $call->created_at->format('Y-m-d H:i:s'),
@@ -91,7 +85,6 @@ class StudentCallHistoryController extends Controller
                     ]
                 ],
 
-                // 3. Detailed Rating info
                 'rating' => $rating ? [
                     'id'         => $rating->id,
                     'stars'      => $rating->rating,

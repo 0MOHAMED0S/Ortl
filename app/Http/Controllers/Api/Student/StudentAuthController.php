@@ -105,7 +105,6 @@ class StudentAuthController extends Controller
         DB::beginTransaction();
 
         try {
-            // 🔐 التأكد من أن الـ OTP تم التحقق منه
             $otpRecord = OtpCode::where('email', $request->email)
                 ->where('is_verified', true)
                 ->first();
@@ -117,13 +116,11 @@ class StudentAuthController extends Controller
                 ], 403);
             }
 
-            // 📸 معالجة رفع الصورة الشخصية
             $photoPath = null;
             if ($request->hasFile('profile_photo_path')) {
                 $photoPath = $request->file('profile_photo_path')->store('profiles', 'public');
             }
 
-            // 1️⃣ إنشاء المستخدم
             $user = User::create([
                 'name'     => $request->name,
                 'email'    => $request->email,
@@ -131,10 +128,8 @@ class StudentAuthController extends Controller
                 'role'     => 'student',
             ]);
 
-            // ✅ توثيق البريد الإلكتروني فوراً
             $user->markEmailAsVerified();
 
-            // 2️⃣ إنشاء بروفايل الطالب
             $student = Student::create([
                 'user_id'             => $user->id,
                 'country_id'          => $request->country_id,
@@ -148,15 +143,12 @@ class StudentAuthController extends Controller
 
             $student->profile_photo_url = $photoPath ? asset('storage/' . $photoPath) : null;
 
-            // 3️⃣ حذف OTP لمنع إعادة الاستخدام
             $otpRecord->delete();
 
-            // 4️⃣ إنشاء التوكن
             $token = $user->createToken('auth_token')->plainTextToken;
 
             DB::commit();
             try {
-                // جلب جميع مديري النظام (بافتراض أن دورهم هو 'admin')
                 $admins = User::where('role', 'admin')->get();
 
                 if ($admins->count() > 0) {
@@ -166,7 +158,6 @@ class StudentAuthController extends Controller
                         'student_email' => $user->email,
                     ];
 
-                    // 1. الحفظ في الداتابيز لكل المديرين دفعة واحدة
                     \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
                         'طالب جديد 🎉',
                         "سجل الطالب {$user->name} للتو في التطبيق.",
@@ -174,7 +165,6 @@ class StudentAuthController extends Controller
                         $notificationData
                     ));
 
-                    // 2. إرسال البث اللحظي (Pusher) لكل مدير
                     foreach ($admins as $admin) {
                         broadcast(new \App\Events\NewStudentRegistered($admin->id, $notificationData));
                     }
@@ -265,7 +255,6 @@ class StudentAuthController extends Controller
     public function updateProfile(UpdateProfileRequest $request)
     {
         $user = $request->user();
-        // تأكد أن العلاقة في موديل User اسمها student
         $student = $user->student;
 
         if (!$student) {
@@ -278,14 +267,11 @@ class StudentAuthController extends Controller
         DB::beginTransaction();
 
         try {
-            // 🔹 تحديث اسم المستخدم إذا تم إرساله
             if ($request->filled('name')) {
                 $user->update(['name' => $request->name]);
             }
 
-            // 🔹 تجهيز بيانات الطالب للتحديث (بما في ذلك التفضيلات الجديدة)
             $studentData = $request->only([
-                // البيانات الأساسية
                 'phone',
                 'address',
                 'qualification',
@@ -293,32 +279,26 @@ class StudentAuthController extends Controller
                 'country_id',
                 'gender',
 
-                // 📖 تفضيلاتي التعليمية
                 'age_group',
                 'reading_level',
                 'preferred_teacher_language',
                 'reading_track',
                 'memorized_amount',
 
-                // ⏱️ تفضيلات الجلسة
                 'plan_name',
                 'reading_type',
                 'teacher_response_speed'
             ]);
 
-            // 🔹 معالجة الصورة الشخصية (باستخدام الاسم profile_photo_path)
             if ($request->hasFile('profile_photo_path')) {
-                // حذف الصورة القديمة من السيرفر لتوفير المساحة
                 if ($student->profile_photo_path) {
                     Storage::disk('public')->delete($student->profile_photo_path);
                 }
 
-                // تخزين الصورة الجديدة وإضافة المسار لمصفوفة التحديث
                 $studentData['profile_photo_path'] = $request->file('profile_photo_path')
                     ->store('students/photos', 'public');
             }
 
-            // 🔹 تحديث سجل الطالب في قاعدة البيانات
             $student->update($studentData);
 
             DB::commit();
@@ -368,17 +348,14 @@ class StudentAuthController extends Controller
             $callsCount = $callsData->total_calls ?? 0;
             $totalMinutes = (int) ($callsData->total_minutes ?? 0);
 
-            // حساب الساعات والدقائق
             $learningHours = floor($totalMinutes / 60);
             $remainingMinutes = $totalMinutes % 60;
 
-            // ب. جلب عدد الحجوزات (المواعيد)
             $slotsCount = DB::table('slot_bookings')
                 ->where('user_id', $userId)
                 ->where('status', '!=', 'cancelled')
                 ->count();
 
-            // ج. جلب عدد الجلسات (محمية بـ try-catch في حال لم تنشئ الجدول بعد)
             $sessionsCount = 0;
             try {
                 $sessionsCount = DB::table('sessions')
@@ -388,9 +365,6 @@ class StudentAuthController extends Controller
                 $sessionsCount = 0;
             }
 
-            // ==========================================
-            // إرفاق الإحصائيات مع بيانات المستخدم
-            // ==========================================
             $user->statistics = [
                 'calls_count'    => $callsCount,
                 'slots_count'    => $slotsCount,
@@ -453,7 +427,6 @@ class StudentAuthController extends Controller
         try {
             $user = $request->user();
 
-            // التحقق من كلمة المرور الحالية
             if (!Hash::check($request->current_password, $user->password)) {
                 return response()->json([
                     'status'  => false,
@@ -461,7 +434,6 @@ class StudentAuthController extends Controller
                 ], 401);
             }
 
-            // تحديث كلمة المرور الجديدة
             $user->update([
                 'password' => Hash::make($request->new_password)
             ]);
@@ -499,7 +471,6 @@ class StudentAuthController extends Controller
                 ]
             );
 
-            // إرسال ميل إعادة تعيين كلمة المرور
             Mail::to($request->email)->send(new ResetOtpMail($otp));
 
             return response()->json([
@@ -524,7 +495,6 @@ class StudentAuthController extends Controller
     public function resetPassword(ResetPasswordRequest $request)
     {
         try {
-            // التأكد من وجود OTP موثق
             $otpRecord = OtpCode::where('email', $request->email)
                 ->where('is_verified', true)
                 ->first();
@@ -536,13 +506,11 @@ class StudentAuthController extends Controller
                 ], 403);
             }
 
-            // تحديث كلمة المرور
             $user = User::where('email', $request->email)->first();
             $user->update([
                 'password' => Hash::make($request->password)
             ]);
 
-            // حذف سجل OTP لمنع إعادة الاستخدام
             $otpRecord->delete();
 
             return response()->json([

@@ -21,7 +21,7 @@ class AdsController extends Controller
                 return [
                     'id'        => $ad->id,
                     'image_url' => $ad->image ? asset('storage/' . $ad->image) : null,
-                    'link'      => $ad->link, // الرابط الذي يفتح عند الضغط على البنر
+                    'link'      => $ad->link,
                 ];
             });
             return response()->json([

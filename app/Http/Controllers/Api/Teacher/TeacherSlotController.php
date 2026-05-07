@@ -227,7 +227,7 @@ class TeacherSlotController extends Controller
             ], 500);
         }
     }
-public function cancelSlotByTeacher(Request $request)
+    public function cancelSlotByTeacher(Request $request)
     {
         $request->validate([
             'slot_id' => 'required|exists:teacher_slots,id'
@@ -335,7 +335,7 @@ public function cancelSlotByTeacher(Request $request)
                 ));
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Notification Error: ' . $e->getMessage());
+            Log::error('Notification Error: ' . $e->getMessage());
         }
     }
 }

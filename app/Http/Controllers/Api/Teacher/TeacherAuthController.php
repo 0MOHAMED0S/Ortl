@@ -185,8 +185,6 @@ class TeacherAuthController extends Controller
                     Storage::disk('public')->delete($photoPath);
                 }
                 $photoPath = $request->file('profile_photo_path')->store('teachers/photos', 'public');
-
-                // تحديث الصورة في جدول المعلمين
                 $teacher->update(['profile_photo_path' => $photoPath]);
             }
 
@@ -197,8 +195,6 @@ class TeacherAuthController extends Controller
                 }
                 $cvPath = $request->file('cv_pdf_path')->store('teachers/cvs', 'public');
             }
-
-            // 3. تحديث جدول بيانات طلب المعلم (Teacher Application)
             $applicationData = $request->only([
                 'phone',
                 'residence_location',
@@ -210,22 +206,16 @@ class TeacherAuthController extends Controller
                 'tech_skills',
                 'ijazas_text'
             ]);
-
-            // ربط الاسم والصورة والـ CV بالطلب أيضاً (حسب هيكل قاعدة بياناتك)
             if ($request->filled('name')) {
                 $applicationData['full_name'] = $request->name;
             }
             if ($request->has('languages')) {
                 $applicationData['languages'] = $request->languages;
             }
-
             $applicationData['profile_photo_path'] = $photoPath;
             $applicationData['cv_pdf_path'] = $cvPath;
-
             $application->update($applicationData);
-
             DB::commit();
-
             return response()->json([
                 'status'  => true,
                 'message' => 'تم تحديث الملف الشخصي بنجاح.',
@@ -235,11 +225,9 @@ class TeacherAuthController extends Controller
                     'photo_url' => $photoPath ? asset('storage/' . $photoPath) : null,
                 ]
             ], 200);
-
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Teacher Profile Update Error: ' . $e->getMessage());
-
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء تحديث البيانات.',

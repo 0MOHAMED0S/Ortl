@@ -24,7 +24,6 @@ class StudentBookingController extends Controller
             $user = auth()->user();
             $now = Carbon::now();
 
-            // جلب الحجوزات مع تفاصيل الموعد والمعلم
             $allBookings = SlotBooking::with(['slot.teacher.user'])
                 ->where('user_id', $user->id)
                 ->where('status', '!=', 'cancelled')
@@ -38,7 +37,6 @@ class StudentBookingController extends Controller
                 $slotStartDateTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
                 $slotEndDateTime = Carbon::parse($slot->date . ' ' . $slot->end_time);
 
-                // جلب الجلسة المرتبطة بهذا الحجز تحديداً لجلب الرابط
                 $callSession = CallSession::where('student_id', $user->id)
                     ->where('teacher_id', $slot->teacher_id)
                     ->where('started_at', $slotStartDateTime->toDateTimeString())
@@ -60,7 +58,6 @@ class StudentBookingController extends Controller
                         'photo' => $teacher->profile_photo_path ? asset('storage/' . $teacher->profile_photo_path) : null,
                     ],
                     'session_record' => [
-                        // 🚀 الرابط الذي طلبته يظهر هنا
                         'recording_url' => optional($callSession)->recording_url,
                         'is_available'  => !empty(optional($callSession)->recording_url),
                     ],
@@ -86,13 +83,12 @@ class StudentBookingController extends Controller
         try {
             $user = auth()->user();
             $now = Carbon::now();
-            $perPage = $request->get('per_page', 10); // تحديد عدد العناصر في الصفحة
+            $perPage = $request->get('per_page', 10);
 
             $bookingsPaginator = SlotBooking::with(['slot.teacher.user'])
                 ->join('teacher_slots', 'slot_bookings.teacher_slot_id', '=', 'teacher_slots.id')
                 ->where('slot_bookings.user_id', $user->id)
                 ->where('slot_bookings.status', 'scheduled')
-                // جلب المواعيد التي تنتهي في المستقبل فقط
                 ->where(function ($query) use ($now) {
                     $query->where('teacher_slots.date', '>', $now->toDateString())
                         ->orWhere(function ($q) use ($now) {
@@ -103,9 +99,8 @@ class StudentBookingController extends Controller
                 ->orderBy('teacher_slots.date', 'asc')
                 ->orderBy('teacher_slots.start_time', 'asc')
                 ->select('slot_bookings.*')
-                ->paginate($perPage); // استخدام paginate بدلاً من get
+                ->paginate($perPage);
 
-            // تحويل البيانات داخل الـ Collection الخاص بالـ Paginator
             $bookingsPaginator->getCollection()->transform(function ($booking) use ($user, $now) {
                 $slot = $booking->slot;
                 $teacher = $slot->teacher;
@@ -117,7 +112,6 @@ class StudentBookingController extends Controller
                     ->where('started_at', $slotStart->toDateTimeString())
                     ->first();
 
-                // التحقق من إمكانية الانضمام (قبل 5 دقائق وحتى نهاية الوقت)
                 $canJoin = $now->copy()->addMinutes(5)->greaterThanOrEqualTo($slotStart)
                     && $now->lessThanOrEqualTo($slotEnd);
 
@@ -168,7 +162,6 @@ class StudentBookingController extends Controller
                 $teacher = $slot->teacher;
                 $slotStart = Carbon::parse($slot->date . ' ' . $slot->start_time);
 
-                // جلب الجلسة للحصول على رابط التسجيل
                 $callSession = CallSession::where('student_id', $user->id)
                     ->where('teacher_id', $teacher->id)
                     ->where('started_at', $slotStart->toDateTimeString())
@@ -196,8 +189,8 @@ class StudentBookingController extends Controller
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء جلب السجل.'], 500);
         }
     }
-    
-public function joinBookedSession(Request $request)
+
+    public function joinBookedSession(Request $request)
     {
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'call_session_id' => 'required|exists:slot_bookings,id'
@@ -213,7 +206,7 @@ public function joinBookedSession(Request $request)
         $user = auth()->user();
 
         try {
-            $booking = \App\Models\SlotBooking::with('slot.teacher.user')->findOrFail($request->call_session_id);
+            $booking = SlotBooking::with('slot.teacher.user')->findOrFail($request->call_session_id);
             $slot = $booking->slot;
 
             if ($booking->user_id !== $user->id) {
@@ -224,8 +217,8 @@ public function joinBookedSession(Request $request)
                 return response()->json(['status' => false, 'message' => 'انتهت هذه الجلسة بالفعل ولا يمكن الانضمام إليها.'], 400);
             }
 
-            $now = \Carbon\Carbon::now();
-            $startTime = \Carbon\Carbon::parse($slot->date . ' ' . $slot->start_time);
+            $now = Carbon::now();
+            $startTime = Carbon::parse($slot->date . ' ' . $slot->start_time);
 
             if ($now->lessThan($startTime->copy()->subMinutes(5))) {
                 $waitMinutes = $now->diffInMinutes($startTime);
@@ -259,7 +252,7 @@ public function joinBookedSession(Request $request)
                 ]
             ], 200);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Professional Join Session Error: ' . $e->getMessage());
+            Log::error('Professional Join Session Error: ' . $e->getMessage());
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ تقني أثناء محاولة الانضمام، يرجى المحاولة مرة أخرى.',
@@ -289,11 +282,11 @@ public function joinBookedSession(Request $request)
                 ));
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Silent Notification Error: ' . $e->getMessage());
+            Log::warning('Silent Notification Error: ' . $e->getMessage());
         }
     }
 
-public function leaveBookedSession(Request $request)
+    public function leaveBookedSession(Request $request)
     {
         $request->validate([
             'call_session_id' => 'required|exists:slot_bookings,id'
@@ -302,7 +295,7 @@ public function leaveBookedSession(Request $request)
         $user = auth()->user();
 
         try {
-            $booking = \App\Models\SlotBooking::with('slot.teacher.user')->findOrFail($request->call_session_id);
+            $booking = SlotBooking::with('slot.teacher.user')->findOrFail($request->call_session_id);
 
             if ($booking->user_id !== $user->id) {
                 return response()->json(['status' => false, 'message' => 'غير مصرح لك.'], 403);
@@ -322,7 +315,7 @@ public function leaveBookedSession(Request $request)
                     broadcast(new \App\Events\StudentLeftSession($booking->slot->teacher_id, $notificationData));
                 }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Teacher Leave Notification Error: ' . $e->getMessage());
+                Log::error('Teacher Leave Notification Error: ' . $e->getMessage());
             }
 
             return response()->json([
@@ -330,7 +323,7 @@ public function leaveBookedSession(Request $request)
                 'message' => 'تمت المغادرة بنجاح. يمكنك العودة للجلسة طالما أنها مستمرة.',
             ], 200);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Leave Booked Session Error: ' . $e->getMessage());
+            Log::error('Leave Booked Session Error: ' . $e->getMessage());
             return response()->json(['status' => false, 'message' => 'حدث خطأ أثناء محاولة المغادرة.'], 500);
         }
     }

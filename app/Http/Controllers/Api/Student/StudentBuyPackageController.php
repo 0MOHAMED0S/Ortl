@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Log;
 
 class StudentBuyPackageController extends Controller
 {
-    // 1️⃣ Start Payment
     public function buyPackage(Request $request, PayTabsService $payTabsService)
     {
         $request->validate([
@@ -27,7 +26,6 @@ class StudentBuyPackageController extends Controller
             $user = auth()->user();
             $package = Package::findOrFail($request->package_id);
 
-            // 1. التأكد من أن الطالب ليس لديه باقة نشطة من نفس النوع
             $hasActive = UserPackage::where('user_id', $user->id)
                 ->where('package_id', $package->id)
                 ->where('status', 'active')
@@ -38,18 +36,12 @@ class StudentBuyPackageController extends Controller
                 return response()->json(['error' => 'لديك باقة نشطة بالفعل.'], 400);
             }
 
-            // 2. تحديد العملة والسعر الأساسي (مطابق لدالة getPrice)
             $country = $user->country;
             $rate = ($country && $country->rate_to_usd > 0) ? (float) $country->rate_to_usd : 1;
             $currency = ($country && $country->currency_code) ? $country->currency_code : config('paytabs.currency', 'USD');
 
-            // سعر الباقة النهائي بالدولار (المخزن في قاعدة البيانات)
             $packageFinalPriceUsd = (float) $package->price;
-
-            // تحويل السعر للعملة المحلية
             $convertedPrice = $packageFinalPriceUsd * $rate;
-
-            // 3. حساب الخصم الإضافي (الكوبون)
             $discountAmount = 0;
             $couponId = null;
             $couponCode = $request->input('coupon');
@@ -67,11 +59,8 @@ class StudentBuyPackageController extends Controller
                 $discountAmount = ($convertedPrice * $coupon->percent) / 100;
             }
 
-            // 4. السعر النهائي المطلوب دفعه (يجب تقريبه لمنزلتين لتجنب أخطاء PayTabs)
             $finalPriceToPay = max($convertedPrice - $discountAmount, 0);
             $finalPriceToPay = round($finalPriceToPay, 2);
-
-            // 5. التعامل مع الباقة المجانية (إذا كان السعر 0 بعد الخصم 100%)
             if ($finalPriceToPay <= 0) {
                 return DB::transaction(function () use ($user, $package, $couponId) {
                     UserPackage::create([
@@ -88,12 +77,11 @@ class StudentBuyPackageController extends Controller
 
                     return response()->json([
                         'message'      => 'تم تفعيل الباقة بنجاح مجاناً باستخدام الكوبون.',
-                        'redirect_url' => route('payment.success') // رابط النجاح في الفرونت إند
+                        'redirect_url' => route('payment.success')
                     ]);
                 });
             }
 
-            // 6. إنشاء طلب الدفع (Pending Order)
             $order = Order::create([
                 'user_id'    => $user->id,
                 'package_id' => $package->id,
@@ -104,7 +92,6 @@ class StudentBuyPackageController extends Controller
                 'status'     => 'pending',
             ]);
 
-            // 7. إرسال الطلب إلى PayTabs
             $payment = $payTabsService->createPayment($order, $user);
 
             if (isset($payment['redirect_url'])) {
@@ -125,31 +112,22 @@ class StudentBuyPackageController extends Controller
         }
     }
 
-    // 2️⃣ PayTabs Server Callback (IMPORTANT)
-    // 2️⃣ PayTabs Server Callback (IMPORTANT)
     public function handleCallback(Request $request)
     {
         $payload = $request->all();
-
-        // Mapping Cart ID and Status for both "Flat" and "Nested" PayTabs formats
         $orderId = $payload['cartId'] ?? $payload['cart_id'] ?? null;
         $status  = $payload['respStatus'] ?? $payload['payment_result']['response_status'] ?? null;
 
         if ($status === 'A' && $orderId) {
-            // جلب الطلب مع بيانات الطالب والباقة لتمريرها في الإشعار
             $order = Order::with(['user', 'package'])->find($orderId);
 
-            // Only process if the order exists and isn't already paid (prevents duplicate processing)
             if ($order && $order->status !== 'paid') {
 
                 DB::transaction(function () use ($order, $payload) {
-                    // A. Update the Order Status
                     $order->update([
                         'status' => 'paid',
                         'transaction_id' => $payload['tranRef'] ?? $payload['tran_ref'] ?? null
                     ]);
-
-                    // B. Professional Coupon Update
                     if ($order->coupon_id) {
                         $coupon = Coupon::find($order->coupon_id);
                         if ($coupon) {
@@ -157,8 +135,6 @@ class StudentBuyPackageController extends Controller
                             Log::info("Coupon ID {$coupon->id} usage incremented for Order #{$order->id}");
                         }
                     }
-
-                    // C. Activate the User's Package
                     $package = $order->package;
                     UserPackage::create([
                         'user_id'           => $order->user_id,
@@ -171,9 +147,6 @@ class StudentBuyPackageController extends Controller
                     Log::info("Order #{$order->id} fulfilled successfully.");
                 });
 
-                // ==========================================
-                // 🔔 إرسال إشعار لحظي لمديري النظام (Admins) بعد نجاح الدفع
-                // ==========================================
                 try {
                     $admins = \App\Models\User::where('role', 'admin')->get();
 
@@ -189,7 +162,6 @@ class StudentBuyPackageController extends Controller
                             'currency'     => $order->currency,
                         ];
 
-                        // 1. الحفظ في الداتابيز لكل المديرين
                         \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
                             'عملية شراء جديدة 💰',
                             "قام الطالب {$studentName} بشراء {$packageName} بنجاح.",
@@ -197,7 +169,6 @@ class StudentBuyPackageController extends Controller
                             $notificationData
                         ));
 
-                        // 2. إرسال البث اللحظي (Pusher) لكل مدير
                         foreach ($admins as $admin) {
                             broadcast(new \App\Events\NewOrderPaid($admin->id, $notificationData));
                         }
@@ -205,25 +176,17 @@ class StudentBuyPackageController extends Controller
                 } catch (\Exception $e) {
                     Log::error('Admin Order Notification Error: ' . $e->getMessage());
                 }
-                // ==========================================
             }
         }
-
-        // Always return 200 OK to PayTabs so they stop retrying the webhook
         return response('OK');
     }
 
-    // 3️⃣ Frontend Redirect
     public function handleResponse(Request $request)
     {
         $data = $request->all();
-
-        // Mapping the keys from your specific PayTabs response
         $status  = $data['respStatus'] ?? null;
         $cartId  = $data['cartId'] ?? null;
         $tranRef = $data['tranRef'] ?? null;
-
-        // 🟢 تم التعديل هنا لترجع JSON بدلاً من View
         if ($status === 'A') {
             return response()->json([
                 'status'  => 'true',
@@ -234,7 +197,6 @@ class StudentBuyPackageController extends Controller
                 ]
             ], 200);
         }
-
         return response()->json([
             'status'          => 'false',
             'message'         => 'فشلت عملية الدفع أو تم إلغاؤها',
