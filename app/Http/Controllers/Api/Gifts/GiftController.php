@@ -79,7 +79,6 @@ class GiftController extends Controller
             return response()->json(['error' => 'حدث خطأ غير متوقع أثناء تجهيز الهدية'], 500);
         }
     }
-
     public function handleCallback(Request $request)
     {
         $payload = $request->all();
@@ -107,7 +106,6 @@ class GiftController extends Controller
         }
         return response('OK');
     }
-
     public function handleResponse(Request $request)
     {
         $data = $request->all();
@@ -144,8 +142,6 @@ class GiftController extends Controller
         $isClaimed = $giftCard->status === 'claimed';
         return view('gifts.card_view', compact('giftCard', 'isClaimed'));
     }
-
-
     public function claimGift(Request $request)
     {
         $request->validate([
@@ -221,7 +217,6 @@ class GiftController extends Controller
             return response()->json(['error' => 'حدث خطأ غير متوقع أثناء استلام الهدية'], 500);
         }
     }
-
     public function myGifts()
     {
         try {

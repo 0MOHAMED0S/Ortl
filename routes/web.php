@@ -96,3 +96,5 @@ Route::post('/contact-us', [ContactController::class, 'sendEmail'])->name('conta
 
 Route::match(['get', 'post'], '/gifts/payment/response', [GiftController::class, 'handleResponse'])->name('web.gifts.payment.response');
 Route::get('/gifts/card/{code}', [GiftController::class, 'showGiftCard'])->name('web.gifts.card.show');
+
+Route::view('/policies', 'policies')->name('policies');

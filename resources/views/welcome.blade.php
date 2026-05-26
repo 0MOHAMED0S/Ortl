@@ -1587,7 +1587,7 @@
         </div>
     </section>
     @endif
-    
+
     <section id="about" class="py-5" style="background: var(--primary-light);">
         <div class="container py-4">
             <div class="row align-items-center g-5">
@@ -1855,11 +1855,10 @@
                             <div class="pkg-bottom">
                                 <div class="price-box">
                                     @if ($hasDiscount)
-                                        <span class="price-old">${{ number_format($originalPrice, 2) }}</span>
+                                        <span class="price-old">{{ number_format($originalPrice, 2) }} EGP</span>
                                     @endif
                                     <div class="price-current">
-                                        <span class="currency">$</span>
-                                        <span class="amount">{{ number_format($finalPrice, 2) }}</span>
+                                        <span class="amount">{{ number_format($finalPrice, 2) }} <span class="font-size:14px">EGP</span></span>
                                     </div>
                                 </div>
 
@@ -2076,7 +2075,7 @@
             </div>
         </div>
     </section>
-    <footer>
+<footer>
         <div class="container">
             <div class="row gy-5">
                 <div class="col-lg-4 col-md-6">
@@ -2103,15 +2102,13 @@
                 </div>
 
                 <div class="col-lg-3 col-md-6">
-                    {{-- <h5 class="footer-title">المساعدة</h5>
+                    <h5 class="footer-title">المساعدة</h5>
                     <ul class="footer-links">
-                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الأسئلة الشائعة</a>
-                        </li>
-                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> سياسة الخصوصية</a></li>
-                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الشروط والأحكام</a>
-                        </li>
-                        <li><a href="#contact"><i class="fa-solid fa-chevron-left text-xs"></i> اتصل بنا</a></li>
-                    </ul> --}}
+                        <li><a href="{{ route('policies') }}"><i class="fa-solid fa-chevron-left text-xs"></i> سياسة الخصوصية</a></li>
+                        {{-- <li><a href="{{ route('policies') }}"><i class="fa-solid fa-chevron-left text-xs"></i> الشروط والأحكام</a></li>
+                        <li><a href="{{ route('policies') }}"><i class="fa-solid fa-chevron-left text-xs"></i> الإلغاء والاسترجاع</a></li>
+                        <li><a href="{{ route('policies') }}"><i class="fa-solid fa-chevron-left text-xs"></i> اتصل بنا</a></li> --}}
+                    </ul>
                 </div>
 
                 <div class="col-lg-3 col-md-6">

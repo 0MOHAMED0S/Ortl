@@ -1017,7 +1017,7 @@
         </div>
     </div>
 
-    <footer>
+<footer>
         <div class="container">
             <div class="row gy-5">
                 <div class="col-lg-4 col-md-6">
@@ -1025,8 +1025,10 @@
                     <p class="footer-desc">ورتل.. رفيقك في رحلة تعلم القرآن الكريم. نسعى لربط المسلمين بكتاب الله عبر
                         تقنيات حديثة وكوادر تعليمية مؤهلة.</p>
                     <div class="social-icons">
-                        <a href="https://www.facebook.com/share/1HZASt1L9h/?mibextid=wwXIfr" target="_blank"><i class="fa-brands fa-facebook-f"></i></a>
-                        <a href="https://www.instagram.com/wartil20?igsh=MWxidnk0cjl4YXpwNw==" target="_blank"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="https://www.facebook.com/share/1HZASt1L9h/?mibextid=wwXIfr" target="_blank"><i
+                                class="fa-brands fa-facebook-f"></i></a>
+                        <a href="https://www.instagram.com/wartil20?igsh=MWxidnk0cjl4YXpwNw==" target="_blank"><i
+                                class="fa-brands fa-instagram"></i></a>
                     </div>
                 </div>
 
@@ -1042,15 +1044,13 @@
                 </div>
 
                 <div class="col-lg-3 col-md-6">
-                    {{-- <h5 class="footer-title">المساعدة</h5>
+                    <h5 class="footer-title">المساعدة</h5>
                     <ul class="footer-links">
-                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الأسئلة الشائعة</a>
-                        </li>
-                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> سياسة الخصوصية</a></li>
-                        <li><a href="#"><i class="fa-solid fa-chevron-left text-xs"></i> الشروط والأحكام</a>
-                        </li>
-                        <li><a href="#contact"><i class="fa-solid fa-chevron-left text-xs"></i> اتصل بنا</a></li>
-                    </ul> --}}
+                        <li><a href="{{ route('policies') }}"><i class="fa-solid fa-chevron-left text-xs"></i> سياسة الخصوصية</a></li>
+                        {{-- <li><a href="{{ route('policies') }}"><i class="fa-solid fa-chevron-left text-xs"></i> الشروط والأحكام</a></li>
+                        <li><a href="{{ route('policies') }}"><i class="fa-solid fa-chevron-left text-xs"></i> الإلغاء والاسترجاع</a></li>
+                        <li><a href="{{ route('policies') }}"><i class="fa-solid fa-chevron-left text-xs"></i> اتصل بنا</a></li> --}}
+                    </ul>
                 </div>
 
                 <div class="col-lg-3 col-md-6">
