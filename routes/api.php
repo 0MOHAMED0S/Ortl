@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Student\RatingController;
 use App\Http\Controllers\Api\Student\StudentAuthController;
 use App\Http\Controllers\Api\Student\StudentBookingController;
 use App\Http\Controllers\Api\Student\StudentBuyPackageController;
+use App\Http\Controllers\Api\Student\StudentXPayController;
 use App\Http\Controllers\Api\Student\StudentCallHistoryController;
 use App\Http\Controllers\Api\Student\StudentPackageController;
 use App\Http\Controllers\Api\Student\StudentTeacherController;
@@ -116,6 +117,12 @@ Route::prefix('student')->group(function () {
         Route::post('/callback', [StudentBuyPackageController::class, 'handleCallback'])->name('api.paytabs.callback');
     });
 
+    // XPay Payment Routes
+    Route::group(['prefix' => 'xpay'], function () {
+        Route::match(['get', 'post'], '/response', [StudentXPayController::class, 'handleResponse'])->name('api.xpay.response');
+        Route::post('/callback', [StudentXPayController::class, 'handleCallback'])->name('api.xpay.callback');
+    });
+
     // Get Countries
     Route::get('/countries', [CountryController::class, 'index']);
 
@@ -146,6 +153,7 @@ Route::prefix('student')->group(function () {
 
         Route::post('/packages/{package}/buy', [BuyPackageController::class, 'buy'])->name('packages.buy');
         Route::post('/package/buy', [StudentBuyPackageController::class, 'buyPackage']);
+        Route::post('/package/buy/xpay', [StudentXPayController::class, 'buyPackage']);
         Route::get('/user-packages', [StudentPackageController::class, 'userPackages']);
 
         Route::get('/tracks', [StudentTracksController::class, 'index']);
