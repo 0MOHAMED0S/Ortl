@@ -37,8 +37,8 @@ class XPayService
                 'pay_using' => 'card',
                 'custom_fields' => [
                     [
-                        'custom_field_label' => 'Order ID',
-                        'custom_field_value' => (string) $order->id
+                        'field_label' => 'Order ID',
+                        'field_value' => (string) $order->id
                     ]
                 ]
             ]);

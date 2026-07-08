@@ -120,8 +120,10 @@ class StudentXPayController extends Controller
         $orderId = null;
         if (isset($payload['custom_fields'])) {
             foreach ($payload['custom_fields'] as $field) {
-                if (strtolower($field['custom_field_label']) === 'order id' || strtolower($field['custom_field_label']) === 'order_id') {
-                    $orderId = $field['custom_field_value'];
+                $label = $field['field_label'] ?? $field['custom_field_label'] ?? '';
+                $value = $field['field_value'] ?? $field['custom_field_value'] ?? null;
+                if (strtolower($label) === 'order id' || strtolower($label) === 'order_id') {
+                    $orderId = $value;
                     break;
                 }
             }
