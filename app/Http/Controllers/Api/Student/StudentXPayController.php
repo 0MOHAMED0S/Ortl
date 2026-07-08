@@ -215,6 +215,13 @@ class StudentXPayController extends Controller
                 ]
             ], 200);
         }
+
+        Log::error('XPay Payment Response Error:', [
+            'received_data' => $data,
+            'status_extracted' => $status,
+            'order_id_extracted' => $orderId
+        ]);
+
         return response()->json([
             'status'          => 'false',
             'message'         => 'فشلت عملية الدفع أو تم إلغاؤها',
