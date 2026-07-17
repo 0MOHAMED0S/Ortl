@@ -303,12 +303,12 @@
                 <div class="pkg-header">
                     <h5 class="pkg-title {{ $package->discount > 0 ? 'text-warning' : '' }}">{{ $package->name }}</h5>
                     <div class="pkg-price-box">
-                        <span class="pkg-currency">$</span>
+                        <span class="pkg-currency">ج.م</span>
                         <span class="pkg-price">{{ $package->price }}</span>
                     </div>
                     @if($package->discount > 0)
                         @php $originalPrice = $package->price / (1 - ($package->discount / 100)); @endphp
-                        <div class="pkg-old-price">بدلاً من ${{ number_format($originalPrice, 1) }}</div>
+                        <div class="pkg-old-price">بدلاً من {{ number_format($originalPrice, 1) }} ج.م</div>
                     @endif
                 </div>
 

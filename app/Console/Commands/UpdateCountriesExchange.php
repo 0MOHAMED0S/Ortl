@@ -37,9 +37,9 @@ class UpdateCountriesExchange extends Command
 
             $currency = $c['currencies'][$currencyCode];
 
-            // 1 USD = X Local Currency
+            // 1 EGP = X Local Currency
             $rateResponse = Http::get('https://api.fastforex.io/fetch-one', [
-                'from' => 'USD',
+                'from' => 'EGP',
                 'to' => $currencyCode,
                 'api_key' => env('FASTFOREX_API_KEY')
             ])->json();
@@ -71,7 +71,7 @@ class UpdateCountriesExchange extends Command
 
             // طباعة رسالة توضح حالة الدولة في الـ Terminal
             $statusText = $isActive ? '✅ Active' : '❌ Inactive';
-            $this->info("Updated {$c['name']['common']} ({$currencyCode}) => 1 USD = {$rate} {$currencyCode}, Phone: {$phoneCode} | [{$statusText}]");
+            $this->info("Updated {$c['name']['common']} ({$currencyCode}) => 1 EGP = {$rate} {$currencyCode}, Phone: {$phoneCode} | [{$statusText}]");
         }
 
         $this->info('All countries updated successfully!');

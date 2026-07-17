@@ -38,7 +38,7 @@ class StudentBuyPackageController extends Controller
 
             $country = $user->country;
             $rate = ($country && $country->rate_to_usd > 0) ? (float) $country->rate_to_usd : 1;
-            $currency = ($country && $country->currency_code) ? $country->currency_code : config('paytabs.currency', 'USD');
+            $currency = ($country && $country->currency_code) ? $country->currency_code : config('paytabs.currency', 'EGP');
 
             $packageFinalPriceUsd = (float) $package->price;
             $convertedPrice = $packageFinalPriceUsd * $rate;

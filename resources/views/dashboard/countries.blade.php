@@ -152,7 +152,7 @@
                         <th class="text-start">الدولة / الكود</th>
                         <th class="text-start">العملة المحلية</th>
                         <th class="text-start">مفتاح الاتصال</th>
-                        <th class="text-start">سعر الصرف لـ USD</th>
+                        <th class="text-start">سعر الصرف لـ EGP</th>
                         <th class="text-end" style="width: 200px;">حالة التفعيل</th>
                     </tr>
                 </thead>

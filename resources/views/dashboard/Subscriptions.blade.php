@@ -392,7 +392,7 @@
                                         <span class="info-value" id="m-localPaid"></span>
                                     </div>
                                     <div class="col-6">
-                                        <span class="info-label">سعر الصرف المعتمد</span>
+                                        <span class="info-label">سعر الصرف لـ EGP</span>
                                         <span class="info-value text-primary font-monospace" id="m-rate"></span>
                                     </div>
                                 </div>
@@ -570,10 +570,10 @@
         document.getElementById('m-avatar-img').src = order.user.image;
 
         // البيانات المالية
-        document.getElementById('m-pkgPrice').innerText = '$' + order.price_before_usd;
+        document.getElementById('m-pkgPrice').innerText = order.price_before_usd + ' ج.م';
         document.getElementById('m-localPaid').innerText = `${order.amount_local} ${order.currency}`;
-        document.getElementById('m-netUSD').innerText = '$' + order.price_after_usd;
-        document.getElementById('m-rate').innerText = `1$ = ${order.country.rate} ${order.country.currency_code}`;
+        document.getElementById('m-netUSD').innerText = order.price_after_usd + ' ج.م';
+        document.getElementById('m-rate').innerText = `1 ج.م = ${order.country.rate} ${order.country.currency_code}`;
 
         // بيانات الباقة
         document.getElementById('m-pkgName').innerText = order.package_name;

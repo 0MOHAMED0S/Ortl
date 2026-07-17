@@ -134,7 +134,7 @@ class StudentPackageController extends Controller
 
                 $localOriginalPrice = $originalPriceUsd * $rate;
                 $localFinalPrice = $finalPriceUsd * $rate;
-                $currencySymbol = $country?->currency_symbol ?? '$';
+                $currencySymbol = $country?->currency_symbol ?? 'ج.م';
 
                 $purchaseDate = $userPackage->created_at ? \Carbon\Carbon::parse($userPackage->created_at) : null;
 
@@ -165,7 +165,7 @@ class StudentPackageController extends Controller
                         'original_price_usd'   => round($originalPriceUsd, 2),
                         'final_price_usd'      => round($finalPriceUsd, 2),
 
-                        'currency'        => $country?->currency_code ?? 'USD',
+                        'currency'        => $country?->currency_code ?? 'EGP',
                         'currency_symbol' => $currencySymbol,
 
                         'display_original_price' => sprintf('%s %s', $currencySymbol, number_format($localOriginalPrice, 0)),
@@ -177,7 +177,7 @@ class StudentPackageController extends Controller
             return response()->json([
                 'status'  => true,
                 'message' => 'تم استرجاع باقات المستخدم بنجاح.',
-                'country' => $country?->name ?? 'Default (USD)',
+                'country' => $country?->name ?? 'Default (EGP)',
                 'summary' => [
                     'total_original_minutes'         => $totalOriginalMinutes,
                     'total_remaining_minutes'        => $totalRemainingMinutes,
@@ -246,7 +246,7 @@ class StudentPackageController extends Controller
                     'package_id'       => $package->id,
                     'package_name'     => $package->name,
                     'original_price'   => round($packageFinalPriceUsd, 2),
-                    'country_currency' => $user->country?->currency_code ?? 'USD',
+                    'country_currency' => $user->country?->currency_code ?? 'EGP',
                     'converted_price'  => round($convertedPrice, 2),
                     'discount_percent' => $discountPercentage,
                     'discount_amount'  => round($discountAmount, 2),
