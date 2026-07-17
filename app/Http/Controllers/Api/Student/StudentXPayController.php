@@ -93,6 +93,16 @@ class StudentXPayController extends Controller
 
             $payment = $xpayService->createPayment($order, $user);
 
+            // New XPay API returns 'url' directly
+            if (isset($payment['url'])) {
+                return response()->json([
+                    'payment_url' => $payment['url'],
+                    'order_id'    => $order->id,
+                    'data'        => $payment
+                ]);
+            }
+
+            // Fallback for old API if still active for some reason
             if (isset($payment['data']['iframe_url'])) {
                 return response()->json([
                     'payment_url' => $payment['data']['iframe_url'],
@@ -116,9 +126,17 @@ class StudentXPayController extends Controller
         $payload = $request->all();
         Log::info('XPay Webhook Callback Payload:', $payload);
         
-        // Custom fields usually contain the order ID passed in the request
         $orderId = null;
-        if (isset($payload['custom_fields'])) {
+        
+        // New API Structure: check metadata
+        if (isset($payload['data']['object']['metadata']['orderId'])) {
+            $orderId = $payload['data']['object']['metadata']['orderId'];
+        } elseif (isset($payload['metadata']['orderId'])) {
+            $orderId = $payload['metadata']['orderId'];
+        }
+
+        // Old API Structure / custom_fields fallback
+        if (!$orderId && isset($payload['custom_fields'])) {
             foreach ($payload['custom_fields'] as $field) {
                 $label = $field['field_label'] ?? $field['custom_field_label'] ?? '';
                 $value = $field['field_value'] ?? $field['custom_field_value'] ?? null;
@@ -129,16 +147,17 @@ class StudentXPayController extends Controller
             }
         }
 
-        // If not in custom_fields, maybe it's passed directly or in billing data
         if (!$orderId) {
             $orderId = $payload['order_id'] ?? $request->query('order_id');
         }
 
+        // Check new API paymentStatus or old transactionStatus
+        $paymentStatus = $payload['data']['object']['paymentStatus'] ?? $payload['paymentStatus'] ?? null;
         $transactionStatus = $payload['transaction_status'] ?? $payload['status'] ?? null;
         
-        // Note: Implement proper signature verification here if XPay provides a webhook signature header.
+        $isSuccessful = strtolower($paymentStatus) === 'paid' || strtoupper($transactionStatus) === 'SUCCESSFUL';
         
-        if (strtoupper($transactionStatus) === 'SUCCESSFUL' && $orderId) {
+        if ($isSuccessful && $orderId) {
             $order = Order::with(['user', 'package'])->find($orderId);
 
             if ($order && $order->status !== 'paid') {

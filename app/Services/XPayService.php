@@ -17,28 +17,42 @@ class XPayService
     public function createPayment($order, $user)
     {
         try {
-            $baseUrl = config('xpay.base_url');
-            $endpoint = rtrim($baseUrl, '/') . '/payments/pay/variable-amount';
+            $baseUrl = config('xpay.base_url', 'https://api.xpay.app/');
+            $endpoint = rtrim($baseUrl, '/') . '/checkout/sessions';
+
+            // Amount usually handled in the smallest unit (piasters) if mimicking Stripe
+            $amountInCents = (int) round((float) $order->amount * 100);
 
             $response = Http::withHeaders([
-                'x-api-key' => config('xpay.api_key'),
+                'Authorization' => 'Bearer ' . config('xpay.secret_key'),
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json'
             ])->post($endpoint, [
-                'billing_data' => [
+                'customerDetails' => [
                     'name' => $user->name,
                     'email' => $user->email,
-                    'phone_number' => $user->phone ?? '01000000000',
+                    'phone' => $user->phone ?? '01000000000',
                 ],
-                'amount' => (float) $order->amount,
-                'currency' => strtoupper($order->currency ?? 'EGP'),
-                'variable_amount_id' => (int) config('xpay.variable_amount_id'),
-                'community_id' => config('xpay.community_id'),
-                'pay_using' => 'card',
-                'custom_fields' => [
+                'lineItems' => [
                     [
-                        'field_label' => 'Order ID',
-                        'field_value' => (string) $order->id
+                        'priceData' => [
+                            'currency' => strtoupper($order->currency ?? 'EGP'),
+                            'productData' => [
+                                'name' => 'Order #' . $order->id,
+                                'description' => 'Order Payment ID: ' . $order->id,
+                            ],
+                            'unitAmount' => $amountInCents,
+                        ],
+                        'quantity' => 1,
+                    ]
+                ],
+                'metadata' => [
+                    'orderId' => (string) $order->id
+                ],
+                'afterCompletion' => [
+                    'type' => 'redirect',
+                    'redirect' => [
+                        'url' => route('payment.success') . '?session_id={CHECKOUT_SESSION_ID}&order_id=' . $order->id
                     ]
                 ]
             ]);
