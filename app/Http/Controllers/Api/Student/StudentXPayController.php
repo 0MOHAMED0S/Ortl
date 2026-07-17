@@ -121,6 +121,69 @@ class StudentXPayController extends Controller
         }
     }
 
+    private function fulfillOrder($orderId, $transactionId = null)
+    {
+        $order = Order::with(['user', 'package'])->find($orderId);
+
+        if ($order && $order->status !== 'paid') {
+            DB::transaction(function () use ($order, $transactionId) {
+                $order->update([
+                    'status' => 'paid',
+                    'transaction_id' => $transactionId
+                ]);
+                if ($order->coupon_id) {
+                    $coupon = Coupon::find($order->coupon_id);
+                    if ($coupon) {
+                        $coupon->increment('used');
+                        Log::info("Coupon ID {$coupon->id} usage incremented for Order #{$order->id}");
+                    }
+                }
+                $package = $order->package;
+                UserPackage::create([
+                    'user_id'           => $order->user_id,
+                    'package_id'        => $order->package_id,
+                    'remaining_minutes' => $package->base_minutes + ($package->bonus_minutes ?? 0),
+                    'expires_at'        => now()->addDays($package->validity_days),
+                    'status'            => 'active'
+                ]);
+
+                Log::info("Order #{$order->id} fulfilled successfully via XPay.");
+            });
+
+            try {
+                $admins = \App\Models\User::where('role', 'admin')->get();
+
+                if ($admins->count() > 0) {
+                    $studentName = $order->user->name ?? 'طالب';
+                    $packageName = $order->package->name ?? 'باقة';
+
+                    $notificationData = [
+                        'order_id'     => $order->id,
+                        'student_name' => $studentName,
+                        'package_name' => $packageName,
+                        'amount'       => $order->amount,
+                        'currency'     => $order->currency,
+                    ];
+
+                    \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
+                        'عملية شراء جديدة 💰',
+                        "قام الطالب {$studentName} بشراء {$packageName} بنجاح عبر XPay.",
+                        'new_order',
+                        $notificationData
+                    ));
+
+                    foreach ($admins as $admin) {
+                        broadcast(new \App\Events\NewOrderPaid($admin->id, $notificationData));
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Admin Order Notification Error: ' . $e->getMessage());
+            }
+            return true;
+        }
+        return false;
+    }
+
     public function handleCallback(Request $request)
     {
         $payload = $request->all();
@@ -154,68 +217,12 @@ class StudentXPayController extends Controller
         // Check new API paymentStatus or old transactionStatus
         $paymentStatus = $payload['data']['object']['paymentStatus'] ?? $payload['paymentStatus'] ?? null;
         $transactionStatus = $payload['transaction_status'] ?? $payload['status'] ?? null;
+        $transactionId = $payload['transaction_uuid'] ?? $payload['transaction_id'] ?? null;
         
         $isSuccessful = strtolower($paymentStatus) === 'paid' || strtoupper($transactionStatus) === 'SUCCESSFUL';
         
         if ($isSuccessful && $orderId) {
-            $order = Order::with(['user', 'package'])->find($orderId);
-
-            if ($order && $order->status !== 'paid') {
-
-                DB::transaction(function () use ($order, $payload) {
-                    $order->update([
-                        'status' => 'paid',
-                        'transaction_id' => $payload['transaction_uuid'] ?? $payload['transaction_id'] ?? null
-                    ]);
-                    if ($order->coupon_id) {
-                        $coupon = Coupon::find($order->coupon_id);
-                        if ($coupon) {
-                            $coupon->increment('used');
-                            Log::info("Coupon ID {$coupon->id} usage incremented for Order #{$order->id}");
-                        }
-                    }
-                    $package = $order->package;
-                    UserPackage::create([
-                        'user_id'           => $order->user_id,
-                        'package_id'        => $order->package_id,
-                        'remaining_minutes' => $package->base_minutes + ($package->bonus_minutes ?? 0),
-                        'expires_at'        => now()->addDays($package->validity_days),
-                        'status'            => 'active'
-                    ]);
-
-                    Log::info("Order #{$order->id} fulfilled successfully via XPay.");
-                });
-
-                try {
-                    $admins = \App\Models\User::where('role', 'admin')->get();
-
-                    if ($admins->count() > 0) {
-                        $studentName = $order->user->name ?? 'طالب';
-                        $packageName = $order->package->name ?? 'باقة';
-
-                        $notificationData = [
-                            'order_id'     => $order->id,
-                            'student_name' => $studentName,
-                            'package_name' => $packageName,
-                            'amount'       => $order->amount,
-                            'currency'     => $order->currency,
-                        ];
-
-                        \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
-                            'عملية شراء جديدة 💰',
-                            "قام الطالب {$studentName} بشراء {$packageName} بنجاح عبر XPay.",
-                            'new_order',
-                            $notificationData
-                        ));
-
-                        foreach ($admins as $admin) {
-                            broadcast(new \App\Events\NewOrderPaid($admin->id, $notificationData));
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Admin Order Notification Error: ' . $e->getMessage());
-                }
-            }
+            $this->fulfillOrder($orderId, $transactionId);
         }
         return response('OK');
     }
@@ -225,14 +232,20 @@ class StudentXPayController extends Controller
         $data = $request->all();
         $status = $data['transaction_status'] ?? $data['status'] ?? null;
         $orderId = $data['order_id'] ?? $request->query('order_id');
+        $transactionId = $data['transaction_uuid'] ?? null;
 
-        if (strtoupper($status) === 'SUCCESSFUL') {
+        if (strtoupper($status) === 'SUCCESSFUL' || strtolower($status) === 'paid' || (isset($data['session_id']) && $orderId)) {
+            // We can try to fulfill the order right here if it wasn't done by the webhook yet
+            if ($orderId) {
+                $this->fulfillOrder($orderId, $transactionId);
+            }
+
             return response()->json([
                 'status'  => 'true',
                 'message' => 'تمت عملية الدفع بنجاح',
                 'data'    => [
                     'order_id'       => $orderId,
-                    'transaction_id' => $data['transaction_uuid'] ?? null
+                    'transaction_id' => $transactionId
                 ]
             ], 200);
         }
