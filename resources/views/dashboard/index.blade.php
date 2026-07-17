@@ -142,7 +142,7 @@
         <div class="stat-card card-highlight">
             <div class="stat-info">
                 <div class="stat-title text-white-50">إجمالي الإيرادات</div>
-                <div class="stat-value">${{ number_format($stats['total_revenue'], 2) }}</div>
+                <div class="stat-value">{{ number_format($stats['total_revenue'], 2) }} ج.م</div>
             </div>
             <div class="stat-icon">
                 <i class="fa-solid fa-sack-dollar"></i>
