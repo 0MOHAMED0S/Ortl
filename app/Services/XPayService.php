@@ -52,7 +52,7 @@ class XPayService
                 'afterCompletion' => [
                     'type' => 'redirect',
                     'redirect' => [
-                        'url' => route('payment.success') . '?session_id={CHECKOUT_SESSION_ID}&order_id=' . $order->id
+                        'url' => route('api.xpay.response') . '?session_id={CHECKOUT_SESSION_ID}&order_id=' . $order->id
                     ]
                 ]
             ]);
