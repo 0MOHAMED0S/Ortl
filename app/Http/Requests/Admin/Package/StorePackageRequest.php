@@ -32,7 +32,7 @@ class StorePackageRequest extends FormRequest
             'price' => [
                 'required',
                 'numeric',
-                'min:0',
+                'min:50',
             ],
 
             'discount' => [
@@ -76,6 +76,7 @@ class StorePackageRequest extends FormRequest
 
             'price.required' => 'سعر الباقة مطلوب',
             'price.numeric' => 'سعر الباقة يجب أن يكون رقمًا صحيحًا',
+            'price.min' => 'سعر الباقة يجب ألا يقل عن 50 ج.م',
 
             'discount.integer' => 'نسبة الخصم يجب أن تكون رقمًا صحيحًا',
             'discount.max' => 'نسبة الخصم لا يمكن أن تتجاوز 100%',

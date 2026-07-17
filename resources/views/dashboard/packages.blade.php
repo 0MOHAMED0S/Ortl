@@ -388,7 +388,7 @@
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <label class="form-label"><i class="fa-solid fa-dollar-sign text-muted me-1"></i> السعر النهائي</label>
-                                    <input type="number" name="price" class="form-control custom-input text-success fw-bold" value="{{ $package->price }}" step="0.01" >
+                                    <input type="number" name="price" class="form-control custom-input text-success fw-bold" value="{{ $package->price }}" step="0.01" min="50" required>
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <label class="form-label"><i class="fa-solid fa-percent text-muted me-1"></i> الخصم (%)</label>
@@ -480,7 +480,7 @@
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label"><i class="fa-solid fa-dollar-sign text-muted me-1"></i> السعر <span class="text-danger">*</span></label>
-                            <input type="number" name="price" class="form-control custom-input fw-bold" placeholder="0.00" step="0.01" >
+                            <input type="number" name="price" class="form-control custom-input fw-bold" placeholder="0.00" step="0.01" min="50" required>
                         </div>
                         <div class="col-6 col-md-3">
                             <label class="form-label"><i class="fa-solid fa-percent text-muted me-1"></i> خصم تسويقي</label>
