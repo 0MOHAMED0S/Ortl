@@ -39,7 +39,7 @@ Route::get('/user', function (Request $request) {
 
 
 // Teacher Authentication Routes
-Route::prefix('teacher')->group(function () {
+Route::prefix('teacher')->middleware('throttle:5,1')->group(function () {
     // Login (Public)
     Route::post('/login', [TeacherAuthController::class, 'login']);
 
@@ -94,7 +94,7 @@ Route::prefix('teacher')->group(function () {
 });
 
 // student endpoints
-Route::prefix('student')->group(function () {
+Route::prefix('student')->middleware('throttle:5,1')->group(function () {
 
     // Login
     Route::post('/login', [StudentAuthController::class, 'login']);

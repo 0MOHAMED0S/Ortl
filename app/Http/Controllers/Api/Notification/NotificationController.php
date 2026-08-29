@@ -13,8 +13,22 @@ class NotificationController extends Controller
     {
         try {
             $user = auth()->user();
-            $notifications = $user->notifications()->paginate($request->get('per_page', 15));
 
+            if (!$user) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'المستخدم غير مسجل الدخول.',
+                ], 401);
+            }
+
+            // Validate and cap the 'per_page' parameter to prevent overloading the database (Max 50)
+            $perPage = $request->query('per_page', 15);
+            $perPage = is_numeric($perPage) ? (int) $perPage : 15;
+            $perPage = max(1, min(50, $perPage));
+
+            $notifications = $user->notifications()->paginate($perPage);
+
+            // Transform the collection to safely handle missing data keys
             $notifications->getCollection()->transform(function ($notification) {
                 $data = $notification->data;
 
@@ -40,7 +54,15 @@ class NotificationController extends Controller
                 ]
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Get Notifications Error: ' . $e->getMessage());
+            
+            // Log detailed error for debugging
+            Log::error('Get Notifications Error', [
+                'user_id' => optional(auth()->user())->id,
+                'ip'      => $request->ip(),
+                'error'   => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء جلب الإشعارات.'
@@ -53,12 +75,21 @@ class NotificationController extends Controller
         try {
             $user = auth()->user();
 
+            if (!$user) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'المستخدم غير مسجل الدخول.',
+                ], 401);
+            }
+
             if ($request->has('notification_id')) {
+                // Ensure the notification belongs to the authenticated user securely
                 $notification = $user->notifications()->where('id', $request->notification_id)->first();
                 if ($notification) {
                     $notification->markAsRead();
                 }
             } else {
+                // Mark all unread notifications as read
                 $user->unreadNotifications->markAsRead();
             }
 
@@ -70,7 +101,15 @@ class NotificationController extends Controller
                 ]
             ], 200);
         } catch (\Throwable $e) {
-            Log::error('Mark Notifications Read Error: ' . $e->getMessage());
+            
+            // Log detailed error for debugging
+            Log::error('Mark Notifications Read Error', [
+                'user_id' => optional(auth()->user())->id,
+                'ip'      => $request->ip(),
+                'error'   => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'status'  => false,
                 'message' => 'حدث خطأ أثناء تحديث حالة الإشعارات.'
