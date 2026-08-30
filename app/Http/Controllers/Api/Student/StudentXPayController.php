@@ -7,10 +7,12 @@ use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\UserPackage;
+use App\Models\GiftCard;
 use App\Services\XPayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class StudentXPayController extends Controller
 {
@@ -123,7 +125,7 @@ class StudentXPayController extends Controller
 
     private function fulfillOrder($orderId, $transactionId = null)
     {
-        $order = Order::with(['user', 'package'])->find($orderId);
+        $order = Order::with(['user', 'package', 'giftCard'])->find($orderId);
 
         if ($order && $order->status !== 'paid') {
             DB::transaction(function () use ($order, $transactionId) {
@@ -131,23 +133,36 @@ class StudentXPayController extends Controller
                     'status' => 'paid',
                     'transaction_id' => $transactionId
                 ]);
-                if ($order->coupon_id) {
-                    $coupon = Coupon::find($order->coupon_id);
-                    if ($coupon) {
-                        $coupon->increment('used');
-                        Log::info("Coupon ID {$coupon->id} usage incremented for Order #{$order->id}");
-                    }
-                }
-                $package = $order->package;
-                UserPackage::create([
-                    'user_id'           => $order->user_id,
-                    'package_id'        => $order->package_id,
-                    'remaining_minutes' => $package->base_minutes + ($package->bonus_minutes ?? 0),
-                    'expires_at'        => now()->addDays($package->validity_days),
-                    'status'            => 'active'
-                ]);
 
-                Log::info("Order #{$order->id} fulfilled successfully via XPay.");
+                if ($order->is_gift) {
+                    $giftCard = $order->giftCard;
+                    if ($giftCard) {
+                        $couponCode = 'GFT-' . strtoupper(Str::random(6));
+                        $giftCard->update([
+                            'payment_status' => 'paid',
+                            'coupon_code'    => $couponCode,
+                        ]);
+                        Log::info("Gift Order #{$order->id} paid successfully via XPay. Gift Code generated: {$couponCode}");
+                    }
+                } else {
+                    if ($order->coupon_id) {
+                        $coupon = \App\Models\Coupon::find($order->coupon_id);
+                        if ($coupon) {
+                            $coupon->increment('used');
+                            Log::info("Coupon ID {$coupon->id} usage incremented for Order #{$order->id}");
+                        }
+                    }
+                    $package = $order->package;
+                    UserPackage::create([
+                        'user_id'           => $order->user_id,
+                        'package_id'        => $order->package_id,
+                        'remaining_minutes' => $package->base_minutes + ($package->bonus_minutes ?? 0),
+                        'expires_at'        => now()->addDays($package->validity_days),
+                        'status'            => 'active'
+                    ]);
+
+                    Log::info("Order #{$order->id} fulfilled successfully via XPay.");
+                }
             });
 
             try {

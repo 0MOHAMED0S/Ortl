@@ -13,7 +13,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('packages:check-expired')->dailyAt('00:00');
+Schedule::command('packages:check-expired')->everyFiveMinutes();
 
 Schedule::call(function () {
     try {

@@ -50,7 +50,7 @@ class TeacherWalletController extends Controller
                         'total_minutes'   => (int) $totalMinutes,
                         'hourly_rate'     => (float) $hourlyRate,
                         'current_balance' => round($currentBalance, 2),
-                        'currency'        => 'USD',
+                        'currency'        => 'EGP',
                     ],
                     'recent_withdrawals'  => $recentWithdrawals
                 ]
@@ -115,7 +115,7 @@ public function requestWithdrawal(Request $request)
             'account_number' => 'required|string|min:5|max:50',
             'notes'          => 'nullable|string|max:500',
         ], [
-            'amount.required'         => 'يرجى إدخال المبلغ المراد سحبه بالدولار.',
+            'amount.required'         => 'يرجى إدخال المبلغ المراد سحبه بالجنيه المصري.',
             'amount.numeric'          => 'المبلغ يجب أن يكون رقماً.',
             'amount.min'              => 'المبلغ يجب أن يكون أكبر من الصفر.',
             'account_number.required' => 'يرجى إدخال رقم الكاش أو الحساب البنكي.',
@@ -177,7 +177,7 @@ public function requestWithdrawal(Request $request)
                     // 1. الداتابيز
                     \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
                         'طلب سحب أرباح جديد 💸',
-                        "طلب المعلم {$teacherUser->name} سحب مبلغ {$withdrawal->amount}$.",
+                        "طلب المعلم {$teacherUser->name} سحب مبلغ {$withdrawal->amount} جنيه.",
                         'new_withdrawal',
                         $notificationData
                     ));
@@ -202,7 +202,7 @@ public function requestWithdrawal(Request $request)
                     'request_id'        => $withdrawal->id,
                     'withdrawn_amount'  => $withdrawal->amount,
                     'remaining_balance' => round($remainingBalance, 2),
-                    'currency'          => 'USD'
+                    'currency'          => 'EGP'
                 ]
             ], 201);
 
@@ -261,7 +261,7 @@ public function requestWithdrawal(Request $request)
                     // 1. الداتابيز
                     \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\DynamicNotification(
                         'إلغاء طلب سحب 🔄',
-                        "قام المعلم {$teacherUser->name} بالتراجع عن طلب السحب بقيمة {$withdrawnAmount}$.",
+                        "قام المعلم {$teacherUser->name} بالتراجع عن طلب السحب بقيمة {$withdrawnAmount} جنيه.",
                         'withdrawal_cancelled',
                         $notificationData
                     ));
@@ -284,7 +284,7 @@ public function requestWithdrawal(Request $request)
                 'message' => 'تم إلغاء الطلب وإرجاع الرصيد إلى محفظتك بنجاح.',
                 'data'    => [
                     'current_balance' => round($newBalance, 2),
-                    'currency'        => 'USD'
+                    'currency'        => 'EGP'
                 ]
             ], 200);
 

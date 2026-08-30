@@ -14,7 +14,7 @@ class XPayService
      * @param \App\Models\User $user
      * @return array|null
      */
-    public function createPayment($order, $user)
+    public function createPayment($order, $user, $redirectUrl = null)
     {
         try {
             $baseUrl = config('xpay.base_url', 'https://api.xpay.app/');
@@ -22,6 +22,8 @@ class XPayService
 
             // Amount usually handled in the smallest unit (piasters) if mimicking Stripe
             $amountInCents = (int) round((float) $order->amount * 100);
+
+            $finalRedirectUrl = $redirectUrl ?? (route('api.xpay.response') . '?session_id={CHECKOUT_SESSION_ID}&order_id=' . $order->id);
 
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . config('xpay.secret_key'),
@@ -52,7 +54,7 @@ class XPayService
                 'afterCompletion' => [
                     'type' => 'redirect',
                     'redirect' => [
-                        'url' => route('api.xpay.response') . '?session_id={CHECKOUT_SESSION_ID}&order_id=' . $order->id
+                        'url' => $finalRedirectUrl
                     ]
                 ]
             ]);

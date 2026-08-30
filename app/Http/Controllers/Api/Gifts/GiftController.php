@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 
 class GiftController extends Controller
 {
-    public function buyGift(Request $request, PayTabsGiftService $payTabsGiftService)
+    public function buyGift(Request $request, \App\Services\XPayService $xpayService)
     {
         $request->validate([
             'package_id'     => 'required|exists:packages,id',
@@ -30,15 +30,13 @@ class GiftController extends Controller
             $package = Package::findOrFail($request->package_id);
             $country = $user->country;
 
-            if ($country && $country->currency_code) {
-                $currency = $country->currency_code;
-                $rate = ($country->rate_to_usd > 0) ? $country->rate_to_usd : 1;
-                $price = $package->price * $rate;
-            } else {
-                $currency = config('paytabs.currency', 'USD');
-                $price = $package->price;
-            }
-            return DB::transaction(function () use ($user, $package, $price, $currency, $request, $payTabsGiftService) {
+            $rate = ($country && $country->rate_to_usd > 0) ? (float) $country->rate_to_usd : 1;
+            $currency = ($country && $country->currency_code) ? $country->currency_code : 'EGP';
+
+            $packageFinalPriceUsd = (float) $package->price;
+            $price = $packageFinalPriceUsd * $rate;
+
+            return DB::transaction(function () use ($user, $package, $price, $currency, $request, $xpayService) {
                 $giftCard = GiftCard::create([
                     'sender_id'      => $user->id,
                     'package_id'     => $package->id,
@@ -53,29 +51,34 @@ class GiftController extends Controller
                 $order = Order::create([
                     'user_id'      => $user->id,
                     'package_id'   => $package->id,
-                    'country_id'   => $user->country_id,
+                    'country_id'   => optional($country)->id,
                     'amount'       => $price,
                     'currency'     => strtoupper($currency),
                     'status'       => 'pending',
                     'is_gift'      => true,
                     'gift_card_id' => $giftCard->id,
                 ]);
-                $payment = $payTabsGiftService->createGiftPayment($order, $user);
-                if (isset($payment['redirect_url'])) {
+
+                // We pass the gift response URL to XPay
+                $redirectUrl = route('api.gifts.payment.response') . '?order_id=' . $order->id . '&session_id={CHECKOUT_SESSION_ID}';
+                $payment = $xpayService->createPayment($order, $user, $redirectUrl);
+
+                if (isset($payment['url'])) {
                     return response()->json([
                         'status'      => true,
-                        'payment_url' => $payment['redirect_url'],
+                        'payment_url' => $payment['url'],
                         'order_id'    => $order->id,
                         'data'        => $payment
                     ]);
                 }
+
                 return response()->json([
-                    'error' => 'فشل في إنشاء طلب الدفع عبر PayTabs',
+                    'error' => 'فشل في إنشاء طلب الدفع عبر XPay',
                     'debug' => $payment
                 ], 400);
             });
         } catch (\Throwable $e) {
-            Log::error('PayTabs Gift Purchase Error: ' . $e->getMessage());
+            Log::error('XPay Gift Purchase Error: ' . $e->getMessage());
             return response()->json(['error' => 'حدث خطأ غير متوقع أثناء تجهيز الهدية'], 500);
         }
     }
@@ -109,10 +112,30 @@ class GiftController extends Controller
     public function handleResponse(Request $request)
     {
         $data = $request->all();
-        $status  = $data['respStatus'] ?? null;
-        $cartId  = $data['cartId'] ?? null;
-        if ($status === 'A') {
+        $status = $data['transaction_status'] ?? $data['status'] ?? null;
+        $cartId = $data['order_id'] ?? $request->query('order_id');
+        $isSuccessful = strtoupper($status) === 'SUCCESSFUL' || strtolower($status) === 'paid' || (isset($data['session_id']) && $cartId);
+
+        if ($isSuccessful && $cartId) {
             $order = Order::with('giftCard')->find($cartId);
+            
+            if ($order && $order->status !== 'paid') {
+                DB::transaction(function () use ($order) {
+                    $order->update(['status' => 'paid']);
+                    $giftCard = $order->giftCard;
+                    if ($giftCard && !$giftCard->coupon_code) {
+                        $couponCode = 'GFT-' . strtoupper(\Illuminate\Support\Str::random(6));
+                        $giftCard->update([
+                            'payment_status' => 'paid',
+                            'coupon_code'    => $couponCode,
+                        ]);
+                        \Illuminate\Support\Facades\Log::info("Gift Order #{$order->id} paid successfully via Response fallback. Gift Code: {$couponCode}");
+                    }
+                });
+                // Reload order after update
+                $order = $order->fresh(['giftCard']);
+            }
+            
             $giftCard = $order ? $order->giftCard : null;
             if ($giftCard && $giftCard->coupon_code) {
                 $couponCode = $giftCard->coupon_code;
