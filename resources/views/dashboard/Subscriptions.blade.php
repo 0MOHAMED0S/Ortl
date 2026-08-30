@@ -173,7 +173,7 @@
                 <div class="fin-card highlight">
                     <span class="stat-badge-mini">PAYTABS</span>
                     <small class="text-white text-opacity-75 fw-bold d-block mb-1 mt-2">صافي الأرباح المحققة</small>
-                    <h2 class="fw-bold m-0" id="display-net-revenue">${{ number_format($stats['net_revenue_usd'], 2) }}</h2>
+                    <h2 class="fw-bold m-0" id="display-net-revenue">{{ number_format($stats['net_revenue_egp'], 2) }} ج.م</h2>
                 </div>
             </div>
             <div class="col-12 col-md-6 col-lg-3">
@@ -194,7 +194,7 @@
                 <div class="fin-card text-center">
                     <span class="stat-badge-mini text-danger">DISCOUNTS</span>
                     <small class="text-muted d-block fw-bold mb-1 mt-2">إجمالي الخصومات</small>
-                    <h3 class="fw-bold m-0 text-danger" id="display-discounts">-${{ number_format($stats['total_discounts_usd'], 2) }}</h3>
+                    <h3 class="fw-bold m-0 text-danger" id="display-discounts">-{{ number_format($stats['total_discounts_egp'], 2) }} ج.م</h3>
                 </div>
             </div>
         </div>
@@ -211,7 +211,7 @@
             <div class="col-12 col-lg-6 d-flex align-items-end mt-3 mt-lg-0">
                 <div class="p-3 bg-white rounded-3 border shadow-sm w-100 d-flex justify-content-between align-items-center">
                     <span class="text-muted fw-bold small"><i class="fa-solid fa-calculator text-primary me-2"></i>متوسط الفاتورة للعمليات المفلترة:</span>
-                    <span class="fw-bold text-primary fs-5" id="display-avg">${{ $stats['success_orders'] > 0 ? number_format($stats['net_revenue_usd'] / $stats['success_orders'], 2) : 0 }}</span>
+                    <span class="fw-bold text-primary fs-5" id="display-avg">{{ $stats['success_orders'] > 0 ? number_format($stats['net_revenue_egp'] / $stats['success_orders'], 2) : 0 }} ج.م</span>
                 </div>
             </div>
         </div>
@@ -260,7 +260,7 @@
                     <tr class="small fw-bold text-muted text-uppercase">
                         <th class="p-3 border-0 text-start">تفاصيل العملية</th>
                         <th class="p-3 border-0 text-start">بيانات الطالب</th>
-                        <th class="p-3 border-0">تحليل السعر ($)</th>
+                        <th class="p-3 border-0">تحليل السعر (ج.م)</th>
                         <th class="p-3 border-0">التحصيل المحلي</th>
                         <th class="p-3 border-0">الحالة</th>
                         <th class="p-3 border-0 text-end">إجراءات</th>
@@ -274,8 +274,8 @@
                         data-package="{{ $order->package_name }}"
                         data-date="{{ $order->date_human }}"
                         data-search="{{ strtolower($order->user->name . ' ' . $order->user->email . ' ' . $order->transaction_id) }}"
-                        data-net="{{ $order->price_after_usd }}"
-                        data-discount="{{ $order->discount_amount_usd }}">
+                        data-net="{{ $order->price_after_egp }}"
+                        data-discount="{{ $order->discount_amount_egp }}">
                         <td class="p-3 text-start">
                             <div class="d-flex align-items-center mb-1">
                                 <span class="order-id">#{{ $order->transaction_id }}</span>
@@ -293,9 +293,9 @@
                             </div>
                         </td>
                         <td class="p-3">
-                            <span class="price-tag price-before">${{ $order->price_before_usd }}</span>
+                            <span class="price-tag price-before">{{ $order->price_before_egp }} ج.م</span>
                             <i class="fa-solid fa-arrow-left-long mx-1 text-muted small"></i>
-                            <span class="price-tag price-after">${{ $order->price_after_usd }}</span>
+                            <span class="price-tag price-after">{{ $order->price_after_egp }} ج.م</span>
                         </td>
                         <td class="p-3">
                             <div class="fw-bold text-dark fs-6">{{ $order->amount_local }} <span class="text-muted small">{{ $order->currency }}</span></div>
@@ -380,12 +380,12 @@
 
                                 <div class="row g-3">
                                     <div class="col-6">
-                                        <span class="info-label">السعر الأساسي ($)</span>
+                                        <span class="info-label">السعر الأساسي (ج.م)</span>
                                         <span class="info-value fs-5 text-dark" id="m-pkgPrice"></span>
                                     </div>
                                     <div class="col-6">
-                                        <span class="info-label">المبلغ الصافي المطلوب ($)</span>
-                                        <span class="info-value fs-4 text-success" id="m-netUSD"></span>
+                                        <span class="info-label">المبلغ الصافي المطلوب (ج.م)</span>
+                                        <span class="info-value fs-4 text-success" id="m-netEGP"></span>
                                     </div>
                                     <div class="col-6">
                                         <span class="info-label">المبلغ المحصل (محلي)</span>
@@ -520,10 +520,10 @@
         });
 
         document.getElementById('results-count').innerText = `${visibleCount} نتيجة`;
-        document.getElementById('display-net-revenue').innerText = '$' + netTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
-        document.getElementById('display-discounts').innerText = '-$' + discountTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+        document.getElementById('display-net-revenue').innerText = netTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) + ' ج.م';
+        document.getElementById('display-discounts').innerText = '-' + discountTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) + ' ج.م';
         document.getElementById('display-success-count').innerText = count;
-        document.getElementById('display-avg').innerText = '$' + (count > 0 ? (netTotal / count).toFixed(2) : '0.00');
+        document.getElementById('display-avg').innerText = (count > 0 ? (netTotal / count).toFixed(2) : '0.00') + ' ج.م';
     }
 
     function quickDateFilter(period, btn) {
@@ -570,9 +570,9 @@
         document.getElementById('m-avatar-img').src = order.user.image;
 
         // البيانات المالية
-        document.getElementById('m-pkgPrice').innerText = order.price_before_usd + ' ج.م';
+        document.getElementById('m-pkgPrice').innerText = order.price_before_egp + ' ج.م';
         document.getElementById('m-localPaid').innerText = `${order.amount_local} ${order.currency}`;
-        document.getElementById('m-netUSD').innerText = order.price_after_usd + ' ج.م';
+        document.getElementById('m-netEGP').innerText = order.price_after_egp + ' ج.م';
         document.getElementById('m-rate').innerText = `1 ج.م = ${order.country.rate} ${order.country.currency_code}`;
 
         // بيانات الباقة
@@ -589,8 +589,8 @@
 
         // 🟢 منطق الكوبون المعدل: حساب نسبة الخصم تلقائياً من بيانات الطلب
         const couponBox = document.getElementById('m-couponBox');
-        const discountAmount = parseFloat(order.discount_amount_usd);
-        const originalPrice = parseFloat(order.price_before_usd);
+        const discountAmount = parseFloat(order.discount_amount_egp);
+        const originalPrice = parseFloat(order.price_before_egp);
 
         if (discountAmount > 0) {
             couponBox.classList.remove('d-none');
@@ -607,7 +607,7 @@
             // إضافة النسبة المحسوبة إلى النص المعروض
             document.getElementById('m-couponCode').innerText = `${couponCodeDisplay} (${calculatedPercentage}%)`;
 
-            document.getElementById('m-savings').innerText = `-$${discountAmount}`;
+            document.getElementById('m-savings').innerText = `-${discountAmount} ج.م`;
         } else {
             couponBox.classList.add('d-none');
         }

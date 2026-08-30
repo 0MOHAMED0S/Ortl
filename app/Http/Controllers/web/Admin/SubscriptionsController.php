@@ -52,19 +52,19 @@ public function index(Request $request)
             $country = $order->user->student->country ?? null;
             $rate = ($country && $country->rate_to_usd > 0) ? $country->rate_to_usd : 1;
 
-            $priceBeforeUSD = $order->package->price ?? 0;
-            $priceAfterUSD = ($order->currency == 'USD') ? $order->amount : ($order->amount / $rate);
+            $priceBeforeEGP = $order->package->price ?? 0;
+            $priceAfterEGP = ($order->currency == 'EGP') ? $order->amount : ($order->amount / $rate);
 
             return [
-                'before' => $priceBeforeUSD,
-                'after'  => $priceAfterUSD,
-                'discount' => max(0, $priceBeforeUSD - $priceAfterUSD),
+                'before' => $priceBeforeEGP,
+                'after'  => $priceAfterEGP,
+                'discount' => max(0, $priceBeforeEGP - $priceAfterEGP),
             ];
         });
 
         $stats = [
-            'net_revenue_usd'     => $financials->sum('after'),
-            'total_discounts_usd' => $financials->sum('discount'),
+            'net_revenue_egp'     => $financials->sum('after'),
+            'total_discounts_egp' => $financials->sum('discount'),
             'success_orders'      => $paidOrders->count(),
             'pending_orders'      => Order::where('status', 'pending')->count(),
         ];
@@ -79,8 +79,8 @@ public function index(Request $request)
             $package = $order->package ?? null;
             $rate = ($country && $country->rate_to_usd > 0) ? $country->rate_to_usd : 1;
 
-            $beforeUSD = $package->price ?? 0;
-            $afterUSD = ($order->currency == 'USD') ? $order->amount : ($order->amount / $rate);
+            $beforeEGP = $package->price ?? 0;
+            $afterEGP = ($order->currency == 'EGP') ? $order->amount : ($order->amount / $rate);
 
             $isNew = $order->created_at->gt(Carbon::now()->subHours(24));
 
@@ -113,11 +113,11 @@ public function index(Request $request)
                 'package_bonus_minutes' => $package->bonus_minutes ?? 0,
                 'package_validity_days' => $package->validity_days ?? 0,
                 'package_description'   => $package->description ?? 'لا يوجد وصف متاح.',
-                'package_price_usd'     => number_format($beforeUSD, 2),
+                'package_price_egp'     => number_format($beforeEGP, 2),
 
-                'price_before_usd'    => number_format($beforeUSD, 2),
-                'price_after_usd'     => number_format($afterUSD, 2),
-                'discount_amount_usd' => number_format(max(0, $beforeUSD - $afterUSD), 2),
+                'price_before_egp'    => number_format($beforeEGP, 2),
+                'price_after_egp'     => number_format($afterEGP, 2),
+                'discount_amount_egp' => number_format(max(0, $beforeEGP - $afterEGP), 2),
                 'amount_local'        => number_format($order->amount, 2),
                 'currency'            => $order->currency,
                 'status'              => $order->status,
