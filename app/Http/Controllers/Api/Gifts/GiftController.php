@@ -36,7 +36,7 @@ class GiftController extends Controller
             $packageFinalPriceUsd = (float) $package->price;
             $price = $packageFinalPriceUsd * $rate;
 
-            return DB::transaction(function () use ($user, $package, $price, $currency, $request, $xpayService) {
+            return DB::transaction(function () use ($user, $package, $price, $currency, $request, $xpayService, $country) {
                 $giftCard = GiftCard::create([
                     'sender_id'      => $user->id,
                     'package_id'     => $package->id,
